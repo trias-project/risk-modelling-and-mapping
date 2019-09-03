@@ -1,6 +1,6 @@
 # Alien species risk modeling and mapping
 
-This respository contains the framework and R code in development for risk modelling and mapping of alien species throughout Belgium and greater Europe at 1 km2 resolution as part of the TrIAS project.
+This respository contains the framework and R code in development for risk modelling and mapping of alien species throughout Belgium and greater Europe at 1 km<sup>2</sup> resolution as part of the TrIAS project.
 
 
 ### Repository Structure
