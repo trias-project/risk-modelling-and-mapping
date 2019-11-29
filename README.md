@@ -14,22 +14,32 @@ This respository contains the framework and R code in development for risk model
     
       
  ## Workflow  
-  ### A.) Develop global scale climate-only species distribution models (SDMs)
+ 
+ The workflow can be divided in three sections.
+ 1. Develop global scale climate-only species distribution models (SDMs)
+ 2. Generate European level SDMs
+ 3. Forecast species distributions under climate change scenarios
+ 
+ Although theoretically possible, this workflow is not applied to all species listed in the published [unified checklist](https://www.gbif.org/dataset/6d9e952f-948c-4483-9807-575348147c7e) and whose occurrences are found. Creating SDMs is computationally very demanding. We limit our analysis to a list of species labelled as **emerging**. The emerging status is object of another work package and it is a semiautomated process described in repository [indicators](https://github.com/trias-project/indicators): see [webpage](https://trias-project.github.io/indicators/).
+ 
+ ### Develop global scale climate-only species distribution models (SDMs)
   These SDMs use all acceptable species occurrence data available at the date of download from GBIF to create climate suitability maps with global coverage for weighing pseudo absences. 
-   1. Download georeferenced occurrence data for the target species from GBIF with as many filters as possible to decrease the load on GBIF
-    2. Further filter data, by extracting points that match the time period being modeled and with the minimal acceptable geographic accuracy.
-    3. Using the raster package, create a rasterstack of the global climate layers (e.g. Annual Temperature, Annual Precipitation etc.) We used data from CHELSA ()
-    4. use SDMtab command from the SDMPlay package to remove duplicates per grid cell. 
-    5. Import WWF ecoregions layer (https://www.worldwildlife.org/publications/terrestrial-ecoregions-of-the-world) clipped to the distribution of target species. This step restricting pseudoabsence selection to those areas that theoretically reachable by the target species. 
-    6. Use randomPoints function from dismo package to randomly locate pseduobasences within the ecoregions; join these pseuboabsences to the presence data created in step 2.
-    7. Run multiple SDMs (using different algorithms) using the sdm package
-    8. Combine the SDMs by creating a weighted ensemble using a model evaluation statistic (we used TSS). Only predict to the limit of your study extent to reduce computation time.(Our study extent is Europe)
-    9. Evaluate accuracy of the model using 10-fold cross validation
   
-  ### B) Generate European level SDMs
+1. Download georeferenced occurrence data for the target species from GBIF with as many filters as possible to decrease the load on GBIF.
+2. Further filter data, by extracting points that match the time period being modeled and with the minimal acceptable geographic accuracy.
+3. Create a rasterstack of the global climate layers (e.g. Annual Temperature, Annual Precipitation etc.) using the `raster` package. We used data from CHELSA ().
+4. Use SDMtab command from the SDMPlay package to remove duplicates per grid cell. 
+5. Import [WWF ecoregions layer](https://www.worldwildlife.org/publications/terrestrial-ecoregions-of-the-world) clipped to the distribution of target species. This step restricts pseudoabsence selection to those areas that theoretically reachable by the target species. 
+6. Use randomPoints function from dismo package to randomly locate pseduobasences within the ecoregions; join these pseuboabsences to the presence data created in step 2.
+7. Run multiple SDMs (using different algorithms) using the sdm package
+8. Combine the SDMs by creating a weighted ensemble using a model evaluation statistic (we used TSS). Only predict to the limit of your study extent to reduce computation time.(Our study extent is Europe)
+9. Evaluate accuracy of the model using 10-fold cross validation
+  
+  ### Generate European level SDMs
   These SDMs predict the risk of invasion by alien species at 1km2 spatial resolution (using the EEA 1km2 grid) and the European data cube. It is from these models that the risk maps for Belgium are extracted.
   
-    Data Prep
+  Data Preparation
+  
   1. Extract occurrence data that is Acer negundo and meets our criteria from the European Data Cube
   2. Using the raster package, create a rasterstack of the european historical climate layers provided by RMI (these will be publicly available for download. Also create a rasterstack clipped to Belgium for prediction.
   
@@ -41,7 +51,8 @@ This respository contains the framework and R code in development for risk model
    6. Run multiple SDMs(using different algorithms),create weighted ensembles that limit prediction to the study extent (e.g Belgium). 
    7. Evaluate accuracy of model. Investigate addition of biophysical,landcover, and anthropogenic variables to model accuracy.
    
-  ###  C) Forecast species distributions under climate change scenarios
+  ### Forecast species distributions under climate change scenarios
+  
    8. Build raster stacks of the same variables used to calibrate the European level model, replacing historical climate predictors with the future climate predictors by RCP scenario provided by RMI.Clip rasters to study extent.
    9. Choose the best performing European level model(s) from step 7 and use it to forecast species distributions using the raster stack created in 8.
   
