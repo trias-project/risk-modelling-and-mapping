@@ -13,18 +13,18 @@ This respository contains the framework and R code in development for risk model
     ├── maps               <- Risk maps for Belgium (PDF).
     
       
- ## R Workflow  
+ ## Workflow  
   ### A.) Develop global scale climate-only species distribution models (SDMs)
   These SDMs use all acceptable species occurrence data available at the date of download from GBIF to create climate suitability maps with global coverage for weighing pseudo absences. 
    1. Download georeferenced occurrence data for the target species from GBIF with as many filters as possible to decrease the load on GBIF
     2. Further filter data, by extracting points that match the time period being modeled and with the minimal acceptable geographic accuracy.
     3. Using the raster package, create a rasterstack of the global climate layers (e.g. Annual Temperature, Annual Precipitation etc.) We used data from CHELSA ()
-    use SDMtab command from the SDMPlay package to remove duplicates per grid cell. 
-    4. Next,import WWF ecoregions layer (https://www.worldwildlife.org/publications/terrestrial-ecoregions-of-the-world) clipped to the distribution of target species. This step restricting pseudoabsence selection to those areas that theoretically reachable by the target species. 
-    5.Use randomPoints function from dismo package to randomly locate pseduobasences within the ecoregions; join these pseuboabsences to the presence data created in step 2.
-    6. Run multiple SDMs (using different algorithms) using the sdm package
-    7. Combine the SDMs by creating a weighted ensemble using a model evaluation statistic (we used TSS). Only predict to the limit of your study extent to reduce computation time.(Our study extent is Europe)
-    8. Evaluate accuracy of the model using 10-fold cross validation
+    4. use SDMtab command from the SDMPlay package to remove duplicates per grid cell. 
+    5. Import WWF ecoregions layer (https://www.worldwildlife.org/publications/terrestrial-ecoregions-of-the-world) clipped to the distribution of target species. This step restricting pseudoabsence selection to those areas that theoretically reachable by the target species. 
+    6. Use randomPoints function from dismo package to randomly locate pseduobasences within the ecoregions; join these pseuboabsences to the presence data created in step 2.
+    7. Run multiple SDMs (using different algorithms) using the sdm package
+    8. Combine the SDMs by creating a weighted ensemble using a model evaluation statistic (we used TSS). Only predict to the limit of your study extent to reduce computation time.(Our study extent is Europe)
+    9. Evaluate accuracy of the model using 10-fold cross validation
   
   ### B) Generate European level SDMs
   These SDMs predict the risk of invasion by alien species at 1km2 spatial resolution (using the EEA 1km2 grid) and the European data cube. It is from these models that the risk maps for Belgium are extracted.
