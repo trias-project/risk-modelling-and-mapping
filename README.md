@@ -37,7 +37,7 @@ This respository contains the framework and R code in development for risk model
    
    3. Using the raster package, mask areas of high habitability of the global climate raster to create a low habitat suitability global layer
    4. Using 1 degree grid of record counts by target species group (e.g if modelling a tree species, use the Vascular Plants target group grid; the target group grid summarizes all records in GBIF off a broad taxonomic group such as Vascular Plants, Birds,etc. by 1 degree grid cell. These will be publicly available for download). Use this grid to exclude areas that have received little to no sampling effort from the global climate layer to reduce effects of sampling bias. Use this raster to randomly locate pseudoabsences.
-   5.Join pseudoabsence to acer presence data created above.
+   5. Join pseudoabsence to acer presence data created above.
    6. Run multiple SDMs(using different algorithms),create weighted ensembles that limit prediction to the study extent (e.g Belgium). 
    7. Evaluate accuracy of model. Investigate addition of biophysical,landcover, and anthropogenic variables to model accuracy.
    
