@@ -1,0 +1,5 @@
+Amy
+19 May 2020
+1. Downloaded the 19 plant species on the Species selection for PRA-ing.xlsx from gbif using  global_download.Rmd.
+2. Split gbif occurrence file into 19 separate .csv files corresponding to each species.
+3. generate risk and confidence maps for each species using "trias_sdm.R" script.
