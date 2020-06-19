@@ -15,7 +15,7 @@ library(rgbif)
 library(RColorBrewer)
 ######GLOBAL SDM FOR WEIGHTING PSEUDOABSENCES IN EUROPEAN-LEVEL SDMs
 
-setwd("C:../risk_modelling")
+setwd("C:../risk-modelling-and-mapping")
 #all paths are relative to the risk_modelling folder
 
 
