@@ -13,10 +13,10 @@ The repository structure is based on [Cookiecutter Data Science](http://drivenda
 ├── .gitignore             : Files and directories to be ignored by git
 │
 ├── data
-│   ├── raw                : Source data
-│   └── processed          : Risk maps for Belgium GENERATED
+│   ├── external          : external files (e.g. climate rasters, occurrence data) required to run the model. Will be available for download via Zenodo.
+│   └── results           : Risk maps for Belgium GENERATED
 │
-└── src                    : Code
+└── src                    : R Code
 ```
 
 ## Workflow  
