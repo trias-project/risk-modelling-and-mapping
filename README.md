@@ -13,11 +13,27 @@ The repository structure is based on [Cookiecutter Data Science](http://drivenda
 ├── .gitignore             : Files and directories to be ignored by git
 │
 ├── data
-│   ├── external          : external files (e.g. climate rasters, occurrence data) required to run the model. Will be available for download via Zenodo.
+│   ├── external          : external files (e.g. climate rasters, occurrence data, GIS files) required to run the model. Will be available for download via Zenodo.
 │   └── results           : Risk maps for Belgium GENERATED
 │
 └── src                    : R Code
 ```
+
+Although theoretically possible, this workflow is not applied to all species listed in the published [unified checklist](https://doi.org/10.15468/xoidmd) and whose occurrences are found.  We limit our analysis to a list of species labelled as **emerging**. The emerging status is object of another work package and it is a semi-automated process described in repository [indicators](https://github.com/trias-project/indicators): see [webpage](https://trias-project.github.io/indicators/).
+
+##What you need to do run this workflow:
+1) GBIF occurrence data
+2) Climate and habitat raster data files downloaded from Zenodo (links will be provided when data is available)
+3) R studio installed in your computer.
+4) After cloning this repository, add folders to the existing folder structure shown above as shown below. This will allow you to use the relative path structure in the trias_sdm.R file.
+├── data
+    ├── external
+          ├── climate (put climate rasters downloaded from Zenodo here)
+          ├── data cube (European data cube) 
+          ├── GIS (GIS data downloaded from Zenodo)
+          ├── habitat (put habitat rasters downloaded from Zenodo here)
+          ├── PRA_plants (GBIF download of occurrence data used to generate Plant Risk maps)
+          
 
 ## Workflow  
  
@@ -27,8 +43,7 @@ The workflow can be divided in three sections:
 2. Generate European level SDMs
 3. Forecast species distributions under climate change scenarios
  
-Although theoretically possible, this workflow is not applied to all species listed in the published [unified checklist](https://doi.org/10.15468/xoidmd) and whose occurrences are found. Creating SDMs is computationally very demanding. We limit our analysis to a list of species labelled as **emerging**. The emerging status is object of another work package and it is a semi-automated process described in repository [indicators](https://github.com/trias-project/indicators): see [webpage](https://trias-project.github.io/indicators/).
- 
+
 ### Develop global scale climate-only species distribution models (SDMs)
 
 These SDMs use all acceptable species occurrence data available at the date of download from GBIF to create climate suitability maps with global coverage for weighing pseudo absences. 
