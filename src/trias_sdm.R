@@ -15,17 +15,17 @@ library(rgbif)
 library(RColorBrewer)
 ######GLOBAL SDM FOR WEIGHTING PSEUDOABSENCES IN EUROPEAN-LEVEL SDMs
 
-setwd("C:../risk-modelling-and-mapping")
+setwd("C:../risk_modelling")
 #all paths are relative to the risk_modelling folder
 
 
 ###read in global download for species from GBIF  
-gbif_filename<- "Cyperus eragrostis.csv"
+gbif_filename<- "Symphyotrichum lanceolatum.csv"
 global<-read.csv(file=paste("./data/external/PRA_Plants/gbif_speciesFiles/",gbif_filename, sep=""))
 
 
- taxonkey<-"2715482" #GBIF taxonKey for the species being modeled.
- taxonName<-"Cyperus eragrostis" #names of species being modeling
+ taxonkey<-"9202318" #GBIF taxonKey for the species being modeled.
+ taxonName<-"Symphyotrichum lanceolatum" #names of species being modeling
 
 
 ##filter data to keep only those points with acceptable spatial accuracy (for us this 4 decimal places for either lat or lon) 
@@ -37,9 +37,14 @@ decimalplaces <- function(x) {
     return(0)
   }
 }
+#remove unverified records
+identificationVerificationStatus_to_discard <- c( "unverified", "unvalidated","not able to validate",
+                                                  "control could not be conclusive due to insufficient knowledge")
+
 global.occ<-global %>%
  #filter(taxonKey==taxonkey) %>%   #using taxonKey filters out accepted synonyms
-  filter(is.na(coordinateUncertaintyInMeters)| coordinateUncertaintyInMeters< 709)
+filter(is.na(coordinateUncertaintyInMeters)| coordinateUncertaintyInMeters< 709) %>%
+filter(!str_to_lower(identificationVerificationStatus) %in% identificationVerificationStatus_to_discard)
 
 global.occ$lon_dplaces<-sapply(global.occ$decimalLongitude, function(x) decimalplaces(x))
 global.occ$lat_dplaces<-sapply(global.occ$decimalLatitude, function(x) decimalplaces(x))
@@ -47,6 +52,7 @@ global.occ[global.occ$lon_dplaces < 4& global.occ$lat_dplaces < 4 , ]<-NA
 global.occ<-global.occ[ which(!is.na(global.occ$lon_dplaces)),]
 global.occ<-within(global.occ,rm("lon_dplaces","lat_dplaces"))
 global.occ<-global.occ[which( global.occ$year > 1975 & global.occ$year < 2006),]
+
 
 ###Create SpatialPoints dataframe
 global.occ<-global.occ[c("decimalLongitude", "decimalLatitude")]
@@ -195,16 +201,16 @@ writeRaster(GlobalEns_pred_eu, filename=paste("GlobalEnsEU_",taxonkey, ".tif",se
 
 #obtain european presences from the data cube if available, otherwise skip to ##Create European subset
 #Read in european data cube file
-# cube_europe <- read.csv("C:./data/external/data_cube/cube_europe.csv")
+ cube_europe <- read.csv("C:./data/external/data_cube/eu_modellingtaxa_cube.csv")
 # 
 # #extract occurrence data for the target species meeting our criteria
-# 
-# occ.eu<-cube_europe %>% 
-#   filter(taxonKey==taxonkey) %>% #look up taxonKey by species in "cube_europe_taxa.txt" %>%
-#   filter(year >="1975") %>% #select presences 1975 or later to be consistent with climate data
-#   filter(min_coord_uncertainty <= 708) 
-# 
-# occ.eu$eea_cell_code<-str_remove(occ.eu$eea_cell_code,"1km")#so that cell code matches with chelsa data
+ 
+ occ.eu<-cube_europe %>% 
+   filter(taxonKey==taxonkey) %>% 
+   filter(year >"1975") %>% #select presences 1976 or later to be consistent with climate data
+   filter(min_coord_uncertainty <= 1000) 
+ 
+ occ.eu$eea_cell_code<-str_remove(occ.eu$eea_cell_code,"1km")#so that cell code matches with chelsa data
 
 #####create European subset if data cube not available
 euboundary<-shapefile("C:/Users/amyjs/Documents/projects/Trias/modeling/GIS/EUROPE.shp")
@@ -383,7 +389,7 @@ correlationMatrix <- cor(occeu.full.data.df[,-1])
 # summarize the correlation matrix
 print(head(correlationMatrix))
 # find attributes that are highly corrected 
-highlyCorrelated <- findCorrelation(correlationMatrix, cutoff=0.8,exact=TRUE,names=TRUE)
+highlyCorrelated <- findCorrelation(correlationMatrix, cutoff=0.7,exact=TRUE,names=TRUE)
 # print names of highly correlated attributes
 print(highlyCorrelated)
 
