@@ -4,8 +4,6 @@ This repository contains the framework and R code in development for risk modell
 
 ## Repo structure
 
-The repository structure is based on [Cookiecutter Data Science](http://drivendata.github.io/cookiecutter-data-science/) and the [Checklist recipe](https://github.com/trias-project/checklist-recipe). Files and directories indicated with `GENERATED` should not be edited manually.
-
 ```
 ├── README.md              : Description of this repository
 ├── LICENSE                : Repository license
