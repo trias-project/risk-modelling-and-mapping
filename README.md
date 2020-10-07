@@ -19,7 +19,7 @@ This repository contains the framework and R code in development for risk modell
 
 Although theoretically possible, this workflow is not applied to all species listed in the published [unified checklist](https://doi.org/10.15468/xoidmd) and whose occurrences are found.  We limit our analysis to a list of species labelled as **emerging**. The emerging status is object of another work package and it is a semi-automated process described in repository [indicators](https://github.com/trias-project/indicators): see [webpage](https://trias-project.github.io/indicators/).
 
-##What you need to do run this workflow:
+## What you need to do run this workflow:
 1) GBIF occurrence data
 2) Climate and habitat raster data files downloaded from Zenodo (links will be provided when data is available)
 3) R studio installed in your computer.
