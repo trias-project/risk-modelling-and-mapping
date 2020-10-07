@@ -444,17 +444,7 @@ modelResults1<-resamples(model_train_habitat)
 summary(modelResults1)
 modelCor(resamples(model_train_habitat))
 
-set.seed(478)
-lm_stack <- caretStack(
-  model_train_habitat, 
-  method="glm",
-  na.action=na.pass,
-  trControl=trainControl(method="cv",
-                         number=10,
-                         savePredictions= "final",classProbs = TRUE))
-lm_stack
-
-##does caretEnsemble give the same results as caretStack?
+#create ensemble
 set.seed(478)
 lm_ens_hab<-caretEnsemble(model_train_habitat, trControl=trainControl(method="cv",
                                                                   number=10,
