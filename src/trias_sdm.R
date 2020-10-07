@@ -14,19 +14,18 @@ library(trias)
 library(rgbif)
 library(RColorBrewer)
 ######GLOBAL SDM FOR WEIGHTING PSEUDOABSENCES IN EUROPEAN-LEVEL SDMs
-
+#all paths are relative to the risk_modelling folder. Must have a fresh session for this to work.
 setwd("C:../risk_modelling")
-#all paths are relative to the risk_modelling folder
 
 
 ###read in global download for species from GBIF  
-gbif_filename<- "Symphyotrichum lanceolatum.csv"
-global<-read.csv(file=paste("./data/external/PRA_Plants/gbif_speciesFiles/",gbif_filename, sep=""))
+gbif_filename<- ".csv" #add name of species being modeled
+global<-read.csv(file=paste("./data/external/PRA_mammals/gbif_speciesFiles/",gbif_filename, sep=""))
 
 
- taxonkey<-"9202318" #GBIF taxonKey for the species being modeled.
- taxonName<-"Symphyotrichum lanceolatum" #names of species being modeling
-
+ taxonkey<-" " #add GBIF taxonKey for the species being modeled.
+ taxonName<-" " #add name of species being modeled
+ 
 
 ##filter data to keep only those points with acceptable spatial accuracy (for us this 4 decimal places for either lat or lon) 
 #script to count number of decimal places
@@ -37,14 +36,18 @@ decimalplaces <- function(x) {
     return(0)
   }
 }
+
+##this option is for retrieving synomyms when working with subspecies                                                                                                    
+#taxonlist<- c("8421432", "3663378","3663277")
+
 #remove unverified records
 identificationVerificationStatus_to_discard <- c( "unverified", "unvalidated","not able to validate",
                                                   "control could not be conclusive due to insufficient knowledge")
-
 global.occ<-global %>%
- #filter(taxonKey==taxonkey) %>%   #using taxonKey filters out accepted synonyms
-filter(is.na(coordinateUncertaintyInMeters)| coordinateUncertaintyInMeters< 709) %>%
-filter(!str_to_lower(identificationVerificationStatus) %in% identificationVerificationStatus_to_discard)
+  #filter(taxonKey==taxonkey) %>%   #using taxonKey filters out accepted synonyms
+  #filter(taxonKey%in% taxonlist) %>%  this option is for retrieving synomyms when working with subspecies  
+  filter(is.na(coordinateUncertaintyInMeters)| coordinateUncertaintyInMeters< 1000) %>%
+  filter(!str_to_lower(identificationVerificationStatus) %in% identificationVerificationStatus_to_discard)
 
 global.occ$lon_dplaces<-sapply(global.occ$decimalLongitude, function(x) decimalplaces(x))
 global.occ$lat_dplaces<-sapply(global.occ$decimalLatitude, function(x) decimalplaces(x))
@@ -52,6 +55,7 @@ global.occ[global.occ$lon_dplaces < 4& global.occ$lat_dplaces < 4 , ]<-NA
 global.occ<-global.occ[ which(!is.na(global.occ$lon_dplaces)),]
 global.occ<-within(global.occ,rm("lon_dplaces","lat_dplaces"))
 global.occ<-global.occ[which( global.occ$year > 1975 & global.occ$year < 2006),]
+
 
 
 ###Create SpatialPoints dataframe
@@ -81,21 +85,22 @@ divide10<-function(x){
 eu_chelsapreds<-divide10(eu_climpreds) #it is better to correct them on the fly than to store them corrected
 
 #import WWF ecoregion layer clipped to distribution of target species for restricting pseudoabsence selection
-wwf_eco<-shapefile("C:./data/external/GIS/official/wwf_terr_ecos.shp")
-
 #select wwf ecoregions that contain occurrence points
+wwf_eco<-shapefile("C:./data/external/GIS/official/wwf_terr_ecos.shp")
 crs(global.occ)<-CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
 occ_ecoIntersect <- over(wwf_eco,global.occ) 
 wwf_ecoSub1 <- wwf_eco[!is.na(occ_ecoIntersect),]
 ext_wwf_ecoSub<-extent(wwf_ecoSub1)
 
-##import global ecoregions raster that has vascular plants counts of less than 6 removed
-ecoregions_filtered<-raster("C:./data/external/GIS/official/wwf_terr_ecos_plants.tif")
+##import bias grids for relevant taxonomic group (e.g vascular plants) counts of less than 5 removed
+
+ecoregions_filtered<-raster("C:./data/external/bias_grids/final/trias/mammals_1deg__biasgrid_min5.tif")
+
+
 #then subset ecoregions containing occurrence points
 eco_filt_crop<-crop(ecoregions_filtered,ext_wwf_ecoSub)
 ecoregions_filtered_sub<-mask(eco_filt_crop,wwf_ecoSub1)
-#plot(ecoregions_filtered_sub) #not run
-
+plot(ecoregions_filtered_sub) #not run
 
 
 #extract long and lat for SDMtable
@@ -114,7 +119,8 @@ global.occ.sp$species<- rep(1,length(global.occ.sp$latitude)) #adds columns indi
 library(dismo)
 set.seed(728)
 global_points<-randomPoints(ecoregions_filtered_sub, numb.pseudoabs, global.occ.sp, ext=NULL, extf=1.1, excludep=TRUE, prob=FALSE,
-                          cellnumbers=FALSE, tryf=50, warn=2, lonlatCorrection=TRUE) #will throw a warning if randomPoints generated is less than numb.pseudoabs. If this happens, increase the number of tryf.
+                                cellnumbers=FALSE, tryf=50, warn=2, lonlatCorrection=TRUE) #will throw a warning if randomPoints generated is less than numb.pseudoabs. If this happens, increase the number of tryf.
+
 
 global_pseudoAbs<-as.data.frame(global_points)
 coordinates(global_pseudoAbs)<-c("x","y")
@@ -167,7 +173,7 @@ global.data.sub.df$species<-as.factor(global.data.sub.df$species)
 levels(global.data.sub.df$species)<-c("absent","present")
 global.data.sub.df$species <- relevel(global.data.sub.df$species, ref = "present")
 
-control <- trainControl(method="repeatedcv",number=5, repeats=10, savePredictions="final", preProc=c("center","scale"),classProbs=TRUE)
+control <- trainControl(method="repeatedcv",number=5, repeats=5, savePredictions="final", preProc=c("center","scale"),classProbs=TRUE)
 classList1 <- c("glm","gbm","rf","adaboost","knn")
 set.seed(457)
 global_train <- caretList(
@@ -190,8 +196,8 @@ global_stack <- caretStack(
 print(global_stack)
 
 #use global model to predict only for the extent of Europe
-GlobalEns_pred_eu<-raster::predict(eu_chelsapreds,global_stack,type="prob")
-writeRaster(GlobalEns_pred_eu, filename=paste("GlobalEnsEU_",taxonkey, ".tif",sep=""), format="GTiff",overwrite=TRUE) 
+global_model<-raster::predict(eu_chelsapreds,global_stack,type="prob")
+writeRaster(global_model, filename=paste("GlobalEnsEU_",taxonkey, ".tif",sep=""), format="GTiff",overwrite=TRUE) 
 
 ##########################END GLOBAL MODEL####################################################################################################################
 
@@ -203,46 +209,34 @@ writeRaster(GlobalEns_pred_eu, filename=paste("GlobalEnsEU_",taxonkey, ".tif",se
 #Read in european data cube file
  cube_europe <- read.csv("C:./data/external/data_cube/eu_modellingtaxa_cube.csv")
 # 
-# #extract occurrence data for the target species meeting our criteria
+##extract occurrence data for the target species meeting our criteria
  
  occ.eu<-cube_europe %>% 
    filter(taxonKey==taxonkey) %>% 
    filter(year >"1975") %>% #select presences 1976 or later to be consistent with climate data
+  # filter(year <"2006") %>%
    filter(min_coord_uncertainty <= 1000) 
  
  occ.eu$eea_cell_code<-str_remove(occ.eu$eea_cell_code,"1km")#so that cell code matches with chelsa data
+ 
+##join lat lons from centroids to eu occurrence cube
+#centroids <- shapefile("./data/external/GIS/EEA_fullgrid_1km_final_centroids.shp")
+library(sf)
+centroids<-st_read("./data/external/GIS/EEA_fullgrid_1km_final_centroids.shp")
+ merged<-merge(occ.eu,centroids,by.x="eea_cell_code",by.y="EEA_fullgr") 
+occ.eu1<-cbind(merged[c("eea_cell_code","latitude","longitude")])  # use this to create spatial points dataframe to extract climate data from eu climate rasters (any location within the same 1km eea grid cell of the 
+ # data will have the same climate data)
+ 
 
 #####create European subset if data cube not available
-euboundary<-shapefile("C:/Users/amyjs/Documents/projects/Trias/modeling/GIS/EUROPE.shp")
-ext<-extent(euboundary)
-
-
-crs(global.occ)<-CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
-occ_euIntersect <- over(global.occ,euboundary,returnList=TRUE) 
-occ.eu  <- global.occ[!is.na(occ_euIntersect),]
-#remove commenting to see plots
+euboundary<-shapefile("C:/Users/amyjs/Documents/projects/Trias/modeling/GIS/EUROPE.shp") 
+# ext<-extent(euboundary)
+# crs(global.occ)<-CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
+# occ_euIntersect <- over(global.occ,euboundary,returnList=TRUE) 
+# occ.eu  <- global.occ[!is.na(occ_euIntersect),]
+##remove commenting to plot occurrences
 #plot(euboundary)
 #plot(occ.eu,add=TRUE)
-
-
-
-
-
-
-###join lat lons from centroids to eu level occurrence data file
-##skip if Trias EU occurrence cube data not available
-#centroids <- shapefile("./data/external/GIS/EEA_fullgrid_1km_final_centroids.shp")
-#centroids1<-cbind(centroids[1:3])
-
-
-# merged<-merge(occ.eu,centroids1,by.x="eea_cell_code",by.y="EEA_fullgr") #1000 obs
-# str(merged)
-# 
-# occ.eu1<-cbind(merged[1],merged[7:8])
-
-# use this to create spatial points dataframe to extract climate data from eu climate rasters (any location within the same 1km eea grid cell of the 
-# data will have the same climate data)
-
 
 
 ###PREDICTOR VARIABLES USING EUROPEAN LEVEL CLIMATE DATA (RMI)####
@@ -251,18 +245,18 @@ rmiclimrasters <- list.files("C:./data/external/climate/rmi_corrected",pattern='
 
 rmiclimpreds <- stack(rmiclimrasters)
 ###Create SpatialPoints dataframe needed for SDMtab command if using occurrence cube
-# euocc<-occ.eu1[c("longitude", "latitude")]#extract long and lat for SDMtable
-# coordinates(euocc)<- c("longitude", "latitude")
-# euocc1<-data.frame(euocc)[c(1:2)] 
+ euocc<-occ.eu1[c("longitude", "latitude")]#extract long and lat for SDMtable
+ coordinates(euocc)<- c("longitude", "latitude")
+ euocc1<-data.frame(euocc)[c(1:2)] 
 #########################################################
 
 
 ###Create SpatialPoints dataframe needed for SDMtab command if NOT using occurrence cube
 
-occ.eu1<-spTransform(occ.eu,crs(rmiclimpreds))
-euocc<-occ.eu1@coords
-euocc1<-data.frame(euocc)[c(1:2)] 
-names(euocc1)<-c("longitude", "latitude")
+#occ.eu1<-spTransform(occ.eu,crs(rmiclimpreds))
+#euocc<-occ.eu1@coords
+#euocc1<-data.frame(euocc)[c(1:2)] 
+#names(euocc1)<-c("longitude", "latitude")
 
 #########EU SDM modeling
 #use SDMtab command from the SDMPlay package to remove duplicates per grid cell  
@@ -278,7 +272,7 @@ euocc$occ<- rep(1,length(euocc$latitude))#adds columns indicating species presen
 crs(euocc)<-CRS("+proj=laea +lat_0=52 +lon_0=10 +x_0=4321000 +y_0=3210000 +ellps=GRS80 +towgs84=0,0,0,-0,-0,-0,0 +units=m +no_defs ")
 
 set.seed(728)
-#######SELECT RANDOM PSEUDO ABSENCES from low sampled areas
+#######SELECT RANDOM PSEUDO ABSENCES excluding low sampled areas
 #clip ecoregions file to european extent
 studyextent<-euboundary
 ecoregions_eu<-crop(ecoregions_filtered_sub,studyextent)
@@ -289,7 +283,7 @@ euregions_eu1<-projectRaster(ecoregions_eu,rmiclimpreds)
 ##Read in global raster from earlier step if needed
 #globalfilename<-paste("C:./GlobalEnsEU_", taxonkey, ".tif",sep="")
 #global_model<-raster(globalfilename)
-global_model<-GlobalEns_pred_eu
+
 
 wgs84_gcs<-CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
 crs(global_model)<-wgs84_gcs
@@ -303,8 +297,10 @@ pseudoSamplingArea<-mask(euregions_eu1,global_masked_proj)
 plot(pseudoSamplingArea)
 
 library(dismo)
+set.seed(456)
 euocc_points_res<-randomPoints(pseudoSamplingArea, numb.pseudoabs, euocc, ext=NULL, extf=1.1, excludep=TRUE, prob=FALSE,
-                               cellnumbers=FALSE, tryf=25, warn=2, lonlatCorrection=TRUE) 
+                              cellnumbers=FALSE, tryf=50, warn=2, lonlatCorrection=TRUE)
+
 
 euocc_pseudoAbs_res<-as.data.frame(euocc_points_res)
 coordinates(euocc_pseudoAbs_res)<-c("x","y")
@@ -345,13 +341,13 @@ highlyCorrelated <- findCorrelation(correlationMatrix, cutoff=0.70,exact=TRUE,na
 # print indexes of highly correlated attributes
 print(highlyCorrelated)
 #random forests
- control <- rfeControl(functions=rfFuncs, method="cv", number=10)
+# control <- rfeControl(functions=rfFuncs, method="cv", number=10)
 # # run the RFE algorithm to select predictors
- results <- rfe(occeu.data.res.df[,3:15], as.factor(occeu.data.res.df[,2]), sizes=c(1:13), rfeControl=control)
+ #results <- rfe(occeu.data.res.df[,3:15], as.factor(occeu.data.res.df[,2]), sizes=c(1:13), rfeControl=control)
 # # summarize the results
- print(results)
+# print(results)
  # list the chosen features
- predictors(results)
+ #predictors(results)
 ## plot the results
 # plot(results, type=c("g", "o")) # not run
 
@@ -361,17 +357,20 @@ rmiclimpreds_uncor<-dropLayer(rmiclimpreds,highlyCorrelated)
 
 ##########################################################################################################################
 
-#investigate role of habitat and anthropogenic factors on predicted risk
-habitat<-list.files("C:./data/external/habitat",pattern='tif',full.names = T)
+#investigate role of habitat and anthropogenic factors on predicted risk for plants
+habitat<-list.files("C:./data/external/habitat/landcover",pattern='tif',full.names = T)
 habitat_stack<-stack(habitat)
-
-
 fullstack<-stack(rmiclimpreds_uncor,habitat_stack) #combine uncorrelated climate variable selected earlier with habitat
+
+# uncomment below for vertebrates and invertebrates to include distance to water
+dist2water<-raster("C:./data/external/habitat/distance2water_EEA_1km.tif")
+dist2water<-extend(dist2water,habitat_stack)
+fullstack<-stack(rmiclimpreds_uncor,habitat_stack,dist2water)
 
 ##clip fullstack to belgium extent
 belgie<-shapefile("C:./data/external/GIS/belgium_boundary.shp")
-habitatstack1_be<-crop(fullstack,belgie)
-fullstack_be<-mask(habitatstack1_be,belgie)
+fullstack_crop<-crop(fullstack,belgie)
+fullstack_be<-mask(fullstack_crop,belgie)
 
 occ.full.data <- sdmData(occ~.,train=eu_presabs_res, predictors=fullstack) 
 occ.full.data
@@ -396,10 +395,10 @@ print(highlyCorrelated)
 
 ####Identify best subset of predictors for each algorithm
 # #random forests
-# control <- rfeControl(functions=rfFuncs, method="cv", number=10)
+ control <- rfeControl(functions=rfFuncs, method="cv", number=10)
 # # run the RFE algorithm to select predictors
-# endColumn<-length(occeu.full.data.df)
-# results <- rfe(occeu.full.data.df[,-1], as.factor(occeu.full.data.df[,1]), sizes=c(1:endColumn), rfeControl=control)
+ endColumn<-length(occeu.full.data.df)
+ results <- rfe(occeu.full.data.df[,-1], as.factor(occeu.full.data.df[,1]), sizes=c(1:endColumn), rfeControl=control)
 
 # # summarize the results
 # print(results)
@@ -485,9 +484,9 @@ exportPDF<-function(rst,taxonkey,taxonName,nameextension,is.diff="FALSE"){
 #################################
 ##predict for europe
 
-ens_pred_hab_eu<-raster::predict(fullstack,lm_ens_hab,type="prob")
-ens_pred_hab_eu1<-1-ens_pred_hab_eu
-writeRaster(ens_pred_hab_eu1,filename=paste("eu_",taxonkey, "_hist.tif",sep="") , format="GTiff",overwrite=TRUE) 
+ ens_pred_hab_eu<-raster::predict(fullstack,lm_ens_hab,type="prob")
+ ens_pred_hab_eu1<-1-ens_pred_hab_eu
+ writeRaster(ens_pred_hab_eu1,filename=paste("eu_",taxonkey, "_hist.tif",sep="") , format="GTiff",overwrite=TRUE) 
 
 #######################
 ##predict for Belgium only
@@ -499,9 +498,14 @@ crs(ens_pred_hab1)<-laea_grs80
 writeRaster(ens_pred_hab1, filename=paste("be_",taxonkey, "_hist.tif",sep=""), format="GTiff",overwrite=TRUE) 
 exportPDF(ens_pred_hab1,taxonkey,taxonName=taxonName,"hist.pdf")
 
-##create habitat-climate stacks for each rcp scenario
+##clip habitat stack to belgium while removing historical climate layers to combine with rcp climate scenarios
+
+
+habitat_stack<-stack(habitat,dist2water)
 habitat_only_stack<-crop(habitat_stack,belgie)
 habitat_only_stack_be<-crop(habitat_only_stack,belgie)
+
+
 
 be26 <- list.files("C:./data/external/climate/byEEA_finalRCP/belgium_rcps/rcp26",pattern='tif',full.names = T)
 belgium_stack26 <- stack(be26)
@@ -513,7 +517,7 @@ belgium_stack45 <- stack(be45)
 be85 <- list.files("C:./data/external/climate/byEEA_finalRCP/belgium_rcps/rcp85",pattern='tif',full.names = T)
 belgium_stack85 <- stack(be85)
 
-
+##create habitat-climate stacks for each rcp scenario
 fullstack26<-stack(be26,habitat_only_stack_be)
 fullstack45<-stack(be45,habitat_only_stack_be)
 fullstack85<-stack(be85,habitat_only_stack_be)
@@ -583,8 +587,8 @@ res.best.coords<-cbind(coordinates(occ.full.data),hab.res)
 res.best.geo<-as.geodata(res.best.coords,coords.col=1:2,data.col = 3)
 summary(res.best.geo) #note distance is in meters
 
-res.best.vario<-variog(res.best.geo,coords=res.best.geo$coords, data=res.best.geo$data,max.dist=50000,option = "bin")
-plot(res.best.vario)
+# res.best.vario<-variog(res.best.geo,coords=res.best.geo$coords, data=res.best.geo$data,max.dist=50000,option = "bin")
+# plot(res.best.vario)
 
 
 #check MoransI
@@ -796,6 +800,10 @@ rm(list = ls())
 gc()
 
 removeTmpFiles()
+temp_dir<-tempdir()
+
+unlink(temp_dir, recursive = TRUE)
+
 
 
 
