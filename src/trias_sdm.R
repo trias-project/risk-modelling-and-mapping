@@ -23,7 +23,7 @@ gbif_filename<- ".csv" #add name of species being modeled
 global<-read.csv(file=paste("./data/external/PRA_mammals/gbif_speciesFiles/",gbif_filename, sep=""))
 
 
- taxonkey<-" " #add GBIF taxonKey for the species being modeled.
+ taxonkey<-"" #add GBIF taxonKey for the species being modeled.
  taxonName<-" " #add name of species being modeled
  
 
@@ -94,7 +94,7 @@ ext_wwf_ecoSub<-extent(wwf_ecoSub1)
 
 ##import bias grids for relevant taxonomic group (e.g vascular plants) counts of less than 5 removed
 
-ecoregions_filtered<-raster("C:./data/external/bias_grids/final/trias/mammals_1deg__biasgrid_min5.tif")
+ecoregions_filtered<-raster("C:./data/external/bias_grids/final/trias/mammals_1deg_min5.tif")
 
 
 #then subset ecoregions containing occurrence points
@@ -205,8 +205,8 @@ writeRaster(global_model, filename=paste("GlobalEnsEU_",taxonkey, ".tif",sep="")
 #########EUROPEAN LEVEL MODEL##############
 ###########################################
 
-#obtain european presences from the data cube if available, otherwise skip to ##Create European subset
-#Read in european data cube file
+#obtain european presences from the data cube 
+#Read in european level data cube file
  cube_europe <- read.csv("C:./data/external/data_cube/eu_modellingtaxa_cube.csv")
 # 
 ##extract occurrence data for the target species meeting our criteria
@@ -220,45 +220,24 @@ writeRaster(global_model, filename=paste("GlobalEnsEU_",taxonkey, ".tif",sep="")
  occ.eu$eea_cell_code<-str_remove(occ.eu$eea_cell_code,"1km")#so that cell code matches with chelsa data
  
 ##join lat lons from centroids to eu occurrence cube
-#centroids <- shapefile("./data/external/GIS/EEA_fullgrid_1km_final_centroids.shp")
+
 library(sf)
 centroids<-st_read("./data/external/GIS/EEA_fullgrid_1km_final_centroids.shp")
  merged<-merge(occ.eu,centroids,by.x="eea_cell_code",by.y="EEA_fullgr") 
 occ.eu1<-cbind(merged[c("eea_cell_code","latitude","longitude")])  # use this to create spatial points dataframe to extract climate data from eu climate rasters (any location within the same 1km eea grid cell of the 
  # data will have the same climate data)
  
-
-#####create European subset if data cube not available
-euboundary<-shapefile("C:/Users/amyjs/Documents/projects/Trias/modeling/GIS/EUROPE.shp") 
-# ext<-extent(euboundary)
-# crs(global.occ)<-CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
-# occ_euIntersect <- over(global.occ,euboundary,returnList=TRUE) 
-# occ.eu  <- global.occ[!is.na(occ_euIntersect),]
-##remove commenting to plot occurrences
-#plot(euboundary)
-#plot(occ.eu,add=TRUE)
-
-
 ###PREDICTOR VARIABLES USING EUROPEAN LEVEL CLIMATE DATA (RMI)####
 #1. create RasterStack of european climate variables
 rmiclimrasters <- list.files("C:./data/external/climate/rmi_corrected",pattern='tif',full.names = T) #insert path where all climate rasters are located
 
 rmiclimpreds <- stack(rmiclimrasters)
-###Create SpatialPoints dataframe needed for SDMtab command if using occurrence cube
+###Create SpatialPoints dataframe needed for SDMtab 
  euocc<-occ.eu1[c("longitude", "latitude")]#extract long and lat for SDMtable
  coordinates(euocc)<- c("longitude", "latitude")
  euocc1<-data.frame(euocc)[c(1:2)] 
-#########################################################
 
-
-###Create SpatialPoints dataframe needed for SDMtab command if NOT using occurrence cube
-
-#occ.eu1<-spTransform(occ.eu,crs(rmiclimpreds))
-#euocc<-occ.eu1@coords
-#euocc1<-data.frame(euocc)[c(1:2)] 
-#names(euocc1)<-c("longitude", "latitude")
-
-#########EU SDM modeling
+#########EU SDM modeling##############
 #use SDMtab command from the SDMPlay package to remove duplicates per grid cell  
 euocc.SDMtable<- SDMPlay:::SDMtab(euocc1, rmiclimpreds, unique.data = TRUE,background.nb= 0)
 numb.pseudoabs <- length(euocc.SDMtable$id) 
@@ -274,6 +253,7 @@ crs(euocc)<-CRS("+proj=laea +lat_0=52 +lon_0=10 +x_0=4321000 +y_0=3210000 +ellps
 set.seed(728)
 #######SELECT RANDOM PSEUDO ABSENCES excluding low sampled areas
 #clip ecoregions file to european extent
+euboundary<-shapefile("C:/Users/amyjs/Documents/projects/Trias/modeling/GIS/EUROPE.shp") 
 studyextent<-euboundary
 ecoregions_eu<-crop(ecoregions_filtered_sub,studyextent)
 euregions_eu1<-projectRaster(ecoregions_eu,rmiclimpreds)
