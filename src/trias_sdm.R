@@ -82,7 +82,9 @@ divide10<-function(x){
   return(value)
 }
 
+#correct for integer format of Chelsa preds 
 eu_chelsapreds<-divide10(eu_climpreds) #it is better to correct them on the fly than to store them corrected
+
 
 #import WWF ecoregion layer clipped to distribution of target species for restricting pseudoabsence selection
 #select wwf ecoregions that contain occurrence points
@@ -141,29 +143,19 @@ global.data <- sdmData(species~.,train=global_presabs, predictors=globalclimpred
                      
 global.data
 
-global.data1<-as.data.frame(global.data)
+global.data.df<-as.data.frame(global.data)
 
 ####automatic predictor selection########
+correlationMatrix<-cor(global.data.df)
 
-#Chelsa predictors need to be divided by 10 per README
-# rescale predictors in dataframe and drop ID and response to calculate correlation matrix
-global.data2<-(sapply(global.data1[,-c(1:2),], function(x) divide10(x)))
-correlationMatrix <- cor(global.data2)
-
-# summarize the correlation matrix
-#print(correlationMatrix)
 # find attributes that are highly corrected 
 highlyCorrelated <- findCorrelation(correlationMatrix, cutoff=0.7,exact=TRUE,names=TRUE)
 # print names of highly correlated attributes
 print(highlyCorrelated)
 
-
-#scale global clim preds to actual values to match model
-globalclimpreds10<-divide10(globalclimpreds)
-globalclimpreds_sub<-dropLayer(globalclimpreds10,highlyCorrelated)
+globalclimpreds_sub<-dropLayer(globalclimpreds,highlyCorrelated)###temp
 
 #refit model with selected subset of uncorrelated climate variables
-
 global.data.sub <- sdmData(species~.,train=global_presabs, predictors=globalclimpreds_sub)
 global.data.sub
 
@@ -172,6 +164,8 @@ global.data.sub.df<-within(global.data.sub.df,rm("rID"))
 global.data.sub.df$species<-as.factor(global.data.sub.df$species)
 levels(global.data.sub.df$species)<-c("absent","present")
 global.data.sub.df$species <- relevel(global.data.sub.df$species, ref = "present")
+
+global.test<-cbind("species"= global.data.sub.df$species,divide10(global.data.sub.df[,-c(1)]))
 
 control <- trainControl(method="repeatedcv",number=5, repeats=5, savePredictions="final", preProc=c("center","scale"),classProbs=TRUE)
 classList1 <- c("glm","gbm","rf","adaboost","knn")
@@ -259,7 +253,7 @@ ecoregions_eu<-crop(ecoregions_filtered_sub,studyextent)
 euregions_eu1<-projectRaster(ecoregions_eu,rmiclimpreds)
 
 ###############################################################################
-###MASK OUT AREAS OF LOW HABITAT SUITABILITY FROM GLOBAL CLIMATE MODEL#####
+###MASK OUT AREAS OF HIGH HABITAT SUITABILITY FROM GLOBAL CLIMATE MODEL#####
 ##Read in global raster from earlier step if needed
 #globalfilename<-paste("C:./GlobalEnsEU_", taxonkey, ".tif",sep="")
 #global_model<-raster(globalfilename)
