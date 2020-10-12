@@ -1,0 +1,133 @@
+
+title: "Download Global GBIF occurrences"
+author:
+- Damiano Oldoni
+- Peter Desmet
+- Amy Davis
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+    toc_float: true
+    number_sections: true
+---
+
+In this document we download global occurrences for Europe from [GBIF](https://www.gbif.org). We limit the search to the species selected for risk assessment analysis and modelling.
+
+# Setup
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+Load libraries:
+
+```{r load_libraries_download_eu}
+library(tidyverse)      # To do data science
+library(lubridate)      # To work with dates
+library(here)           # To find files
+library(rgbif)          # To use GBIF services
+library(trias)          # To use functions developed for TrIAS
+library(sf)             # To work with geometries
+#library(leaflet)        # To make interactive maps
+```
+
+# Define download query parameters
+
+## Taxa
+
+The species selected for modelling are saved in a separate file for each group e.g `pra_plants.csv`, 'pra_mammals.csv',on GitHub:
+
+```{r load_modelling_species_file_eu}
+taxa_input_file <- "C:/Users/amyjs/Documents/projects/Trias/modeling/pra_mammals.csv"
+
+taxa <- read.csv(taxa_input_file)
+ ```
+
+Preview file:
+
+```{r preview_taxa_modelling}
+head(taxa)
+```
+
+Retrieve the `taxonKey`s we want to use to download occurrences:
+
+```{r get_taxonkeys_modelling}
+taxon_keys <- taxa$backbone_taxonKey # Column with taxonKeys
+```
+
+## Basis of record
+
+All types of occurrences, except `FOSSIL SPECIMEN` and `LIVING SPECIMEN`, which can have misleading location information (e.g. location of captive animal).
+
+```{r define_basis_of_record_eu}
+basis_of_record <- c(
+  "OBSERVATION", 
+  "HUMAN_OBSERVATION",
+  "MATERIAL_SAMPLE", 
+  "LITERATURE", 
+  "PRESERVED_SPECIMEN", 
+  "UNKNOWN", 
+  "MACHINE_OBSERVATION"
+)
+```
+
+## Year
+
+Occurrences with a valid year:
+
+```{r define_year_eu}
+year_begin <- 1976
+year_end <- year(Sys.Date())
+```
+
+## Geographic coordinates
+
+Occurrences with valid geographic coordinates:
+
+```{r define_hasCoordinate_eu}
+hasCoordinate <- TRUE
+```
+
+# Download GBIF occurrences
+
+## Trigger download
+
+**Note**: GBIF credentials are required in the next step. 
+
+Trigger download:
+
+```{r trigger_gbif_download_eu}
+# Reuse existing download (comment to trigger new download)
+#gbif_download_key <- "0004487-200127171203522"
+# Trigger new download (commented by default)
+ gbif_download_key <- occ_download(
+   pred_in("taxonKey", taxon_keys),
+   pred_in("basisOfRecord", basis_of_record),
+   pred_gte("year", year_begin),
+   pred_lte("year", year_end),
+  pred("hasCoordinate", hasCoordinate),
+   user = rstudioapi::askForPassword("GBIF username"),
+   pwd = rstudioapi::askForPassword("GBIF password"),
+   email = rstudioapi::askForPassword("Email address for notification")
+ )
+```
+
+## Check status of download
+
+```{r check_metadata_eu}
+metadata <- occ_download_meta(key = gbif_download_key)
+metadata$key
+metadata$status
+```
+
+Write download to list of downloads and check pending downloads:
+
+```{r update_download_list_eu}
+update_download_list(
+  file = here::here("data", "raw", "gbif_downloads.tsv"), 
+  download_to_add = gbif_download_key, 
+  input_checklist = taxa_input_file
+)
+```
