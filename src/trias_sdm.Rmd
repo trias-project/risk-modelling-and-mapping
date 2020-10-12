@@ -162,7 +162,7 @@ divide10<-function(x){
   return(value)
 }
 
-global.data.df.uncor<-cbind("species"= global.data.df$species,divide10(global.data.df[,-c(1)]))
+global.data.df.uncor<-cbind("species"= global.data.df.subsetf$species,divide10(global.data.df.subset[,-c(1)]))
 ```
 # use caretList from Caret package to run multiple machine learning models
 ```{r run_globalModel}
@@ -412,6 +412,7 @@ exportPDF<-function(rst,taxonkey,taxonName,nameextension,is.diff="FALSE"){
 ```{r ensModel_predictEU,echo=FALSE}
 # ens_pred_hab_eu<-raster::predict(fullstack,lm_ens_hab,type="prob")
 # ens_pred_hab_eu1<-1-ens_pred_hab_eu
+# plot(ens_pred_hab_eu1)
 # writeRaster(ens_pred_hab_eu1,filename=paste("eu_",taxonkey, "_hist.tif",sep="") , format="GTiff",overwrite=TRUE) 
 ```
 #predict for Belgium only using eu-level ensemble model to forecast risk under historical climate conditions
