@@ -40,7 +40,7 @@ library(sf)             # To work with geometries
 The species selected for modelling are saved in a separate file for each group e.g `pra_plants.csv`, 'pra_mammals.csv',on GitHub:
 
 ```{r load_modelling_species_file_eu}
-taxa_input_file <- "C:/Users/amyjs/Documents/projects/Trias/modeling/pra_mammals.csv"
+taxa_input_file <- "https://github.com/trias-project/risk-modelling-and-mapping/blob/master/data/external/PRA/pra_mammals.csv"
 
 taxa <- read.csv(taxa_input_file)
  ```
