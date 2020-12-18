@@ -211,7 +211,7 @@ global.data.df.uncor<-cbind("species"= global.data.df.subset$species,divide10(gl
 
 ```{r run_globalModel,results= 'hide',message=FALSE,cache=TRUE}
 control <- trainControl(method="repeatedcv",number=5, repeats=5, savePredictions="final", preProc=c("center","scale"),classProbs=TRUE)
-classList1 <- c("glm","gbm","rf","adaboost","knn")
+classList1 <- c("glm","gbm","rf","knn","earth")
 set.seed(457)
 global_train <- caretList(
   species~., data= global.data.df.uncor,
@@ -441,8 +441,9 @@ mylist<-list(
   glm =caretModelSpec(method = "glm",maxit=50),
   gbm= caretModelSpec(method = "gbm"),
   rf = caretModelSpec(method = "rf", importance = TRUE),
-  adaboost =caretModelSpec(method = "adaboost"),
-knn = caretModelSpec(method = "knn"))
+  knn = caretModelSpec(method = "knn"),
+  earth= caretModelSpec(method = "earth"))
+  
 set.seed(457)
 model_train_habitat <- caretList(
   occ~., data=occeu.full.data.df1,
