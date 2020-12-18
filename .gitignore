@@ -37,3 +37,4 @@ rsconnect/
 
 # Other
 .DS_Store
+.Rproj.user
