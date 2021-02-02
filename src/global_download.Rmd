@@ -31,6 +31,7 @@ library(rgbif)          # To use GBIF services
 library(trias)          # To use functions developed for TrIAS
 library(sf)             # To work with geometries
 #library(leaflet)        # To make interactive maps
+library(here)
 ```
 
 # Define download query parameters
@@ -41,7 +42,7 @@ The species selected for modelling are saved in a separate file for each group e
 
 
 ```{r load_modelling_species_file_eu}
-taxa_input_file <-"C:/Users/amyjs/Documents/projects/Trias/risk_modelling/data/external/PRA/pra_birds.csv"
+taxa_input_file <-here("./data/external/PRA/pra_reptiles.csv")
 taxa <- read.csv(taxa_input_file)
 ```
 
@@ -79,7 +80,7 @@ Occurrences with a valid year:
 
 ```{r define_year_eu}
 year_begin <- 1976
-year_end <- year(Sys.Date())
+year_end <-2020
 ```
 
 ## Geographic coordinates
@@ -131,19 +132,20 @@ update_download_list(
   input_checklist = taxa_input_file
 )
 ```
-#paste key from above or get from gbif_downloads. tsv
-# create directory for PRA files in windows with subfolder for gbif_speciesFiles and set directory path in r
 
-# retrieves download from GBIF 
-occ_download_get("0110919-200613084148143", path = "C:/Users/amyjs/Documents/projects/Trias/risk_modelling/data/raw")
+```{r retrieve_GBIF_download}
+occ_download_get(paste(metadata$key), path = here("./data/raw"))
+```
 
-#unzip folder via Windows directory, then read.csv
-occ<-read.delim("//192.168.1.48/data/Trias/risk_modelling/data/external/raw/0110919-200613084148143/occurrence.txt",header=TRUE)
-
+```{r extract_GBIF_occurrence}
+raw.path<- here("data/raw//")
+unzip(paste0(raw.path,metadata$key,".zip"),exdir=paste0(raw.path,metadata$key))
+occ<-read.delim(paste0(raw.path,metadata$key,"/occurrence.txt"),header=TRUE)
+```
 #split dataframe by taxon key
-
+```{r split_GBIF_occurrence_bySpecies}
 sort(unique(occ$species))
 splitDFs1<-split(occ,occ$species) 
-lapply(names(splitDFs1), function(x){write.csv(splitDFs1[[x]], file = paste(x,".csv", sep = ""))})
-
+lapply(names(splitDFs1), function(x){write.csv(splitDFs1[[x]], file = paste0(raw.path,"/",x,".csv"))})
+```
 
