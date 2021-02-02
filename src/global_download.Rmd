@@ -39,11 +39,11 @@ library(sf)             # To work with geometries
 
 The species selected for modelling are saved in a separate file for each group e.g `pra_plants.csv`, 'pra_mammals.csv',on GitHub:
 
-```{r load_modelling_species_file_eu}
-taxa_input_file <- "https://raw.githubusercontent.com/trias-project/risk-modelling-and-mapping/master/data/external/PRA/pra_mammals.csv"
 
+```{r load_modelling_species_file_eu}
+taxa_input_file <-"C:/Users/amyjs/Documents/projects/Trias/risk_modelling/data/external/PRA/pra_birds.csv"
 taxa <- read.csv(taxa_input_file)
- ```
+```
 
 Preview file:
 
@@ -131,3 +131,19 @@ update_download_list(
   input_checklist = taxa_input_file
 )
 ```
+#paste key from above or get from gbif_downloads. tsv
+# create directory for PRA files in windows with subfolder for gbif_speciesFiles and set directory path in r
+
+# retrieves download from GBIF 
+occ_download_get("0110919-200613084148143", path = "C:/Users/amyjs/Documents/projects/Trias/risk_modelling/data/raw")
+
+#unzip folder via Windows directory, then read.csv
+occ<-read.delim("//192.168.1.48/data/Trias/risk_modelling/data/external/raw/0110919-200613084148143/occurrence.txt",header=TRUE)
+
+#split dataframe by taxon key
+
+sort(unique(occ$species))
+splitDFs1<-split(occ,occ$species) 
+lapply(names(splitDFs1), function(x){write.csv(splitDFs1[[x]], file = paste(x,".csv", sep = ""))})
+
+

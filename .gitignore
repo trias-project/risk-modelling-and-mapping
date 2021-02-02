@@ -38,3 +38,18 @@ rsconnect/
 # Other
 .DS_Store
 .Rproj.user
+
+#ignore data inputs (too big for github, downloadable on Zenodo)
+data/raw/
+data/processed/sdm_occ_pts/
+data/processed/geotiffs/
+data/processed/general/
+data/external/bias_grids/
+data/external/climate/
+data/external/data_cube/
+data/external/GIS/
+data/external/habitat/
+data/external/PRA/PRA_Birds/
+data/external/PRA/PRA_mammals/
+data/external/PRA/PRA_molluscs/
+data/external/PRA/PRA_Plants/
