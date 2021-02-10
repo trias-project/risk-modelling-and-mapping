@@ -4,8 +4,8 @@ author: "Amy J.S Davis"
 date: "`r Sys.Date()`"
 output: html_document
 params:
-  species: "Campylopus introflexus"
-  GBIF_taxonkey: "5281901"
+  species: ""
+  GBIF_taxonkey: ""
 ---
 
 ```{r setup, include=FALSE}
@@ -59,16 +59,16 @@ readkey = function()# Get the taxon key
 GBIF_taxonkey=readkey()
 GBIF_taxonkey
 
-####remove these before sending to github
-species<- "Campylopus introflexus"
-GBIF_taxonkey<- "5281901"
+####if not rendering html put species info here
+species<- " "
+GBIF_taxonkey<- " "
 
 taxonName<-species
 taxonkey<-GBIF_taxonkey
 gbif_filename<- paste(taxonName,".csv",sep="") #add name of species being modeled (this should be the same name in your original species list)
                       
 
-global <- read.csv(file = here("data", "external", "PRA", "PRA_Plants", "gbif_speciesFiles", gbif_filename))
+global <- read.csv(file = here("data", "raw", gbif_filename))
  
 ```
 ### Filter global occurrence data 
@@ -98,7 +98,7 @@ global.occ$lat_dplaces<-sapply(global.occ$decimalLatitude, function(x) decimalpl
 global.occ[global.occ$lon_dplaces < 4& global.occ$lat_dplaces < 4 , ]<-NA
 global.occ<-global.occ[ which(!is.na(global.occ$lon_dplaces)),]
 global.occ<-within(global.occ,rm("lon_dplaces","lat_dplaces"))
-global.occ<-global.occ[which( global.occ$year > 1975 & global.occ$year < 2006),]
+global.occ<-global.occ[which( global.occ$year > 1975 & global.occ$year < 2020),]
 ``` 
 
 #### Convert global occurrences to spatial points needed for modelling
@@ -138,19 +138,20 @@ occ_ecoIntersect <- over(wwf_eco,global.occ)
 wwf_ecoSub1 <- wwf_eco[!is.na(occ_ecoIntersect),]
 ```
 
-### Specify and import bias grids for relevant taxonomic group (e.g vascular plants) counts of less than 5 removed
+### Specify and import bias grids for relevant taxonomic group (e.g vascular plants) 
 
 ```{r importBiasgrid}
-biasgrid<-raster(here("./data/external/bias_grids/final/trias/plants_1deg_min5.tif"))### specify appropriate bias grid here
+biasgrid<-raster(here("./data/external/bias_grids/final/trias/reptiles_1deg_grid.tif"))### specify appropriate bias grid here
 ```
 
 ### Subset bias grid by ecoregions containing occurrence points
 
 ```{r subsetBiasgrid}
 ext_wwf_ecoSub<-extent(wwf_ecoSub1)
-biasgrid_crop<-crop(biasgrid,ext_wwf_ecoSub)
-biasgrid_sub<-mask(biasgrid_crop,wwf_ecoSub1)
+#biasgrid_crop<-crop(biasgrid,ext_wwf_ecoSub)
+biasgrid_sub<-mask(biasgrid,wwf_ecoSub1)
  plot(biasgrid_sub)
+ 
 ```
 
 ### Use randomPoints function from dismo package to locate pseduobasences within the bias grid subset
@@ -158,7 +159,7 @@ biasgrid_sub<-mask(biasgrid_crop,wwf_ecoSub1)
 ```{r locatePseudo_abasences}
 set.seed(728)
 global_points<-randomPoints(biasgrid_sub, numb.pseudoabs, global.occ.sp, ext=NULL, extf=1.1, excludep=TRUE, prob=FALSE,
-                                cellnumbers=FALSE, tryf=70, warn=2, lonlatCorrection=FALSE) #will throw a warning if randomPoints generated is less than numb.pseudoabs. If this happens, increase the number of tryf.
+                                cellnumbers=FALSE, tryf=70, warn=2, lonlatCorrection=TRUE) #will throw a warning if randomPoints generated is less than numb.pseudoabs. If this happens, increase the number of tryf.Sampling area without presence points may also be too small to allow an equal number of pseudoabsences
 ```
 
 ### Extract generated pseudo absences and create presence-pseudobasence dataset 
@@ -213,7 +214,6 @@ global.data.df.uncor<-cbind("species"=  global.data.df.subset$species,divide10(g
 ### Use caretList from Caret package to run multiple machine learning models
 
 ```{r run_globalModel,results= 'hide',message=FALSE}
-ptm <- proc.time()
 control <- trainControl(method="repeatedcv",number=5, repeats=5, savePredictions="final", preProc=c("center","scale"),classProbs=TRUE)
 classList1 <- c("glm","gbm","rf","knn", "earth")
 set.seed(457)
@@ -222,7 +222,7 @@ global_train <- caretList(
   trControl=control,
   methodList=classList1
 )
-proc.time() - ptm 
+
 modelResults<-resamples(global_train)
 summary(modelResults)# displays accuracy of each model
 modelCor(resamples(global_train))# shows correlation among models.Weakly correlated algorithms are persuasive for stacking them in ensemble.
@@ -252,9 +252,9 @@ eu_climpreds.10<-divide10(eu_climpreds) # correct for integer format of Chelsa p
 ### Restrict global model  prediction to the extent of Europe
 
 ```{r predictGlobal}
-# global_model<-raster::predict(eu_climpreds.10,global_stack,type="prob")
-# plot(global_model)
-# writeRaster(global_model, filename=paste("GlobalEnsEU_",taxonkey, ".tif",sep=""), format="GTiff",overwrite=TRUE) 
+ global_model<-raster::predict(eu_climpreds.10,global_stack,type="prob")
+ plot(global_model)
+ writeRaster(global_model, filename=paste("GlobalEnsEU_",taxonkey, ".tif",sep=""), format="GTiff",overwrite=TRUE) 
 ```
 
 ### Obtain european presences from the occurrence cube. Check to make sure correct file is in path name
@@ -421,17 +421,17 @@ occeu.full.data.df<-occeu.full.data.df[,-1]
 ### Remove highly correlated predictors from the habitat/anthropogenic/climate stack (full stack)
 
 ```{r removeCorrelatedPreds_from_fullStack }
-correlationMatrix <- cor(occeu.full.data.df[,-1])
+# first remove and identify low variance predictors
+nzv_preds<-nearZeroVar(occeu.full.data.df,names=TRUE)
+occeu.full.data.df1<-select (occeu.full.data.df,-c(nzv_preds))
 
 # find attributes that are highly corrected 
+correlationMatrix <- cor(occeu.full.data.df1[,-1])
 highlyCorrelated <- findCorrelation(correlationMatrix, cutoff=0.7,exact=TRUE,names=TRUE)
+
 # print names of highly correlated attributes
 print(highlyCorrelated)
-
-
-occeu.full.data.df1<-select (occeu.full.data.df,-c(highlyCorrelated))
-nzv_preds<-nearZeroVar(occeu.full.data.df1,names=TRUE)
-occeu.full.data.df1<-select (occeu.full.data.df1,-c(nzv_preds))
+occeu.full.data.df1<-select (occeu.full.data.df1,-c(highlyCorrelated))
 ```
 
 ### Build models with climate and habitat data
@@ -454,6 +454,8 @@ model_train_habitat <- caretList(
   tuneList=mylist
 )
 ```
+# Maxent alternative for small sample sizes
+mx.ent<-maxent()
 
 ### Display model evaluation statistics
 
