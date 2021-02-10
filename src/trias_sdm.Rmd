@@ -4,8 +4,8 @@ author: "Amy J.S Davis"
 date: "`r Sys.Date()`"
 output: html_document
 params:
-  species: ""
-  GBIF_taxonkey: ""
+  species: "Add species "
+  GBIF_taxonkey: "add taxon key"
 ---
 
 ```{r setup, include=FALSE}
@@ -60,8 +60,8 @@ GBIF_taxonkey=readkey()
 GBIF_taxonkey
 
 ####if not rendering html put species info here
-species<- " "
-GBIF_taxonkey<- " "
+ # species<- " "
+ # GBIF_taxonkey<- " "
 
 taxonName<-species
 taxonkey<-GBIF_taxonkey
@@ -70,6 +70,12 @@ gbif_filename<- paste(taxonName,".csv",sep="") #add name of species being modele
 
 global <- read.csv(file = here("data", "raw", gbif_filename))
  
+```
+### Specify paths for output (defaults to file structure in ReadMe)
+```{r defineOutputPaths, echo=FALSE}
+rasterOutput<-here("data/processed/geotiffs/")
+pdfOutput<-here("data/processed/pdf//")
+genOutput<-here("data/processed/general//")
 ```
 ### Filter global occurrence data 
 
@@ -87,6 +93,10 @@ decimalplaces <- function(x) {
 #remove unverified records
 identificationVerificationStatus_to_discard <- c( "unverified", "unvalidated","not able to validate",
                                                   "control could not be conclusive due to insufficient knowledge")
+##this option is for retrieving synomyms when working with subspecies                                                                                                    
+#taxonlist<- c("8421432", "3663378","3663277")
+
+
 global.occ<-global %>%
   #filter(taxonKey==taxonkey) %>%   #using taxonKey filters out accepted synonyms
   #filter(taxonKey%in% taxonlist) %>%  this option is for retrieving synomyms when working with subspecies  
@@ -148,20 +158,25 @@ biasgrid<-raster(here("./data/external/bias_grids/final/trias/reptiles_1deg_grid
 
 ```{r subsetBiasgrid}
 ext_wwf_ecoSub<-extent(wwf_ecoSub1)
-#biasgrid_crop<-crop(biasgrid,ext_wwf_ecoSub)
-biasgrid_sub<-mask(biasgrid,wwf_ecoSub1)
+biasgrid_crop<-crop(biasgrid,ext_wwf_ecoSub)
+biasgrid_sub<-mask(biasgrid_crop,wwf_ecoSub1)
  plot(biasgrid_sub)
  
 ```
 
 ### Use randomPoints function from dismo package to locate pseduobasences within the bias grid subset
 
-```{r locatePseudo_abasences}
+```{r locatePseudo_absences}
 set.seed(728)
-global_points<-randomPoints(biasgrid_sub, numb.pseudoabs, global.occ.sp, ext=NULL, extf=1.1, excludep=TRUE, prob=FALSE,
-                                cellnumbers=FALSE, tryf=70, warn=2, lonlatCorrection=TRUE) #will throw a warning if randomPoints generated is less than numb.pseudoabs. If this happens, increase the number of tryf.Sampling area without presence points may also be too small to allow an equal number of pseudoabsences
+global_points<-randomPoints(biasgrid_sub, numb.pseudoabs, global.occ.sp, ext=NULL, extf=1.1, excludep=TRUE, prob=FALSE, cellnumbers=FALSE, tryf=70, warn=2, lonlatCorrection=FALSE) #will throw a warning if randomPoints generated is less than numb.pseudoabs. If this happens, increase the number of tryf.Sampling area without presence points may also be too small to allow an equal number of pseudoabsences.When sampling area is too small (not enough space to sample background), ignore bias grid and sample from ecoregion only
 ```
-
+### Sample from ecoregion only
+```{r locatePseudo_absences_inEcoregions}
+wwf_grid<-raster(here("./data/external/GIS/wwf_ecoregions_v1.tif"))
+ecoregions_raster<-mask(wwf_grid,wwf_ecoSub1)
+set.seed(768)
+global_points<-randomPoints(ecoregions_raster, numb.pseudoabs, global.occ.sp, ext=NULL, extf=1.1, excludep=TRUE, prob=FALSE, cellnumbers=FALSE, tryf=150, warn=2, lonlatCorrection=FALSE) 
+```
 ### Extract generated pseudo absences and create presence-pseudobasence dataset 
 
 ```{r create presence_absence dataset}
@@ -254,7 +269,7 @@ eu_climpreds.10<-divide10(eu_climpreds) # correct for integer format of Chelsa p
 ```{r predictGlobal}
  global_model<-raster::predict(eu_climpreds.10,global_stack,type="prob")
  plot(global_model)
- writeRaster(global_model, filename=paste("GlobalEnsEU_",taxonkey, ".tif",sep=""), format="GTiff",overwrite=TRUE) 
+ #writeRaster(global_model, filename=file.path(rasterOutput,paste("GlobalEnsEU_",taxonkey, ".tif",sep="")), format="GTiff",overwrite=TRUE) 
 ```
 
 ### Obtain european presences from the occurrence cube. Check to make sure correct file is in path name
@@ -325,8 +340,8 @@ plot(biasgrid_eu)
 ```{r mask highSuitability}
 #Read in global raster from earlier step if needed
 
-globalfilename<-paste(here("./data/processed/geotiffs/GlobalEnsEU_"), taxonkey, ".tif",sep="")
-global_model<-raster(globalfilename)
+#globalfilename<-paste(here("./data/processed/geotiffs/GlobalEnsEU_"), taxonkey, ".tif",sep="")
+#global_model<-raster(globalfilename)
 
 wgs84_gcs<-CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
 crs(global_model)<-wgs84_gcs
@@ -454,9 +469,6 @@ model_train_habitat <- caretList(
   tuneList=mylist
 )
 ```
-# Maxent alternative for small sample sizes
-mx.ent<-maxent()
-
 ### Display model evaluation statistics
 
 ```{r show_euModel_accuracy}
@@ -473,12 +485,8 @@ lm_ens_hab<-caretEnsemble(model_train_habitat, trControl=trainControl(method="cv
 
 lm_ens_hab
 variableImportance<-varImp(lm_ens_hab)
-write.csv(variableImportance,file = paste(taxonkey,"_varImp.csv"))
+write.csv(variableImportance,file = paste0(genOutput,taxonkey,"_varImp.csv"))
 ```
-### Specify paths for output (defaults to file structure in ReadMe)
-rasterOutput<-here("data/processed/geotiffs/")
-pdfOutput<-here("data/processed/")
-genOutput<-here("data/processed/general//")
 
 
 ```{r export_toPDF,echo=FALSE}
