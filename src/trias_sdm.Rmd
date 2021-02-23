@@ -4,12 +4,12 @@ author: "Amy J.S Davis"
 date: "`r Sys.Date()`"
 output: html_document
 params:
-  species: "Add species "
-  GBIF_taxonkey: "add taxon key"
+  species: 
+  GBIF_taxonkey: 
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE,error = TRUE)
 ```
 
 
@@ -60,8 +60,8 @@ GBIF_taxonkey=readkey()
 GBIF_taxonkey
 
 ####if not rendering html put species info here
- # species<- " "
- # GBIF_taxonkey<- " "
+  # species<- "Graptemys pseudogeographica"
+  # GBIF_taxonkey<- "7190901"
 
 taxonName<-species
 taxonkey<-GBIF_taxonkey
@@ -74,7 +74,7 @@ global <- read.csv(file = here("data", "raw", gbif_filename))
 ### Specify paths for output (defaults to file structure in ReadMe)
 ```{r defineOutputPaths, echo=FALSE}
 rasterOutput<-here("data/processed/geotiffs/")
-pdfOutput<-here("data/processed/pdf//")
+pdfOutput<-here("data/processed/pdf/")
 genOutput<-here("data/processed/general//")
 ```
 ### Filter global occurrence data 
@@ -90,16 +90,16 @@ decimalplaces <- function(x) {
 ```
 
 ```{r filter global occurrence data}
+##this option is for retrieving synomyms when working with subspecies                                                                       
+#taxonlist<- c("7190901","6157050","2443096")
+
 #remove unverified records
-identificationVerificationStatus_to_discard <- c( "unverified", "unvalidated","not able to validate",
-                                                  "control could not be conclusive due to insufficient knowledge")
-##this option is for retrieving synomyms when working with subspecies                                                                                                    
-#taxonlist<- c("8421432", "3663378","3663277")
+identificationVerificationStatus_to_discard <- c("unverified", "unvalidated","not able to validate","control could not be conclusive due to insufficient knowledge")
 
 
 global.occ<-global %>%
-  #filter(taxonKey==taxonkey) %>%   #using taxonKey filters out accepted synonyms
-  #filter(taxonKey%in% taxonlist) %>%  this option is for retrieving synomyms when working with subspecies  
+  filter(taxonKey==taxonkey) %>%   #using taxonKey filters out accepted synonyms
+  #filter(taxonKey%in% taxonlist) %>%  #this option is for retrieving synomyms when working with subspecies  
   filter(is.na(coordinateUncertaintyInMeters)| coordinateUncertaintyInMeters< 1000) %>%
   filter(!str_to_lower(identificationVerificationStatus) %in% identificationVerificationStatus_to_discard)
 
@@ -132,7 +132,7 @@ globalclimpreds <- stack(globalclimrasters)
 
 global.occ.LL<-data.frame(global.occ)[c(1:2)] #extract long and lat neededfor SDMtable
 global.SDMtable<- SDMPlay:::SDMtab(global.occ.LL, globalclimpreds, unique.data = TRUE,background.nb= 0) #
-numb.pseudoabs <- length(global.SDMtable$id) #sets the number of pseudoabsences equal to number of unique presences
+numb.pseudoabs <-length(global.SDMtable$id) #sets the number of pseudoabsences equal to number of unique presences
 
 global.occ.sp<-global.SDMtable[c("longitude", "latitude")]
 coordinates(global.occ.sp)<- c("longitude", "latitude")
@@ -164,18 +164,18 @@ biasgrid_sub<-mask(biasgrid_crop,wwf_ecoSub1)
  
 ```
 
-### Use randomPoints function from dismo package to locate pseduobasences within the bias grid subset
+### PREFERRED OPTION Use randomPoints function from dismo package to locate pseduobasences within the bias grid subset
 
 ```{r locatePseudo_absences}
 set.seed(728)
 global_points<-randomPoints(biasgrid_sub, numb.pseudoabs, global.occ.sp, ext=NULL, extf=1.1, excludep=TRUE, prob=FALSE, cellnumbers=FALSE, tryf=70, warn=2, lonlatCorrection=FALSE) #will throw a warning if randomPoints generated is less than numb.pseudoabs. If this happens, increase the number of tryf.Sampling area without presence points may also be too small to allow an equal number of pseudoabsences.When sampling area is too small (not enough space to sample background), ignore bias grid and sample from ecoregion only
 ```
-### Sample from ecoregion only
+### OPTIONAL: Sample from ecoregion only
 ```{r locatePseudo_absences_inEcoregions}
-wwf_grid<-raster(here("./data/external/GIS/wwf_ecoregions_v1.tif"))
-ecoregions_raster<-mask(wwf_grid,wwf_ecoSub1)
-set.seed(768)
-global_points<-randomPoints(ecoregions_raster, numb.pseudoabs, global.occ.sp, ext=NULL, extf=1.1, excludep=TRUE, prob=FALSE, cellnumbers=FALSE, tryf=150, warn=2, lonlatCorrection=FALSE) 
+# wwf_grid<-raster(here("./data/external/GIS/wwf_ecoregions_v1.tif"))
+# ecoregions_raster<-mask(wwf_grid,wwf_ecoSub1)
+# set.seed(768)
+# global_points<-randomPoints(ecoregions_raster, numb.pseudoabs, global.occ.sp, ext=NULL, extf=1.1, excludep=TRUE, prob=FALSE, cellnumbers=FALSE, tryf=150, warn=2, lonlatCorrection=FALSE) 
 ```
 ### Extract generated pseudo absences and create presence-pseudobasence dataset 
 
@@ -228,7 +228,7 @@ global.data.df.uncor<-cbind("species"=  global.data.df.subset$species,divide10(g
 
 ### Use caretList from Caret package to run multiple machine learning models
 
-```{r run_globalModel,results= 'hide',message=FALSE}
+```{r run_globalModel,results= 'hide',message=FALSE,warning=FALSE}
 control <- trainControl(method="repeatedcv",number=5, repeats=5, savePredictions="final", preProc=c("center","scale"),classProbs=TRUE)
 classList1 <- c("glm","gbm","rf","knn", "earth")
 set.seed(457)
@@ -269,13 +269,14 @@ eu_climpreds.10<-divide10(eu_climpreds) # correct for integer format of Chelsa p
 ```{r predictGlobal}
  global_model<-raster::predict(eu_climpreds.10,global_stack,type="prob")
  plot(global_model)
- #writeRaster(global_model, filename=file.path(rasterOutput,paste("GlobalEnsEU_",taxonkey, ".tif",sep="")), format="GTiff",overwrite=TRUE) 
+ writeRaster(global_model, filename=file.path(rasterOutput,paste("GlobalEnsEU_",taxonkey, ".tif",sep="")), format="GTiff",overwrite=TRUE) 
 ```
 
 ### Obtain european presences from the occurrence cube. Check to make sure correct file is in path name
 
 ```{r load_OccCube}
- cube_europe <- read.csv(here("./data/external/data_cube/eu_modellingtaxa_cube.csv"))
+ #cube_europe <- read.csv(here("./data/external/data_cube/eu_modellingtaxa_cube.csv"))
+cube_europe <- read.csv(here("./data/external/data_cube/pra_modellingtaxa_cube.csv")) #more recent cube
 head(cube_europe)
 ```
 
@@ -283,7 +284,8 @@ head(cube_europe)
 
 ```{r extract_from_OccCube} 
 occ.eu<-cube_europe %>% 
-   filter(taxonKey==taxonkey) %>% 
+   #filter(taxonKey%in% taxonlist) %>%  #this option is for retrieving synomyms when working with subspecies 
+   filter(taxonKey==taxonkey) %>% #comment this if using subspecies
    filter(year >"1975") %>% #select presences 1976 or later to be consistent with climate data
   # filter(year <"2006") %>%
    filter(min_coord_uncertainty <= 1000) 
@@ -451,13 +453,13 @@ occeu.full.data.df1<-select (occeu.full.data.df1,-c(highlyCorrelated))
 
 ### Build models with climate and habitat data
 
-```{r run_euModel,message=FALSE,results=FALSE}
+```{r run_euModel,message=FALSE,results=FALSE,warning=FALSE}
 occeu.full.data.df1$occ<-as.factor(occeu.full.data.df1$occ)
 levels(occeu.full.data.df1$occ)<-c("absent","present")
 
 control <- trainControl(method="cv",number=10,savePredictions="final", preProc=c("center","scale"),classProbs=TRUE)
 mylist<-list(
-  glm =caretModelSpec(method = "glm",maxit=50),
+  glm =caretModelSpec(method = "glm",maxit=100),
   gbm= caretModelSpec(method = "gbm"),
   rf = caretModelSpec(method = "rf", importance = TRUE),
   knn = caretModelSpec(method = "knn"),
@@ -797,42 +799,40 @@ varNames<-rownames(topPreds)
 # combine predictions from each model for each variable
 partial_gbm<-function(x){
   m.gbm<-pdp::partial(model_train_habitat$gbm$finalModel,pred.var=paste(x),train = occeu.full.data.df1,type="classification",
-                      prob=TRUE,n.trees= model_train_habitat$gbm$finalModel$n.trees, which.class = 2)
- }
+                      prob=TRUE,n.trees= model_train_habitat$gbm$finalModel$n.trees, which.class = 2,grid.resolution=nrow(occeu.full.data.df1))
+}
+
+
 
 gbm.partial.list<-lapply(varNames,partial_gbm)
 
 partial_glm<-function(x){
 m.glm<-pdp::partial(model_train_habitat$glm$finalModel,pred.var=paste(x),train = occeu.full.data.df1,type="classification",
-              prob=TRUE,which.class = 2)
+              prob=TRUE,which.class = 2,grid.resolution=nrow(occeu.full.data.df1))
 }
 
 glm.partial.list<-lapply(varNames,partial_glm)
 
 partial_rf<-function(x){
   pdp::partial(model_train_habitat$rf$finalModel,pred.var=paste(x),train = occeu.full.data.df1,type="classification",
-              prob=TRUE,which.class = 2)
+              prob=TRUE,which.class = 2,grid.resolution=nrow(occeu.full.data.df1))
 }
 
 rf.partial.list<-lapply(varNames,partial_rf)
 
 partial_knn<-function(x){
 m.knn<-pdp::partial(model_train_habitat$knn,pred.var=paste(x),train = occeu.full.data.df1,type="classification",
-               prob=TRUE,which.class = 2)
+               prob=TRUE,which.class = 2,grid.resolution=nrow(occeu.full.data.df1))
 }
 
 knn.partial.list<-lapply(varNames,partial_knn)
 
-# partial_adaboost<-function(x){
-# m.ada<-pdp::partial(model_train_habitat$adaboost,pred.var=paste(x),train = occeu.full.data.df1,type="classification",
-#                prob=TRUE,which.class = 2)
-# }
-# adaboost.partial.list<-lapply(varNames,partial_adaboost)
+
 
 
 partial_mars<-function(x){
 m.mars<-pdp::partial(model_train_habitat$earth$finalModel,pred.var=paste(x),train = occeu.full.data.df1,type="classification",
-              prob=TRUE,which.class = 2)
+              prob=TRUE,which.class = 2,grid.resolution=nrow(occeu.full.data.df1))
 }
 
 mars.partial.list<-lapply(varNames,partial_mars)
@@ -842,14 +842,13 @@ names(glm.partial.list)<-varNames
 names(gbm.partial.list)<-varNames
 names(rf.partial.list)<-varNames
 names(knn.partial.list)<-varNames
-#names(adaboost.partial.list)<-varNames
 names(mars.partial.list)<-varNames
 
 glm.partial.df<-as.data.frame(glm.partial.list)
 gbm.partial.df<-as.data.frame(gbm.partial.list)
 rf.partial.df<-as.data.frame(rf.partial.list)
 knn.partial.df<-as.data.frame(knn.partial.list)
-#ada.partial.df<-as.data.frame(adaboost.partial.list)
+
 mars.partial.df<-as.data.frame(mars.partial.list)
 
 predx<-data.frame()
@@ -870,7 +869,6 @@ glm.partial.df$data<-'GLM'
 gbm.partial.df$data<-'GBM'
 rf.partial.df$data<-'RF'
 knn.partial.df$data<-'KNN'
-#ada.partial.df$data<-'Adaboost'
 mars.partial.df$data<-'MARS'
 
 all_dfs<-rbind.data.frame(glm.partial.df,gbm.partial.df,rf.partial.df,knn.partial.df,mars.partial.df)
