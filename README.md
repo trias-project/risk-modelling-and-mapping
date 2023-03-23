@@ -24,6 +24,8 @@ Although theoretically possible, this workflow is not applied to all species lis
 2) Climate and habitat raster data files downloaded from Zenodo (links will be provided when data is available)
 3) R studio installed in your computer.
 4) After cloning this repository, add folders to the existing folder structure shown above as shown below. This will allow you to use the relative path structure in the trias_sdm.R file.
+
+```
 ├── data
     ├── external
           ├── bias_grids (Global taxonomic occurrence grids, downloaded from Zenodo here )
@@ -32,7 +34,7 @@ Although theoretically possible, this workflow is not applied to all species lis
           ├── GIS (GIS data downloaded from Zenodo)
           ├── habitat (put habitat rasters downloaded from Zenodo here)
           ├── PRA (priority risk assessment species lists)
-          
+```          
 
 ## Workflow  
  
