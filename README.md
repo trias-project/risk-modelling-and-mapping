@@ -1,6 +1,6 @@
 # Alien species risk modelling and mapping
 
-This repository contains the framework and R code in development for risk modelling and mapping of alien species throughout Belgium and greater Europe at 1 km<sup>2</sup> resolution as part of the TrIAS project.
+This repository contains the framework and R code in development for risk modelling and mapping of alien species throughout Belgium and greater Europe at 1 km<sup>2</sup> resolution as part of the TrIAS project. Please go to https://github.com/amyjsdavis/wiSDM for the latest code used  in Davis et al., 2024 (https://doi.org/10.3389/fevo.2024.1148895)
 
 ## Repo structure
 
