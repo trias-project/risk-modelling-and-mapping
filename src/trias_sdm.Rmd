@@ -1,11 +1,21 @@
 ---
-title: "Workflow to create risk and confidence maps for `r params$species`"
+title: "Risk and confidence maps for `r params$species`"
 author: "Amy J.S Davis"
 date: "`r Sys.Date()`"
-output: html_document
+output:
+  html_notebook:
+    toc: yes
+    toc_depth: 3
+  html_document: 
+    toc: no
+  pdf_document:
+    toc: 
+    toc_depth: '3'
 params:
-  species: 
-  GBIF_taxonkey: 
+  species: Vaccinium corymbosum
+  GBIF_taxonkey: '2882849'
+editor_options:
+  chunk_output_type: inline
 ---
 
 ```{r setup, include=FALSE}
@@ -15,9 +25,11 @@ knitr::opts_chunk$set(echo = TRUE,error = TRUE)
 
 
 ```{r load libraries,echo=FALSE,message=FALSE}
+options("rgdal_show_exportToProj4_warnings"="none")
 library(sdm)
 library(rgdal)
 library(raster)
+library(maps)
 library(spocc)
 library(sp)
 library(rgeos)
@@ -25,6 +37,7 @@ library(SDMPlay)
 library(tidyverse)
 library(caret)
 library(caretEnsemble)
+library(gbm)
 library(trias)
 library(rgbif)
 library(RColorBrewer)
@@ -35,50 +48,110 @@ library(geoR)
 library(pdp)
 library(purrr)
 library(here)
+library(CoordinateCleaner)
+library(humboldt)
+library(knitr)
+library(kableExtra)
+library(PresenceAbsence)
+library(rmarkdown)
 
 ```
+### 1, Download global occurrence data from GBIF
+Retrieve the `taxonKey`s we want to use to download occurrences:
 
-## First we create a global SDM for weighting pseudoabsences 
+```{r retrieve_taxon_data}
+# TO DO: specify scientific name of species to be modelled
+  species<- "Vaccinium corymbosum"
 
-### Read in the global occurrence data for the target species that was downloaded using "global_download.Rmd"
-
-```{r retrieve global occurrence file, echo=FALSE}
-#taxonName <- readline(prompt="Enter species name: ")
-
-readname = function()# Get the species name
-{ 
-  params$species
-}
-species=readname()
-species
-
-readkey = function()# Get the taxon key
-{ 
-  params$GBIF_taxonkey
-}
-GBIF_taxonkey=readkey()
-GBIF_taxonkey
-
-####if not rendering html put species info here
-  # species<- "Graptemys pseudogeographica"
-  # GBIF_taxonkey<- "7190901"
+# retrieve taxon key from GBIF (which is returned here as the "usageKey")
+taxon.data<-name_backbone(name=species)
 
 taxonName<-species
-taxonkey<-GBIF_taxonkey
-gbif_filename<- paste(taxonName,".csv",sep="") #add name of species being modeled (this should be the same name in your original species list)
-                      
+taxon_key<-taxon.data$usageKey
 
-global <- read.csv(file = here("data", "raw", gbif_filename))
- 
+gbif_filename<- paste(taxonName,".csv",sep="") 
+taxon.data
+  
 ```
-### Specify paths for output (defaults to file structure in ReadMe)
+
+### Basis of record
+
+
+```{r define_basis_of_record_eu}
+#All types of occurrences are downloaded, except `FOSSIL SPECIMEN` and `LIVING SPECIMEN`, which can have misleading location information (e.g. location of captive animal).
+
+basis_of_record <- c(
+  "OBSERVATION", 
+  "HUMAN_OBSERVATION",
+  "MATERIAL_SAMPLE",
+  "PRESERVED_SPECIMEN", 
+  "UNKNOWN", 
+  "MACHINE_OBSERVATION",
+  "OCCURRENCE"
+)
+```
+
+### Specify time period to download occurrence data 
+```{r define_year_eu}
+year_begin <- 1971
+year_end <-2010
+```
+
+### Download only georeferenced points
+
+```{r define_hasCoordinate_eu}
+hasCoordinate <- TRUE
+```
+
+### Trigger download
+
+**Note**: GBIF credentials are required in the next step. 
+
+Trigger download:
+
+```{r trigger_gbif_download_eu}
+
+ gbif_download_key <- occ_download(
+   pred_in("taxonKey", taxon_key),
+   pred_in("basisOfRecord", basis_of_record),
+   pred_gte("year", year_begin),
+   pred_lte("year", year_end),
+  pred("hasCoordinate", hasCoordinate),
+   user = rstudioapi::askForPassword("GBIF username"),
+   pwd = rstudioapi::askForPassword("GBIF password"),
+   email = rstudioapi::askForPassword("Email address for notification")
+ )
+```
+
+### Check status of download
+
+```{r check_metadata_eu}
+metadata <- occ_download_meta(key = gbif_download_key)
+metadata$key
+metadata$status
+```
+
+
+
+```{r retrieve_GBIF_download}
+occ_download_get(paste(metadata$key), path = here("./data/raw"))
+```
+
+```{r extract_GBIF_occurrence}
+raw.path<- here("data/raw//")
+unzip(paste0(raw.path,metadata$key,".zip"),exdir=paste0(raw.path,metadata$key))
+
+global<-as.data.frame(data.table::fread(paste0(raw.path,metadata$key,"/occurrence.txt"),header=TRUE))
+```
+
+### 2. Create a global SDM 
+##### 2. Specify paths for output (defaults to file structure in ReadMe)
 ```{r defineOutputPaths, echo=FALSE}
 rasterOutput<-here("data/processed/geotiffs/")
 pdfOutput<-here("data/processed/pdf/")
 genOutput<-here("data/processed/general//")
 ```
-### Filter global occurrence data 
-
+####3. Filter global occurrence data 
 ```{r decimal places,echo=FALSE}
 decimalplaces <- function(x) {
   if (abs(x - round(x)) > .Machine$double.eps^0.5) {
@@ -90,68 +163,87 @@ decimalplaces <- function(x) {
 ```
 
 ```{r filter global occurrence data}
-##this option is for retrieving synomyms when working with subspecies                                                                       
-#taxonlist<- c("7190901","6157050","2443096")
 
 #remove unverified records
 identificationVerificationStatus_to_discard <- c("unverified", "unvalidated","not able to validate","control could not be conclusive due to insufficient knowledge")
 
+#enter value for max coordinate uncertainty in meters.
 
 global.occ<-global %>%
-  filter(taxonKey==taxonkey) %>%   #using taxonKey filters out accepted synonyms
-  #filter(taxonKey%in% taxonlist) %>%  #this option is for retrieving synomyms when working with subspecies  
-  filter(is.na(coordinateUncertaintyInMeters)| coordinateUncertaintyInMeters< 1000) %>%
+  filter(speciesKey==taxonkey) %>%   #using taxonKey filters out accepted synonyms
+  filter(is.na(coordinateUncertaintyInMeters)| coordinateUncertaintyInMeters<= 1000) %>%
   filter(!str_to_lower(identificationVerificationStatus) %in% identificationVerificationStatus_to_discard)
 
-global.occ$lon_dplaces<-sapply(global.occ$decimalLongitude, function(x) decimalplaces(x))
-global.occ$lat_dplaces<-sapply(global.occ$decimalLatitude, function(x) decimalplaces(x))
-global.occ[global.occ$lon_dplaces < 4& global.occ$lat_dplaces < 4 , ]<-NA
-global.occ<-global.occ[ which(!is.na(global.occ$lon_dplaces)),]
-global.occ<-within(global.occ,rm("lon_dplaces","lat_dplaces"))
-global.occ<-global.occ[which( global.occ$year > 1975 & global.occ$year < 2020),]
+ global.occ$lon_dplaces<-sapply(global.occ$decimalLongitude, function(x) decimalplaces(x))
+ global.occ$lat_dplaces<-sapply(global.occ$decimalLatitude, function(x) decimalplaces(x))
+ global.occ[global.occ$lon_dplaces < 4& global.occ$lat_dplaces < 4 , ]<-NA
+ global.occ<-global.occ[ which(!is.na(global.occ$lon_dplaces)),]
+ global.occ<-within(global.occ,rm("lon_dplaces","lat_dplaces"))
+global.occ<-global.occ[which( global.occ$year > 1970 & global.occ$year < 2011),]
+
 ``` 
 
 #### Convert global occurrences to spatial points needed for modelling
 
-```{r occ to spatialData}
+```{r occ to spatialData,echo=FALSE}
 global.occ<-global.occ[c("decimalLongitude", "decimalLatitude")]
 coordinates(global.occ)<- c("decimalLongitude", "decimalLatitude")
-plot(global.occ)
-```
+global.occ.LL<-data.frame(global.occ)[c(1:2)] #extract long and lat 
 
+```
+#### Flag and remove centroids and invalid georeferenced points
+```{r remove invalid_pts_and_centroids,echo=FALSE}
+global.occ.LL$species<-rep("Vaccinium corymbosum",nrow(global.occ.LL))  
+
+flags_report<-clean_coordinates(x = global.occ.LL, lon= "decimalLongitude", lat= "decimalLatitude",
+                          tests = c("capitals", 
+                          "centroids","gbif", "institutions", 
+                           "seas", "zeros"))
+
+cleaned<-clean_coordinates(x = global.occ.LL, lon= "decimalLongitude", lat= "decimalLatitude",
+                          tests = c("capitals", 
+                          "centroids","gbif", "institutions", 
+                           "seas", "zeros"),value="clean")
+global.occ.LL.cleaned<-subset(cleaned,select= -c(species))
+```
 #### Create global rasterstack using CHELSA data for model building
 
-```{r importChelsaData}
-globalclimrasters <- list.files((here("/data/external/climate/trias_CHELSA")),pattern='tif',full.names = T) #import CHELSA data
+```{r importChelsaData,echo=TRUE}
+globalclimrasters <- list.files((here("./data/external/climate/trias_CHELSA")),pattern='tif',full.names = T) #import CHELSA data
 globalclimpreds <- stack(globalclimrasters)
 ```
 
 #### Use SDMtab command from the SDMPlay package to remove duplicates per grid cell
 
-```{r remove global duplicates}
+```{r remove global duplicates,echo=TRUE}
 
-global.occ.LL<-data.frame(global.occ)[c(1:2)] #extract long and lat neededfor SDMtable
-global.SDMtable<- SDMPlay:::SDMtab(global.occ.LL, globalclimpreds, unique.data = TRUE,background.nb= 0) #
-numb.pseudoabs <-length(global.SDMtable$id) #sets the number of pseudoabsences equal to number of unique presences
+global.SDMtable<- SDMPlay:::SDMtab(global.occ.LL.cleaned, globalclimpreds, unique.data = TRUE,background.nb= 0) #
+numb.global.pseudoabs <-length(global.SDMtable$id) #sets the number of pseudoabsences equal to number of unique presences
+
 
 global.occ.sp<-global.SDMtable[c("longitude", "latitude")]
 coordinates(global.occ.sp)<- c("longitude", "latitude")
 global.occ.sp$species<- rep(1,length(global.occ.sp$latitude)) #adds columns indicating species presence needed for modeling
 ```
-
+### plot distribution of cleaned global occurrences
+```{r plot_global_occ,echo=TRUE}
+maps::map('world', fill = FALSE, wrap=c(-180,180))
+plot(global.occ.sp,pch=21,bg="green",cex=.5,add=TRUE)
+```
 ### Select wwf ecoregions that contain global occurrence points
 
-```{r select ecoregions}
+```{r select ecoregions,cache= TRUE,echo=FALSE}
 wwf_eco<-shapefile(here("./data/external/GIS/official/wwf_terr_ecos.shp"))
-crs(global.occ)<-CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
-occ_ecoIntersect <- over(wwf_eco,global.occ) 
-wwf_ecoSub1 <- wwf_eco[!is.na(occ_ecoIntersect),]
+crs(global.occ.sp)<-CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
+occ_ecoIntersect <- over(wwf_eco,global.occ.sp) 
+wwf_ecoSub1 <- wwf_eco[!is.na(occ_ecoIntersect$species),]
 ```
 
 ### Specify and import bias grids for relevant taxonomic group (e.g vascular plants) 
 
 ```{r importBiasgrid}
-biasgrid<-raster(here("./data/external/bias_grids/final/trias/reptiles_1deg_grid.tif"))### specify appropriate bias grid here
+biasgrid<-raster(here("./data/external/bias_grids/final/trias/plants_1deg_min5.tif"))### specify appropriate bias grid here
+
 ```
 
 ### Subset bias grid by ecoregions containing occurrence points
@@ -161,62 +253,69 @@ ext_wwf_ecoSub<-extent(wwf_ecoSub1)
 biasgrid_crop<-crop(biasgrid,ext_wwf_ecoSub)
 biasgrid_sub<-mask(biasgrid_crop,wwf_ecoSub1)
  plot(biasgrid_sub)
+ plot(wwf_ecoSub1,add=TRUE)
  
 ```
 
-### PREFERRED OPTION Use randomPoints function from dismo package to locate pseduobasences within the bias grid subset
+###  Use randomPoints function from dismo package to locate pseduobasences within the bias grid subset 
 
 ```{r locatePseudo_absences}
+# generates pseudo absences equal to (or close to) the number of presences.
 set.seed(728)
-global_points<-randomPoints(biasgrid_sub, numb.pseudoabs, global.occ.sp, ext=NULL, extf=1.1, excludep=TRUE, prob=FALSE, cellnumbers=FALSE, tryf=70, warn=2, lonlatCorrection=FALSE) #will throw a warning if randomPoints generated is less than numb.pseudoabs. If this happens, increase the number of tryf.Sampling area without presence points may also be too small to allow an equal number of pseudoabsences.When sampling area is too small (not enough space to sample background), ignore bias grid and sample from ecoregion only
+global_points<-randomPoints(biasgrid_sub,numb.global.pseudoabs, global.occ.sp, ext=NULL, extf=1.1, excludep=TRUE, prob=FALSE, cellnumbers=FALSE, tryf=70, warn=2, lonlatCorrection=TRUE) 
+# will throw a warning if randomPoints generated is less than numb.pseudoabs. If this happens, increase the number of tryf or ignore bias grid and sample from ecoregion only.
 ```
+
 ### OPTIONAL: Sample from ecoregion only
+#### run if the bias grid subset of ecoregions results in too small of an area for sampling
 ```{r locatePseudo_absences_inEcoregions}
-# wwf_grid<-raster(here("./data/external/GIS/wwf_ecoregions_v1.tif"))
-# ecoregions_raster<-mask(wwf_grid,wwf_ecoSub1)
-# set.seed(768)
-# global_points<-randomPoints(ecoregions_raster, numb.pseudoabs, global.occ.sp, ext=NULL, extf=1.1, excludep=TRUE, prob=FALSE, cellnumbers=FALSE, tryf=150, warn=2, lonlatCorrection=FALSE) 
+#  wwf_grid<-raster(here("./data/external/GIS/wwf_ecoregions_v1.tif"))
+#  ecoregions_raster<-mask(wwf_grid,wwf_ecoSub1)
+#  set.seed(768)
+#  global_points<-randomPoints(ecoregions_raster, numb.pseudoabs, global.occ.sp, ext=NULL, extf=1.1, excludep=TRUE, prob=FALSE, cellnumbers=FALSE, tryf=150, warn=2, lonlatCorrection=TRUE) 
 ```
+
 ### Extract generated pseudo absences and create presence-pseudobasence dataset 
 
-```{r create presence_absence dataset}
+```{r create_presence_absence_dataset}
 global_pseudoAbs<-as.data.frame(global_points)
 coordinates(global_pseudoAbs)<-c("x","y")
+crs(global_pseudoAbs)<-CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
 global_pseudoAbs$species<-rep(0,length(global_pseudoAbs$x))
 global_presabs<- spRbind(global.occ.sp,global_pseudoAbs) # join pseudoabsences with presences (occurrences)
-writeOGR(global_presabs, dsn=(here("./data/processed/sdm_occ_pts/global")), layer=paste(taxonName,"_globalSDM"), driver = "ESRI Shapefile", overwrite_layer=TRUE)
+
 ```
 
 ### Extract climate data for global scale modelling
 
 ```{r extractClimateData,message=FALSE}
+
 global.data <- sdmData(species~.,train=global_presabs, predictors=globalclimpreds)
 global.data.df<-as.data.frame(global.data)
 ```
 
 ### Identify highly correlated predictors
 
-```{r identifyCorrelatedPreds}
+```{r identifyCorrelatedPreds,echo=FALSE}
 correlationMatrix<-cor(global.data.df[,-c(1)])
 highlyCorrelated <- findCorrelation(correlationMatrix, cutoff=0.7,exact=TRUE,names=TRUE)
-print(highlyCorrelated)
+preds<-as.data.frame(highlyCorrelated)
+kable(preds) %>%
+kable_styling(bootstrap_options = c("striped"))
 ```
 
 ### Remove highly correlated predictors from dataframe 
 
-```{r removeCorrelatedPreds}
+```{r removeCorrelatedPreds,echo=FALSE,message=FALSE,warning=FALSE}
 global.data.df.subset<-select (global.data.df,-c(highlyCorrelated))
 global.data.df.subset<-within(global.data.df.subset,rm("rID"))
 global.data.df.subset$species<-as.factor(global.data.df.subset$species) #later steps require non numeric dependent variable
 levels(global.data.df.subset$species)<-c("absent","present")
-global.data.df.subset$species <- relevel(global.data.df.subset$species, ref = "present")
-
-
+global.data.df.subset$species <- relevel(global.data.df.subset$species, ref = "present") 
 ```
-
 ### Correct global clim preds values from integer format
 
-```{r correctPreds}
+```{r correctPreds,echo=FALSE}
 divide10<-function(x){
   value<-x/10
   return(value)
@@ -226,275 +325,365 @@ divide10<-function(x){
 global.data.df.uncor<-cbind("species"=  global.data.df.subset$species,divide10(global.data.df.subset[,-c(1)]))
 ```
 
+
+
 ### Use caretList from Caret package to run multiple machine learning models
 
-```{r run_globalModel,results= 'hide',message=FALSE,warning=FALSE}
-control <- trainControl(method="repeatedcv",number=5, repeats=5, savePredictions="final", preProc=c("center","scale"),classProbs=TRUE)
-classList1 <- c("glm","gbm","rf","knn", "earth")
+```{r run_globalModel,cache=TRUE,results= 'hide',message=FALSE,warning=FALSE}
+
+control <- trainControl(method="cv",number=10,savePredictions="final", preProc=c("center","scale"),classProbs=TRUE)
+classList1 <- c("glm","gbm","rf","earth")
 set.seed(457)
 global_train <- caretList(
   species~., data= global.data.df.uncor,
   trControl=control,
-  methodList=classList1
-)
-
-modelResults<-resamples(global_train)
-summary(modelResults)# displays accuracy of each model
-modelCor(resamples(global_train))# shows correlation among models.Weakly correlated algorithms are persuasive for stacking them in ensemble.
+    methodList=classList1)
 ```
-
+```{r print_globalModelAccuracy,warning=FALSE}
+GlobalModelResults<-resamples(global_train)
+Global.Mod.Accuracy<-summary(GlobalModelResults)# displays accuracy of each model
+kable(Global.Mod.Accuracy$statistics$Accuracy,digits=2) %>%
+kable_styling(bootstrap_options = c("striped"))
+```
+```{r print_globalModelKappa,warning=FALSE}
+GlobalModelResults<-resamples(global_train)
+kable(Global.Mod.Accuracy$statistics$Kappa,digits=2) %>%
+kable_styling(bootstrap_options = c("striped"))
+```
+```{r print_globalModelCorrelation,warning=FALSE}
+Global.Mod.Cor<-modelCor(resamples(global_train))# shows correlation among models.Weakly correlated algorithms are persuasive for stacking them in ensemble.
+kable(Global.Mod.Cor,digits=2)%>%
+kable_styling(bootstrap_options = c("striped"))
+```
 ### Create ensemble model (combine individual models into one) 
-
-```{r run global_ensemble}
+```{r run global_ensemble,TRUE}
 set.seed(478)
-global_stack <- caretStack(
+global_stack <- caretEnsemble(
   global_train, 
-  method="glm",
   trControl=trainControl(method="cv",
                          number=10,
-                         savePredictions= "final"  ))
+                         savePredictions= "final",classProbs=TRUE ))
 print(global_stack)
 ```
 
-### Create rasterstack of CHELSA data clipped to European modeling extent for prediction
+### Function to return threshold where sens=spec from caret results 
+```{r run accuracy_funcs}
+findThresh<-function(df){
+  df[c("rowIndex","obs","present")]
+  df<-df %>%
+    mutate(observed= ifelse(obs == "present",1,0)) %>%
+    select(rowIndex,observed,predicted=present)
+  result<-PresenceAbsence::optimal.thresholds(df,opt.methods = 2)
+  return(result)
+}
 
-```{r prepareEU_chelsaData}
-euclimrasters <- list.files((here("/data/external/climate/chelsa_eu_clips")),pattern='tif',full.names = T)
+#accuracy measures
+accuracyStats<-function(df,y){
+  df[c("rowIndex","obs","present")]
+  df<-df %>%
+    mutate(observed= ifelse(obs == "present",1,0)) %>%
+    select(rowIndex,observed,predicted=present)
+  result<-PresenceAbsence::presence.absence.accuracy(df,threshold = y,st.dev=FALSE)
+  return(result)
+}
+```
+
+### Identify threshold and performance of global ensemble model
+```{r evaluate global_ensemble}
+global.ens.thresh<-findThresh(global_stack$ens_model$pred)
+accuracyStats(global_stack$ens_model$pred,global.ens.thresh$predicted)
+```
+### Create rasterstack of CHELSA climate data clipped to European modeling extent for prediction
+
+```{r prepareEU_chelsaData,echo=TRUE}
+euclimrasters <- list.files((here("./data/external/climate/chelsa_eu_clips")),pattern='tif',full.names = T)
 eu_climpreds<-stack(euclimrasters)
-eu_climpreds.10<-divide10(eu_climpreds) # correct for integer format of Chelsa preds 
+eu_climpreds.10<-divide10(eu_climpreds) # correct for integer format of Chelsa preds
+
 ```
 
-### Restrict global model  prediction to the extent of Europe
-
-```{r predictGlobal}
+### Restrict global model prediction to the extent of Europe
+```{r predictGlobal, cache=TRUE,echo=FALSE}
  global_model<-raster::predict(eu_climpreds.10,global_stack,type="prob")
- plot(global_model)
- writeRaster(global_model, filename=file.path(rasterOutput,paste("GlobalEnsEU_",taxonkey, ".tif",sep="")), format="GTiff",overwrite=TRUE) 
+```
+### Plot global model prediction
+```{r plotGlobal,echo=FALSE}
+brks <- seq(0, 1, by=0.1) 
+  nb <- length(brks)-1 
+  pal <- colorRampPalette(rev(brewer.pal(8, 'Spectral')))
+  cols<-pal(nb)
+  plot(global_model, breaks=brks, col=cols,lab.breaks=brks) 
+ plot(global.occ.sp,pch=21,col="white",cex=0.70,add=TRUE)
+```
+### Export global model prediction
+```{r exportGlobal}
+writeRaster(global_model, filename=file.path(rasterOutput,paste("GlobalEnsEU_",taxonkey, ".tif",sep="")),format="GTiff",overwrite=TRUE) 
+```
+### Get variable importance of global model
+
+```{r get_var_importance}
+variableImportance_global<-varImp(global_stack)
+kable(variableImportance_global,digits=2,caption="Variable Importance") %>%
+kable_styling(bootstrap_options = c("striped"))
+write.csv(variableImportance_global,file = paste0(genOutput,taxonkey,"_varImp_global_model.csv"))
 ```
 
-### Obtain european presences from the occurrence cube. Check to make sure correct file is in path name
-
-```{r load_OccCube}
- #cube_europe <- read.csv(here("./data/external/data_cube/eu_modellingtaxa_cube.csv"))
-cube_europe <- read.csv(here("./data/external/data_cube/pra_modellingtaxa_cube.csv")) #more recent cube
-head(cube_europe)
+### Create European subset
+```{r subset_eu_occurrences,echo=FALSE}
+euboundary<-shapefile(here("./data/external/GIS/EUROPE.shp")) 
+euboundaryLL<-spTransform(euboundary,"+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
+occ.eu  <- global.occ.sp[euboundaryLL,]
+plot(euboundaryLL)
+plot(occ.eu,pch=21,bg="green",cex=.5,add=TRUE)
 ```
-
-### extract occurrence data for the target species meeting our criteria
-
-```{r extract_from_OccCube} 
-occ.eu<-cube_europe %>% 
-   #filter(taxonKey%in% taxonlist) %>%  #this option is for retrieving synomyms when working with subspecies 
-   filter(taxonKey==taxonkey) %>% #comment this if using subspecies
-   filter(year >"1975") %>% #select presences 1976 or later to be consistent with climate data
-  # filter(year <"2006") %>%
-   filter(min_coord_uncertainty <= 1000) 
- 
-occ.eu$eea_cell_code<-str_remove(occ.eu$eea_cell_code,"1km")#so that cell code matches with chelsa data
-```
- 
-# Add spatial information to occurrence cube data to make suitable for modelling
-
-```{r add_coords_to_OccCube}  
-centroids<-st_read(here("./data/external/GIS/EEA_fullgrid_1km_final_centroids.shp"))
- merged<-merge(occ.eu,centroids,by.x="eea_cell_code",by.y="EEA_fullgr") 
-occ.eu1<-cbind(merged[c("eea_cell_code","latitude","longitude")])  
-euocc<-occ.eu1[c("longitude", "latitude")]#extract long and lat for SDMtable
-coordinates(euocc)<- c("longitude", "latitude")
-euocc1<-data.frame(euocc)[c(1:2)] 
-``` 
 
 ### Create RasterStack of European climate variables from RMI
 
-```{r create euclimate_stack}  
+# stack climate data 
+```{r stack all_euclimate_preds}  
 rmiclimrasters <- list.files((here("./data/external/climate/rmi_corrected")),pattern='tif',full.names = T) 
-rmiclimpreds <- stack(rmiclimrasters)
+rmiclimrasters #shows all available climate data
+rmiclimpreds <- stack(rmiclimrasters) #includes all available climate data
 ```
 
-### Use SDMtab command from the SDMPlay package to remove duplicates per grid cell 
-
-```{r remove eu duplicates}
-euocc.SDMtable<- SDMPlay:::SDMtab(euocc1, rmiclimpreds, unique.data = TRUE,background.nb= 0)
-numb.pseudoabs <- length(euocc.SDMtable$id) 
-```
 
 ### Transform eu occurrence dataset with unique presences back to a SpatialPoints dataframe. 
 
 ```{r eu_occurences_to_spatialDF}
-euocc<-euocc.SDMtable[c("longitude", "latitude")]
+euocc<-as.data.frame(occ.eu@coords)
 coordinates(euocc)<- c("longitude", "latitude")
 euocc$occ<- rep(1,length(euocc$latitude))#adds columns indicating species presence needed for modeling
-crs(euocc)<-CRS("+proj=laea +lat_0=52 +lon_0=10 +x_0=4321000 +y_0=3210000 +ellps=GRS80 +towgs84=0,0,0,-0,-0,-0,0 +units=m +no_defs ")
+proj4string(euocc)<-CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")#specify here the existing projection of the data
+LLproj<-CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
+
+rmiproj<-CRS("+proj=laea +lat_0=52 +lon_0=10 +x_0=4321000 +y_0=3210000 +ellps=GRS80 +towgs84=0,0,0,-0,-0,-0,0 +units=m +no_defs")
+euocc1<-spTransform(euocc,rmiproj)
 ```
 
 ### Clip bias grid to European extent
 
 ```{r clip_biasgrid}
-euboundary<-shapefile(here("./data/external/GIS/EUROPE.shp")) 
 studyextent<-euboundary
 ecoregions_eu<-crop(biasgrid_sub,studyextent)
 biasgrid_eu<-projectRaster(ecoregions_eu,rmiclimpreds)
 plot(biasgrid_eu)
+plot(studyextent,add=TRUE)
 ```
 
 ### Mask areas of high habitat suitability from global climate model
-
 ```{r mask highSuitability}
-#Read in global raster from earlier step if needed
-
-#globalfilename<-paste(here("./data/processed/geotiffs/GlobalEnsEU_"), taxonkey, ".tif",sep="")
-#global_model<-raster(globalfilename)
-
 wgs84_gcs<-CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
 crs(global_model)<-wgs84_gcs
-m<-global_model >.5
-global_mask<-raster:::mask(global_model,m,maskvalue=TRUE)
+#m<-global_model >.5 
+m<-global_model >= global.ens.thresh$predicted
+global_mask<-mask(global_model,m,maskvalue=TRUE)
 global_masked_proj<-projectRaster(global_mask,biasgrid_eu)
+plot(global_masked_proj)
 ```
 
-### Overlay low predicted habitat suitability on bias grid to exclude low sampled areas 
+### Combine areas of low predicted habitat suitability with bias grid to exclude low sampled areas and areas of high suitability
 
 ```{r create_pseudoSamplingArea}
-pseudoSamplingArea<-mask(biasgrid_eu,global_masked_proj)
+pseudoSamplingArea<-mask(global_masked_proj,biasgrid_eu)
 plot(pseudoSamplingArea)
 ```
 
 ### Randomly locate pseudo absences within "pseudoSamplingArea" 
 ```{r create_eu_pseudoAbsences}
 
-euocc_points<-randomPoints(pseudoSamplingArea, numb.pseudoabs, euocc, ext=NULL, extf=1.1, excludep=TRUE, prob=FALSE,cellnumbers=FALSE, tryf=50, warn=2, lonlatCorrection=TRUE)
+# set number of pseudoabsences equal to the number of presences
+numb.eu.pseudoabs<-nrow(euocc1)
 
-
-euocc_pseudoAbs<-as.data.frame(euocc_points)
-coordinates(euocc_pseudoAbs)<-c("x","y")
-euocc_pseudoAbs$occ<-rep(0,length(euocc_pseudoAbs$x))
-
-crs(euocc_pseudoAbs)<-CRS("+proj=laea +lat_0=52 +lon_0=10 +x_0=4321000 +y_0=3210000 +ellps=GRS80 +towgs84=0,0,0,-0,-0,-0,0 +units=m +no_defs ")
-
+# takes 10 draws of random pseudoabsences, returns as dataframes and names them X1-X10
+setlist<-seq(1,10,1)
+set.seed(120)
+pseudoabs_pts<-lapply(setlist,function(x) as.data.frame(randomPoints(pseudoSamplingArea, numb.eu.pseudoabs , euocc, ext=NULL, extf=1.1, excludep=TRUE, prob=FALSE,cellnumbers=FALSE, tryf=50, warn=2, lonlatCorrection=TRUE)))
+names(pseudoabs_pts)<-paste0("X",setlist)
 ```
 
-### Join filtered cube occurrences with pseudo absences to create eu level presence-pseudoabsence dataset
+###  Prepare occurrence (presence-pseudoabsence) datasets for modelling
 
-```{r create eu_presence_absence dataset}
-eu_presabs<- spRbind(euocc,euocc_pseudoAbs)
-crs(eu_presabs)<-CRS("+proj=laea +lat_0=52 +lon_0=10 +x_0=4321000 +y_0=3210000 +ellps=GRS80 +towgs84=0,0,0,-0,-0,-0,0 +units=m +no_defs ")
-#confirm equal number of presences and absences
-table(eu_presabs@data$occ)
+```{r create eu_presence_absence datasets}
+# extract data from predictors for absences
+pseudoabs_pts1<-lapply(pseudoabs_pts, function(x) raster::extract(rmiclimpreds,x))
 
-#export occ points as shapefile 
-writeOGR(eu_presabs, dsn=(here("./data/processed/sdm_occ_pts/europe")), layer=paste(taxonName,"_EUpresabs",sep=""), driver="ESRI Shapefile", overwrite_layer = TRUE) 
+# add absence indicator
+add.occ<-function(x,y){
+occ<-rep(y,nrow(x))
+cbind(x,occ)
+}
 
+pseudoabs_pts2<-lapply(pseudoabs_pts1, function(x) add.occ(x,0))
+
+# extract eu presences and add presence indicator 
+presence<-as.data.frame(euocc1@coords)
+names(presence)<- c("x","y")
+presence1<-raster::extract(rmiclimpreds,presence)
+occ<-rep(1,nrow(presence1))
+presence1<-cbind(presence1,occ)
+
+# join each pseudoabsence set with presences 
+eu_presabs.pts<-lapply(pseudoabs_pts2, function(x) rbind(x,presence1))
+eu_presabs.coord<-lapply(pseudoabs_pts, function(x) rbind(x,presence))
 ```
 
-### Create SDM data object for European data 
 
-```{r create eu_sdmdata}
-occeu.sdmdata <- sdmData(occ~.,train=eu_presabs, predictors=rmiclimpreds) 
-occeu.sdmdata
-```
+### Identify highly correlated climate predictors from training data
 
-### Identify and remove highly correlated predictors from RMI rasterstack
-
-```{r removeCorrelated_RMI_Preds}
+```{r identifyCorrelated_RMI_Preds}
 # convert eu data to dataframe
-occeu.sdmdata.df<-as.data.frame(occeu.sdmdata)
-
-#identify highly correlated predictors drop first two columns which always be rID and occ
-correlationMatrix <- cor(occeu.sdmdata.df[,-c(1:2)])
+eu_presabs.pts.df<-lapply(eu_presabs.pts,function(x) as.data.frame(x))
 
 # find attributes that are highly corrected 
-highlyCorrelated <- findCorrelation(correlationMatrix, cutoff=0.70,exact=TRUE,names=TRUE)
-print (highlyCorrelated)
+highlyCorrelated_climate <-lapply(names(eu_presabs.pts.df),function(x) findCorrelation(cor(eu_presabs.pts.df[[x]],use = 'complete.obs'), cutoff=0.7,exact=TRUE,names=TRUE))
 
-rmiclimpreds_uncor<-dropLayer(rmiclimpreds,highlyCorrelated)
+highlyCorrelated_climate 
+eupreds<-as.data.frame(highlyCorrelated_climate[1])
+kable(eupreds) %>%
+kable_styling(bootstrap_options = c("striped"))
+```
+
+### Reomve highly correlated climate predictors from training data
+```{r removeCorrelated_RMI_Preds}
+drop_climate<-highlyCorrelated_climate[[1]]
+rmiclimpreds_uncor<-dropLayer(rmiclimpreds,drop_climate)
 ```
 
 ### Add habitat and anthropogenic predictors
 
-```{r add_habitatPreds}
+```{r add_habitatPreds,echo=FALSE}
 habitat<-list.files((here("./data/external/habitat/landcover")),pattern='tif',full.names = T)
 habitat_stack<-stack(habitat)
 fullstack<-stack(rmiclimpreds_uncor,habitat_stack) #combine uncorrelated climate variable selected earlier with habitat
 
-# uncomment below for vertebrates and invertebrates to include distance to water
-dist2water<-raster(here("./data/external/habitat/distance2water_EEA_1km.tif"))
-dist2water<-extend(dist2water,habitat_stack)
-fullstack<-stack(rmiclimpreds_uncor,habitat_stack,dist2water)
 
-# clip fullstack to belgium extent
-belgie<-shapefile(here("./data/external/GIS/belgium_boundary.shp"))
-fullstack_crop<-crop(fullstack,belgie)
-fullstack_be<-mask(fullstack_crop,belgie)
 
-occ.full.data <- sdmData(occ~.,train=eu_presabs, predictors=fullstack) 
-occ.full.data
+# clip fullstack to belgium extent (if using another country, replace with country boundary shapefile)
+country<-shapefile(here("./data/external/GIS/belgium_boundary.shp"))
+fullstack_crop<-crop(fullstack,country)
+fullstack_be<-mask(fullstack_crop,country)
 
-# convert eu data to dataframe
-occeu.full.data.df<-as.data.frame(occ.full.data)
-occeu.full.data.df<-occeu.full.data.df[,-1]
-
+occ.full.data <-lapply(eu_presabs.coord, function(x) raster::extract(fullstack,x))
 ```
 
-### Remove highly correlated predictors from the habitat/anthropogenic/climate stack (full stack)
 
-```{r removeCorrelatedPreds_from_fullStack }
-# first remove and identify low variance predictors
-nzv_preds<-nearZeroVar(occeu.full.data.df,names=TRUE)
-occeu.full.data.df1<-select (occeu.full.data.df,-c(nzv_preds))
+### Identify highly correlated predictors from the habitat/anthropogenic/climate stack (full stack)
+```{r identifyCorrelatedPreds_from_fullStack}
 
-# find attributes that are highly corrected 
-correlationMatrix <- cor(occeu.full.data.df1[,-1])
-highlyCorrelated <- findCorrelation(correlationMatrix, cutoff=0.7,exact=TRUE,names=TRUE)
+# find attributes that are highly correlated
+highlyCorrelated_full <-lapply(names(occ.full.data),function(x) findCorrelation(cor(occ.full.data[[x]],use = 'complete.obs'), cutoff=0.7,exact=TRUE,names=TRUE))
+highlyCorrelated_vec<-unlist(highlyCorrelated_full)
+eupreds1<-as.data.frame(highlyCorrelated_vec)
+kable(eupreds1) %>%
+kable_styling(bootstrap_options = c("striped"))
+```
+### Remove highly correlated predictors from full stack 
+```{r removeCorrelatedPreds_from_fullStack}
+occ.full.data<-sapply(names(occ.full.data),function (x) occ.full.data[[x]][,!(colnames(occ.full.data[[x]]) %in% highlyCorrelated_vec)],simplify=FALSE)
+```
 
-# print names of highly correlated attributes
-print(highlyCorrelated)
-occeu.full.data.df1<-select (occeu.full.data.df1,-c(highlyCorrelated))
+
+###  Identify and remove near zero variance predictors
+```{r removeLowVarPreds_from_fullStack}
+# identify low variance predictors
+nzv_preds<-lapply(names(occ.full.data),function(x) nearZeroVar(occ.full.data[[x]],names=TRUE))
+nzv_preds
+nzv_preds.vec<-unique(unlist(nzv_preds))
+nzv_preds.vec
+# remove near zero variance predictors. They don't contribute to the model.
+occ.full.data<-sapply(names(occ.full.data),function (x) occ.full.data[[x]][,!(colnames(occ.full.data[[x]]) %in% nzv_preds.vec)],simplify=FALSE)
 ```
 
 ### Build models with climate and habitat data
 
-```{r run_euModel,message=FALSE,results=FALSE,warning=FALSE}
-occeu.full.data.df1$occ<-as.factor(occeu.full.data.df1$occ)
-levels(occeu.full.data.df1$occ)<-c("absent","present")
+```{r run_euModel,message=FALSE,warning=FALSE}
 
-control <- trainControl(method="cv",number=10,savePredictions="final", preProc=c("center","scale"),classProbs=TRUE)
+# prepare data for modeling
+
+occ.full.data.df<-lapply(occ.full.data, function(x) as.data.frame(x))
+
+occ.full.data.df<- sapply(names(occ.full.data.df), function (x) cbind(occ.full.data.df[[x]],occ=eu_presabs.pts.df[[x]]$occ, deparse.level=0),simplify=FALSE)
+
+
+
+factorVars<-function(df,var){
+df[,c(var)]<-as.factor(df[,c(var)])
+levels(df[,c(var)])<-c("absent","present")
+df[,c(var)]<-relevel(df[,c(var)], ref = "present")
+return(df)
+}
+
+
+occ.full.data.factor<-sapply(names(occ.full.data.df), function (x) factorVars(occ.full.data.df[[x]], "occ"),simplify=FALSE)
+occ.full.data.forCaret<-sapply(names(occ.full.data.factor), function (x) replace(occ.full.data.factor[[x]], is.na(occ.full.data.factor[[x]]),0),simplify=FALSE)
+
+
+
+# uncomment 2nd control options for  LOOCV (leave one out cross validation, which is aka as "jacknife" ) which should be used when occurrences are smaller than n=10 for each predictor in the model)
+
+#control<-trainControl(method="LOOCV",savePredictions="final", preProc=c("center","scale"),classProbs=TRUE)
+control <- trainControl(method="cv",number=4,savePredictions="final", preProc=c("center","scale"),classProbs=TRUE)
 mylist<-list(
   glm =caretModelSpec(method = "glm",maxit=100),
   gbm= caretModelSpec(method = "gbm"),
   rf = caretModelSpec(method = "rf", importance = TRUE),
-  knn = caretModelSpec(method = "knn"),
   earth= caretModelSpec(method = "earth"))
-set.seed(457)
-model_train_habitat <- caretList(
-  occ~., data=occeu.full.data.df1,
-  trControl=control,
-  tuneList=mylist
-)
+
+# set.seed(167)
+ eu_models<-sapply(names(occ.full.data.forCaret), function(x) model_train_habitat <- caretList(
+   occ~temprang + maxtemp + annpvarrecip_eea + corine_perWetland, data= occ.full.data.forCaret[[x]],
+   trControl=control,
+    tuneList=mylist), simplify=FALSE)
+
 ```
 ### Display model evaluation statistics
 
 ```{r show_euModel_accuracy}
-modelResults1<-resamples(model_train_habitat)
-summary(modelResults1)
-modelCor(resamples(model_train_habitat))
+EU_ModelResults1<-sapply(names(eu_models), function(x) resamples(eu_models[[x]]),simplify=FALSE)
+Results.summary<-sapply(names(EU_ModelResults1), function(x) summary(EU_ModelResults1[[x]]),simplify=FALSE)
+Results.summary
+```
+
+```{r show_euModel_correlation}
+Model.cor<-sapply(names(eu_models), function(x) modelCor(resamples(eu_models[[x]])),simplify=FALSE)
+Model.cor
 ```
 
 ### Create ensemble model 
 
 ```{r run eu_ensemble}
-set.seed(478)
-lm_ens_hab<-caretEnsemble(model_train_habitat, trControl=trainControl(method="cv",                                                                number=10,                                    savePredictions= "final",classProbs = TRUE))
 
-lm_ens_hab
-variableImportance<-varImp(lm_ens_hab)
-write.csv(variableImportance,file = paste0(genOutput,taxonkey,"_varImp.csv"))
+set.seed(458)
+
+#hideoutput<-capture.output(
+set.seed(458)
+lm_ens_hab<-sapply(names(eu_models), function (x) caretEnsemble(eu_models[[x]], trControl=trainControl(method="cv",                                                               number=10,savePredictions= "final",classProbs = TRUE)),simplify=FALSE)
+
 ```
 
+
+#### PDF export function 
 
 ```{r export_toPDF,echo=FALSE}
 exportPDF<-function(rst,taxonkey,taxonName,nameextension,is.diff="FALSE"){
   filename=file.path(pdfOutput,paste("be_",taxonkey, "_",nameextension,sep=""))
   pdf(file=filename,width=10,height=8,paper="a4r")
+  par(bty="n")#to turn off box around plot
+  ifelse(is.diff=="TRUE", brks<-seq(-1, 1, by=0.2), brks <- seq(0, 1, by=0.1)) 
+  nb <- length(brks)-1 
+  pal <- colorRampPalette(rev(brewer.pal(11, 'Spectral')))
+  cols<-pal(nb)
+  maintitle<-paste(taxonName,taxonkey,"_",nameextension, sep= " ")
+  plot(rst, breaks=brks, col=cols,main=maintitle, lab.breaks=brks,axes=FALSE)
+  dev.off() 
+} 
+```
+
+#### PNG export function 
+```{r export_toPNG,echo=FALSE}
+exportPNG<-function(rst,taxonkey,taxonName,nameextension,is.diff="FALSE"){
+  filename=file.path(pdfOutput,paste("be_",taxonkey, "_",nameextension,sep=""))
+  png(file=filename)
   par(bty="n")#to turn off box around plot
   ifelse(is.diff=="TRUE", brks<-seq(-1, 1, by=0.25), brks <- seq(0, 1, by=0.1)) 
   nb <- length(brks)-1 
@@ -506,39 +695,105 @@ exportPDF<-function(rst,taxonkey,taxonName,nameextension,is.diff="FALSE"){
 } 
 ```
 
-###  Use eu level ensemble model (ensModel) to predict for europe (uncomment below)
+###  Use EU level ensemble models (each using a separate pseudoabsence draw) to predict at European level 
 
-```{r ensModel_predictEU,results= "hide"}
- ens_pred_hab_eu<-raster::predict(fullstack,lm_ens_hab,type="prob")
- ens_pred_hab_eu1<-1-ens_pred_hab_eu
+```{r ensModel_predictEU,results= "hide", cache=TRUE}
+ ens_pred_hab_eu1<-sapply(names(lm_ens_hab), function(x) raster::predict(fullstack,lm_ens_hab[[x]],type="prob"),simplify=FALSE)
  
- writeRaster(ens_pred_hab_eu1,filename=file.path(rasterOutput,paste("eu_",taxonkey, "_hist.tif",sep="")) , format="GTiff",overwrite=TRUE)
 ```
-
-### Predict for Belgium only using eu-level ensemble model to forecast risk under historical climate conditions
+### Use EU level ensemble models to predict for Belgium only  
 
 ```{r ensModel_predictBE,results="hide"}
-laea_grs80<-crs(belgie)
-ens_pred_hab<-raster::predict(fullstack_be,lm_ens_hab,type="prob")
-ens_pred_hab1<-1-ens_pred_hab
-crs(ens_pred_hab1)<-laea_grs80
-writeRaster(ens_pred_hab1, filename=file.path(rasterOutput,paste("be_",taxonkey, "_hist.tif",sep="")),  format="GTiff",overwrite=TRUE)
-exportPDF(ens_pred_hab1,taxonkey,taxonName=taxonName,"hist.pdf")
+
+# creates  country level rasters using the European level models
+ens_pred_hab_be<-sapply(names(lm_ens_hab), function(x) raster::predict(fullstack_be,lm_ens_hab[[x]],type="prob"),simplify=FALSE)
+
+# assign proj to rasters
+laea_grs80<-CRS("+proj=laea +lat_0=52 +lon_0=10 +x_0=4321000 +y_0=3210000 +ellps=GRS80 +towgs84=0,0,0,-0,-0,-0,0 +units=m +no_defs ")
+sapply(names(ens_pred_hab_be), function (x) crs(ens_pred_hab_be[[x]])<-laea_grs80)
+
+# export rasters as GeoTiffs
+#lapply(names(ens_pred_hab_be), function(x) writeRaster(ens_pred_hab_be[[x]], filename=file.path(rasterOutput,paste(x,"_",taxonkey,"_hist.tif",sep="")),  format="GTiff",overwrite=TRUE))
+```
+###  Evaluate the performance of each the EU level ensemble models based on results from CV
+```{r findThreshold,echo=FALSE}
+# 1.indentify threshold where sensitivity=specifity
+
+# function to return threshold where sens=spec from caret results 
+findThresh<-function(df){
+  df[c("rowIndex","obs","present")]
+  df<-df %>%
+    mutate(observed= ifelse(obs == "present",1,0)) %>%
+    select(rowIndex,observed,predicted=present)
+  result<-PresenceAbsence::optimal.thresholds(df,opt.methods = 2)
+  return(result)
+}
+
+thresholds<-sapply(names(lm_ens_hab), function(x) findThresh(lm_ens_hab[[x]]$ens_model$pred),simplify=FALSE)
 ```
 
+# 2. Using thresholds identified for each model in the previous step, assess performance of each model
+```{r accuracyMetrics,echo=FALSE}
+# accuracy measures
+accuracyStats<-function(df,y){
+  df[c("rowIndex","obs","present")]
+  df<-df %>%
+    mutate(observed= ifelse(obs == "present",1,0)) %>%
+    select(rowIndex,observed,predicted=present)
+  result<-PresenceAbsence::presence.absence.accuracy(df,threshold = y,st.dev=FALSE)
+  return(result)
+}
+thresholds.df<-sapply(names(thresholds), function(x) accuracyStats(lm_ens_hab[[x]]$ens_model$pred,thresholds[[x]]$predicted),simplify=FALSE)
+thresholds.comb<-do.call(rbind,thresholds.df)
+kable(thresholds.comb,digits=2)
+```
+
+### plot the best EU level ensemble model
+```{r Plot_ensModel_eu}
+# specify best model below
+bestModel<-lm_ens_hab$X6
+
+
+  brks <- seq(0, 1, by=0.1) 
+  nb <- length(brks)-1 
+  pal <- colorRampPalette(rev(brewer.pal(8, 'Spectral')))
+   cols<-pal(nb)
+  plot(ens_pred_hab_eu1$X6, breaks=brks, col=cols,lab.breaks=brks)# specify best model
+  plot(euocc1,pch=21,cex=.8,col="white",add=TRUE)#plots species presences in 10 fold cv comment this line to hide
+  
+```
+
+### Subset Belgium occurrences 
+```{r subset_countryLevel_occurrences,echo=FALSE}
+
+#occ.eu is in WGS84, convert to same projection as country level shapefile (which is the same proj used for model outputs)
+occ.eu.proj  <- spTransform(occ.eu,crs(country))
+occ.country <- occ.eu.proj[country,]
+plot(country)
+plot(occ.country,pch=21,bg="green",cex=1,add=TRUE)
+```
+
+### plot the best EU level ensemble model showing only Belgium
 ```{r Plot_ensModel_be}
-plot(ens_pred_hab1)
+brks <- seq(0, 1, by=0.1) 
+  nb <- length(brks)-1 
+  pal <- colorRampPalette(rev(brewer.pal(11, 'Spectral')))
+  cols<-pal(nb)
+  plot(ens_pred_hab_be$X6, breaks=brks, col=cols,lab.breaks=brks) # specify best model
+  plot(occ.country,pch=21,cex=1,add=TRUE)
+  
 ```
 
-### Clip habitat stack to Belgium 
 
+
+### Clip habitat raster stack to Belgium 
 ```{r create BE_habitatStack}
-habitat_stack<-stack(habitat,dist2water)
-habitat_only_stack<-crop(habitat_stack,belgie)
-habitat_only_stack_be<-crop(habitat_only_stack,belgie)
+habitat_stack<-stack(habitat)
+habitat_only_stack<-crop(habitat_stack,country)
+habitat_only_stack_be<-crop(habitat_only_stack,country)
 ```
 
-### Create individual RCP (2.6, 4.5, 8.5) climate data stacks for Belgium
+### Create individual RCP (2.6, 4.5, 8.5) climate raster stacks for Belgium
 
 ```{r create BE_RCP_stacks}
 be26 <- list.files((here("./data/external/climate/byEEA_finalRCP/belgium_rcps/rcp26")),pattern='tif',full.names = T)
@@ -562,69 +817,64 @@ fullstack85<-stack(be85,habitat_only_stack_be)
 ### Create and export RCP risk maps for each RCP scenario
 
 ```{r create_RCP_risk_maps}
-ens_pred_hab26<-raster::predict(fullstack26,lm_ens_hab,type="prob")
-ens_pred_hab26_1<-1-ens_pred_hab26
-crs(ens_pred_hab26_1)<-laea_grs80
-writeRaster(ens_pred_hab26_1, filename=file.path(rasterOutput,paste("be_",taxonkey, "_rcp26.tif",sep="")), format="GTiff",overwrite=TRUE) 
-exportPDF(ens_pred_hab26_1,taxonkey,taxonName=taxonName,"rcp26.pdf")
-
-ens_pred_hab45<-raster::predict(fullstack45,lm_ens_hab,type="prob")
-ens_pred_hab45_1<-1-ens_pred_hab45
-crs(ens_pred_hab45_1)<-laea_grs80
-writeRaster(ens_pred_hab45_1, filename=file.path(rasterOutput,paste("be_",taxonkey, "_rcp45.tif",sep="")), format="GTiff",overwrite=TRUE) 
-exportPDF(ens_pred_hab45_1,taxonkey,taxonName=taxonName,"rcp45.pdf")
-
-ens_pred_hab85<-raster::predict(fullstack85,lm_ens_hab,type="prob")
-ens_pred_hab85_1<-1-ens_pred_hab85
-crs(ens_pred_hab85_1)<-laea_grs80
-writeRaster(ens_pred_hab85_1, filename=file.path(rasterOutput,paste("be_",taxonkey, "_rcp85.tif",sep="")), format="GTiff",overwrite=TRUE) 
-exportPDF(ens_pred_hab85_1,taxonkey,taxonName=taxonName,"rcp85.pdf")
-
+ens_pred_hist<-raster::predict(fullstack_be,bestModel,type="prob")
+ens_pred_hab26<-raster::predict(fullstack26,bestModel,type="prob")
+crs(ens_pred_hab26)<-laea_grs80
+writeRaster(ens_pred_hab26, filename=file.path(rasterOutput,paste("be_",taxonkey, "_rcp26.tif",sep="")), format="GTiff",overwrite=TRUE) 
+exportPDF(ens_pred_hab26,taxonkey,taxonName=taxonName,"rcp26.pdf")
+ens_pred_hab45<-raster::predict(fullstack45,bestModel,type="prob")
+crs(ens_pred_hab45)<-laea_grs80
+writeRaster(ens_pred_hab45, filename=file.path(rasterOutput,paste("be_",taxonkey, "_rcp45.tif",sep="")), format="GTiff",overwrite=TRUE) 
+exportPDF(ens_pred_hab45,taxonkey,taxonName=taxonName,"rcp45.pdf")
+ens_pred_hab85<-raster::predict(fullstack85,bestModel,type="prob")
+crs(ens_pred_hab85)<-laea_grs80
+writeRaster(ens_pred_hab85, filename=file.path(rasterOutput,paste("be_",taxonkey, "_rcp85.tif",sep="")), format="GTiff",overwrite=TRUE) 
+exportPDF(ens_pred_hab85,taxonkey,taxonName=taxonName,"rcp85.pdf")
 ```
 
-### Display RCP risk maps
 
-```{r, rcp_riskMaps, fig.show="hold"}
-par(mfrow=c(1,3))
-plot(ens_pred_hab26_1)
-plot(ens_pred_hab45_1)
-plot(ens_pred_hab85_1)
+### Create and export RCP risk maps for each RCP scenario
+```{r plot_RCP_risk_maps}
+
+par(mfrow=c(2,2), mar= c(2,3,0.8,0.8))
+plot(ens_pred_hist,breaks=brks, col=cols,lab.breaks=brks)
+plot(ens_pred_hab26,breaks=brks, col=cols,lab.breaks=brks)
+plot(ens_pred_hab45,breaks=brks, col=cols,lab.breaks=brks)
+plot(ens_pred_hab85,breaks=brks, col=cols,lab.breaks=brks)
 ```
+
+
 
 ### Create and export "difference maps": the difference between predicted risk by each RCP scenario and historical climate
 
-```{r create_difference_maps,echo=FALSE,message= FALSE}
-hist26_diff_hab<-overlay(ens_pred_hab26_1, ens_pred_hab1, fun=function(r1,r2){return(r1-r2)})
+```{r create_difference_maps,echo=FALSE}
+hist26_diff_hab<-overlay(ens_pred_hab26, ens_pred_hist, fun=function(r1,r2){return(r1-r2)})
 writeRaster(hist26_diff_hab,filename=file.path(rasterOutput,paste("be_",taxonkey, "_rcp26_diff.tif",sep="")) , format="GTiff",overwrite=TRUE) 
 exportPDF(hist26_diff_hab,taxonkey,taxonName=taxonName,"rcp26_diff.pdf","TRUE")
 
-hist45_diff_hab<-overlay(ens_pred_hab45_1, ens_pred_hab1, fun=function(r1,r2){return(r1-r2)})
+
+hist45_diff_hab<-overlay(ens_pred_hab45, ens_pred_hist, fun=function(r1,r2){return(r1-r2)})
 writeRaster(hist45_diff_hab,filename=file.path(rasterOutput,paste("be_",taxonkey, "_rcp45_diff.tif",sep="")), format="GTiff",overwrite=TRUE) 
 exportPDF(hist45_diff_hab,taxonkey,taxonName=taxonName,"rcp45_diff.pdf","TRUE")
 
-hist85_diff_hab<-overlay(ens_pred_hab85_1, ens_pred_hab1, fun=function(r1,r2){return(r1-r2)})
+
+hist85_diff_hab<-overlay(ens_pred_hab85, ens_pred_hist, fun=function(r1,r2){return(r1-r2)})
 writeRaster(hist85_diff_hab, filename=file.path(rasterOutput,paste("be_",taxonkey, "_rcp_85_diff.tif",sep="")), format="GTiff",overwrite=TRUE) 
 exportPDF(hist85_diff_hab,taxonkey,taxonName=taxonName,"rcp85_diff.pdf","TRUE")
 
-```
-```{r, plotDiffMaps, fig.show="hold"}
-par(mfrow=c(1,3))
+par(mfrow=c(2,2), mar= c(2,3,0.8,0.8))
 plot(hist26_diff_hab)
 plot(hist45_diff_hab)
 plot(hist85_diff_hab)
+
 ```
 
-### Output predictor data used for SDM
 
-```{r export_SDM_predictorData}
-df4export<-cbind(occeu.full.data.df1,coordinates(occ.full.data))
-write.csv(df4export, paste(genOutput,taxonkey,"_sdmdata.csv",sep=""))
-```
 
 ### Check spatial autocorrelation of residuals to assess whether occurrence data should be thinned
-#### derive residuals from unthinned model
+#### derive residuals from best model
 ```{r deriveResiduals}
-predEns1<-lm_ens_hab$ens_model$pred
+predEns1<-bestModel$ens_model$pred
 obs.numeric<-ifelse(predEns1$obs == "absent",0,1)
 ```
 
@@ -638,8 +888,12 @@ stdres<-function(obs.numeric, yhat){
 }
 hab.res<-stdres(obs.numeric,predEns1$present)
 
+# specify corresponding model number from eu_presabs.coord datafile to join data with xy locations. If best model is "X1", join with eu_presabs.coord$X1
 
-res.best.coords<-cbind(coordinates(occ.full.data),hab.res)
+
+res.best.coords1<-cbind(coordinates(eu_presabs.coord$X1),occ.full.data.forCaret$X1)
+removedNAs.coords<-na.omit(res.best.coords1)
+res.best.coords<-cbind(removedNAs.coords,hab.res)
 res.best.geo<-as.geodata(res.best.coords,coords.col=1:2,data.col = 3)
 summary(res.best.geo) #note distance is in meters
 ```
@@ -647,7 +901,7 @@ summary(res.best.geo) #note distance is in meters
 ### Check Morans I.
 
 ```{r residual_MoransI}
-#If Moran's I is very low (<0.20), or not significant, do not need to thin occurrences.
+#If Moran's I is very low (<0.10), or not significant, do not need to thin occurrences.
 library(ape)
 res.best.df<-as.data.frame(res.best.coords)
 occ.dists <- as.matrix(dist(cbind(res.best.df[1], res.best.df[2])))
@@ -656,13 +910,18 @@ diag(occ.dists.inv) <- 0
 Moran.I(res.best.df$hab.res,occ.dists.inv,scaled=TRUE,alternative="greater")
 ```
 
+### Code for Mondrian conformal prediction functions
 
 ```{r conformalPredictionfunctions,echo=FALSE}
 # functions needed for conformal prediction function
 
+
 GetLength<-function(x,y){
-  length(x[which(x >= y)])
+length(x[which(x<= y)])
 }
+
+
+
 
 CPconf<-function(pA,pB,confidence){
   if(pA > confidence && pB< confidence){
@@ -677,7 +936,9 @@ CPconf<-function(pA,pB,confidence){
     return(predClass)
   }}
 
+
 #function to calculate confidence of each prediction
+
 get.confidence<-function(pvalA,pvalB){
   secondHighest<-ifelse(pvalA>pvalB,pvalB,pvalA)
   conf<-(1-secondHighest)
@@ -695,40 +956,47 @@ extractVals<-function(predras){
   raster_fitted <- cbind(coord,vals)
   raster_fitted.df<-as.data.frame(raster_fitted)
   raster_fitted.df1<-na.omit(raster_fitted.df)
-  raster_fitted.df1$absence<-raster_fitted.df1$vals
-  raster_fitted.df1$presence<- (1-raster_fitted.df1$absence)
+  raster_fitted.df1$presence<-raster_fitted.df1$vals
+  raster_fitted.df1$absence<- (1-raster_fitted.df1$presence)
   return(raster_fitted.df1)
 }
 ```
 
-### Code for class conformal prediction function
 
-```{r ClassConformalPrediction}
+
+```{r ClassConformalPrediction,echo=FALSE}
 classConformalPrediction<-function(x,y){
 ens_results<- get("x")
 ens_calib<-ens_results$ens_model$pred
-calibPresence<-subset(ens_calib$present,ens_calib$obs=='present',)
-calibAbsence<-subset(ens_calib$absent,ens_calib$obs=='absent',)
+calibPresence<-ens_calib %>%
+  filter(obs=='present')%>%
+    select(present)
+calibPresence<-unname(unlist(calibPresence[c("present")]))
+calibAbsence<-ens_calib %>%
+  filter(obs=='absent')%>%
+    select(absent)
+  calibAbsence<-unname(unlist(calibAbsence[c("absent")]))
 predicted.values<-extractVals(y)
+
 
 testPresence<-predicted.values$presence
 testAbsence<-predicted.values$absence
 
 #derive p.Values for class A
 smallrA<-lapply(testPresence,function(x) GetLength(calibPresence,x))
-smallrA_1<- unlist (smallrA)
+smallrA_1<- unlist (smallrA)+1
 nCalibSet<-length(calibPresence)+1
-pvalA<-smallrA_1/nCalibSet
+pvalA<-smallrA_1+1/nCalibSet
 
 # derive p.Values for Class B
 smallrB<-lapply(testAbsence,function(x) GetLength(calibAbsence,x))
-smallrB_1<- unlist (smallrB)
-nCalibSetB<-length(calibAbsence)+1
+smallrB_1<- unlist (smallrB)+1
+nCalibSetB<-length(calibAbsence)
 pvalB<-smallrB_1/nCalibSetB
 
-pvalsdf<-as.data.frame(cbind(pvalA,pvalB,0.20))
-raster_cp_20<-mapply(CPconf,pvalsdf$pvalA,pvalsdf$pvalB,pvalsdf[3])
-table(raster_cp_20)
+ pvalsdf<-as.data.frame(cbind(pvalA,pvalB,0.20))
+ #raster_cp_20<-mapply(CPconf,pvalsdf$pvalA,pvalsdf$pvalB,pvalsdf[3])
+ #table(raster_cp_20)
 
 pvalsdf$conf<-get.confidence(pvalsdf$pvalA,pvalsdf$pvalB)
 pvalsdf_1<-cbind(pvalsdf,predicted.values)
@@ -738,68 +1006,113 @@ pvalsdf_1<-cbind(pvalsdf,predicted.values)
 ### Quantify confidence of predicted values using class conformal prediction
 
 ```{r quantifyConfidence}
-# confidence map for Belgium for predicted risk under historical climate
-pvalsdf_hist<-classConformalPrediction(lm_ens_hab,ens_pred_hab)
-# Confidence maps for Belgium under RCP scenarios of climate change
-pvalsdf_rcp26<-classConformalPrediction(lm_ens_hab,ens_pred_hab26)
-pvalsdf_rcp45<-classConformalPrediction(lm_ens_hab,ens_pred_hab45)
-pvalsdf_rcp85<-classConformalPrediction(lm_ens_hab,ens_pred_hab85)
+
+# quantify confidence for country level predictions based on historical climate and under RCP scenarios of climate change
+
+set.seed(1609)
+pvalsdf_hist<-classConformalPrediction(bestModel,ens_pred_hist)
+set.seed(447)
+pvalsdf_rcp26<-classConformalPrediction(bestModel,ens_pred_hab26)
+set.seed(568)
+pvalsdf_rcp45<-classConformalPrediction(bestModel,ens_pred_hab45)
+set.seed(988)
+pvalsdf_rcp85<-classConformalPrediction(bestModel,ens_pred_hab85)
 
 # option to export confidence and pvals as csv 
-write.csv(pvalsdf_hist,file=paste(genOutput,"confidence_",taxonkey, "_hist.csv",sep=""))
+# write.csv(pvalsdf_hist,file=paste(genOutput,"confidence_",taxonkey, "_hist.csv",sep=""))
 ```
 
 ### Create confidence maps
 
 ```{r createConfidenceMaps,fig.show="hold"}
+brks <- seq(0, 1, by=0.1) 
+  nb <- length(brks)-1 
+  pal <- colorRampPalette(rev(brewer.pal(4, 'Spectral')))
+  cols<-pal(nb)
+  
+
 confidenceMaps<-function(x,taxonkey,taxonName,maptype){
 pvals_dataframe<-get("x")
 data.xyz <- pvals_dataframe[c("x","y","conf")]
 rst <- rasterFromXYZ(data.xyz)
 crs(rst)<-CRS("+proj=laea +lat_0=52 +lon_0=10 +x_0=4321000 +y_0=3210000 +ellps=GRS80 +units=m +no_defs") 
-plot(rst)
-writeRaster(rst, filename=paste("be_",taxonkey, "_",maptype,".tif",sep=""), format="GTiff",overwrite=TRUE)
+plot(rst,breaks=brks, col=cols,lab.breaks=brks)
+writeRaster(rst, filename=file.path(rasterOutput,paste("be_",taxonkey, "_",maptype,".tif",sep="")), format="GTiff",overwrite=TRUE)
 exportPDF(rst,taxonkey,taxonName=taxonName,nameextension= paste(maptype,".pdf",sep=""))
+return(rst)
 }
 
-par(mfrow=c(2,2))
+par(mfrow=c(2,2), mar= c(2,3,0.8,0.8))
 hist.conf.map<-confidenceMaps(pvalsdf_hist,taxonkey,taxonName,maptype="hist_conf")
 rcp26.conf.map<-confidenceMaps(pvalsdf_rcp26,taxonkey,taxonName,maptype="rcp26_conf")
 rcp45.conf.map<-confidenceMaps(pvalsdf_rcp45,taxonkey,taxonName,maptype="rcp45_conf")
 rcp85.conf.map<-confidenceMaps(pvalsdf_rcp85,taxonkey,taxonName,maptype="rcp85_conf")
 ```
-### Model evalution summary
-```{r export ModelEvaluation}
-meanResults<-summary(modelResults1)
-eu_accuracy<-meanResults$statistics$Accuracy
-eu_kappa<-meanResults$statistics$Kappa
 
-write.csv(eu_accuracy,file=paste0(genOutput,taxonkey,"_accuracy.csv"))
-write.csv(eu_kappa,file=paste0(genOutput,taxonkey,"_kappa.csv"))
 
-# derive sensitivity and specificity
- table(predEns1$pred,predEns1$obs)
- sensitivity(predEns1$pred,predEns1$obs)
- specificity(predEns1$pred,predEns1$obs)
- sens<-sensitivity(predEns1$pred,predEns1$obs)
- spec<-specificity(predEns1$pred,predEns1$obs)
+### Mask areas of below a set confidence level  
 
-moransI<-Moran.I(res.best.df$hab.res,occ.dists.inv,scaled=TRUE,alternative="greater")
-MoransI<-moransI$observed
-ensembleEvaluation<-(lm_ens_hab$ens_model$results[2:5])
+```{r maskLowConfidence,fig.show="hold"}
+# Cutoff for "high" confidence can be modified below. Cutoff should be a value between 0 and 1. Values that are less than the cutoff are shown in gray.
+cutoff<-0.70
 
-modelEvaluation<-cbind(sens,spec,MoransI,ensembleEvaluation)
-write.csv(modelEvaluation,file=paste0(genOutput,taxonkey,"_ModelEval.csv"))
+conf.brks <- seq(0,1, by=0.1) 
+  nb <- length(conf.brks) 
+  pal <- colorRampPalette(rev(brewer.pal(4, 'Spectral')))
+  cols<-pal(nb)
+
+par(mfrow=c(2,2), mar= c(2,3,0.9,0.8))
+m1<-hist.conf.map < cutoff
+hist_masked<-mask(ens_pred_hist,m1,maskvalue=TRUE)
+plot(hist_masked,breaks=conf.brks, col=cols,lab.breaks=conf.brks)
+plot(country,add=TRUE,border="dark gray")
+
+m2<-rcp26.conf.map < cutoff
+rcp26_masked<-mask(ens_pred_hab26,m2,maskvalue=TRUE)
+plot(rcp26_masked,breaks=conf.brks, col=cols,lab.breaks=conf.brks)
+plot(country,add=TRUE,border="dark gray")
+
+m3<-rcp45.conf.map < cutoff
+rcp45_masked<-mask(ens_pred_hab45,m3,maskvalue=TRUE)
+plot(rcp45_masked,breaks=conf.brks, col=cols,lab.breaks=conf.brks)
+plot(country,add=TRUE,border="dark gray")
+
+m4<-rcp85.conf.map < cutoff
+rcp85_masked<-mask(ens_pred_hab85,m4,maskvalue=TRUE)
+plot(rcp85_masked,breaks=conf.brks, col=cols,lab.breaks=conf.brks)
+plot(country,add=TRUE,border="dark gray")
+```
+### confidence map of best model at EU level
+```{r EUconfidence, fig.show="hold"}
+brks <- seq(0, 1, by=0.1) 
+  nb <- length(brks)-1 
+  pal <- colorRampPalette(rev(brewer.pal(4, 'Spectral')))
+set.seed(792)  
+pvalsdf_hist_eu<-classConformalPrediction(bestModel,ens_pred_hab_eu1$X6)
+hist.conf.map.eu<-confidenceMaps(pvalsdf_hist_eu,taxonkey,taxonName,maptype="hist_conf_eu")
+```
+  
+### Get variable importance of best european model
+
+```{r get_var_importance_eu,echo=TRUE}
+variableImportance<-varImp(bestModel)
+kable(variableImportance,digits=2,caption="Variable Importance") %>%
+kable_styling(bootstrap_options = c("striped"))
+write.csv(variableImportance,file = paste0(genOutput,taxonkey,"_varImp_EU_model.csv"))
 ```
 
-### generate and export response curves for top 5 predictors
+### Generate and export response curves in order of variable importance
+
 ```{r responseCurves}
-topPreds <- variableImportance[with(variableImportance,order(-overall)[1:5]),]
+topPreds <- variableImportance[with(variableImportance,order(-overall)),]
 varNames<-rownames(topPreds)
-# combine predictions from each model for each variable
+## combine predictions from each model for each variable
+## train data needs to be the training data used in the individual models used to build the ensemble model. This info can be extracted from the best ensemble model (ie. bestModel)
+bestModel.train<-bestModel$models[[1]]$trainingData
+
 partial_gbm<-function(x){
-  m.gbm<-pdp::partial(model_train_habitat$gbm$finalModel,pred.var=paste(x),train = occeu.full.data.df1,type="classification",
-                      prob=TRUE,n.trees= model_train_habitat$gbm$finalModel$n.trees, which.class = 2,grid.resolution=nrow(occeu.full.data.df1))
+  m.gbm<-pdp::partial(bestModel$models$gbm$finalModel,pred.var=paste(x),train = bestModel.train,type="classification",
+                      prob=TRUE,n.trees= bestModel$models$gbm$finalModel$n.trees, which.class = 1,grid.resolution=nrow(bestModel.train))
 }
 
 
@@ -807,32 +1120,23 @@ partial_gbm<-function(x){
 gbm.partial.list<-lapply(varNames,partial_gbm)
 
 partial_glm<-function(x){
-m.glm<-pdp::partial(model_train_habitat$glm$finalModel,pred.var=paste(x),train = occeu.full.data.df1,type="classification",
-              prob=TRUE,which.class = 2,grid.resolution=nrow(occeu.full.data.df1))
+m.glm<-pdp::partial(bestModel$models$glm$finalModel,pred.var=paste(x),train = bestModel.train,type="classification",
+              prob=TRUE,which.class = 1,grid.resolution=nrow(bestModel.train))
 }
 
 glm.partial.list<-lapply(varNames,partial_glm)
 
 partial_rf<-function(x){
-  pdp::partial(model_train_habitat$rf$finalModel,pred.var=paste(x),train = occeu.full.data.df1,type="classification",
-              prob=TRUE,which.class = 2,grid.resolution=nrow(occeu.full.data.df1))
+  pdp::partial(bestModel$models$rf$finalModel,pred.var=paste(x),train = bestModel.train,type="classification",
+              prob=TRUE,which.class = 1,grid.resolution=nrow(bestModel.train))
 }
 
 rf.partial.list<-lapply(varNames,partial_rf)
 
-partial_knn<-function(x){
-m.knn<-pdp::partial(model_train_habitat$knn,pred.var=paste(x),train = occeu.full.data.df1,type="classification",
-               prob=TRUE,which.class = 2,grid.resolution=nrow(occeu.full.data.df1))
-}
-
-knn.partial.list<-lapply(varNames,partial_knn)
-
-
-
 
 partial_mars<-function(x){
-m.mars<-pdp::partial(model_train_habitat$earth$finalModel,pred.var=paste(x),train = occeu.full.data.df1,type="classification",
-              prob=TRUE,which.class = 2,grid.resolution=nrow(occeu.full.data.df1))
+m.mars<-pdp::partial(bestModel$models$earth$finalModel,pred.var=paste(x),train = bestModel.train,type="classification",
+              prob=TRUE,which.class = 2,grid.resolution=nrow(bestModel.train)) # class=2 because in earth pkg, absense is the first class
 }
 
 mars.partial.list<-lapply(varNames,partial_mars)
@@ -841,14 +1145,11 @@ mars.partial.list<-lapply(varNames,partial_mars)
 names(glm.partial.list)<-varNames
 names(gbm.partial.list)<-varNames
 names(rf.partial.list)<-varNames
-names(knn.partial.list)<-varNames
 names(mars.partial.list)<-varNames
 
 glm.partial.df<-as.data.frame(glm.partial.list)
 gbm.partial.df<-as.data.frame(gbm.partial.list)
 rf.partial.df<-as.data.frame(rf.partial.list)
-knn.partial.df<-as.data.frame(knn.partial.list)
-
 mars.partial.df<-as.data.frame(mars.partial.list)
 
 predx<-data.frame()
@@ -868,18 +1169,17 @@ predy1<-t(predy)
 glm.partial.df$data<-'GLM'
 gbm.partial.df$data<-'GBM'
 rf.partial.df$data<-'RF'
-knn.partial.df$data<-'KNN'
 mars.partial.df$data<-'MARS'
 
-all_dfs<-rbind.data.frame(glm.partial.df,gbm.partial.df,rf.partial.df,knn.partial.df,mars.partial.df)
+all_dfs<-rbind.data.frame(glm.partial.df,gbm.partial.df,rf.partial.df,mars.partial.df)
 
 
 responseCurves<-function(x,y) {
-  colors <- c("GLM" = "gray", "GBM"="red","RF"="blueviolet","KNN"="chartreuse", "MARS"= "hotpink") 
+  colors <- c("GLM" = "gray", "GBM"="red","RF"="blueviolet","MARS"= "hotpink") 
   ggplot(all_dfs,(aes(x=.data[[x]],y=.data[[y]]))) +
     geom_line(aes(color = data), size =1.2, position=position_dodge(width=0.2))+
    theme_bw()+
-    labs(y="Partial probability", x= gsub("\\..*","",x),color="Legend") +
+    labs(y="Partial probability", x= gsub("//..*","",x),color="Legend") +
     scale_color_manual(values = colors)
 }  
 
@@ -897,8 +1197,66 @@ for(i in seq_along(allplots)){
 ### Plot response curves
 ```{r plotResponseCurves,fig.show="hold"}
 
-par(mfrow=c(3,3))
+par(mfrow=c(3,4))
 for(i in seq_along(allplots)){
   print(allplots[[i]])
 }
 ```
+
+###  Evaluate the performance of each the EU level ensemble models using independent data set from the future 
+#####################################################################
+
+```{r prepareTestData}
+# read in and prepare independent data
+#2011-2021
+eval.data<-read.csv("C:/Users/amyjs/Documents/projects/xps15/xps15/wiSDM/data/external/0001753-230828120925497/0001753-230828120925497.csv",header=TRUE,sep ="\t",quote="")
+
+#enter value for max coordinate uncertainty in meters.
+
+eval.data.occ<-eval.data %>%
+  filter(is.na(coordinateUncertaintyInMeters)| coordinateUncertaintyInMeters< 1000) 
+
+eval.data.occ$lon_dplaces<-sapply(na.omit(eval.data.occ$decimalLongitude), function(x) decimalplaces(x))
+eval.data.occ$lat_dplaces<-sapply(eval.data.occ$decimalLatitude, function(x) decimalplaces(x))
+eval.data.occ[eval.data.occ$lon_dplaces < 4& eval.data.occ$lat_dplaces < 4 , ]<-NA
+eval.data.occ<-eval.data.occ[ which(!is.na(eval.data.occ$lon_dplaces)),]
+eval.data.occ<-within(eval.data.occ,rm("lon_dplaces","lat_dplaces"))
+
+eval.data.occ<-eval.data.occ[c("decimalLongitude", "decimalLatitude")]
+coordinates(eval.data.occ)<- c("decimalLongitude", "decimalLatitude")
+proj4string(eval.data.occ)<-CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")#specify here the existing coord.sys of the data
+eval.data.occ.proj<-spTransform(eval.data.occ,rmiproj)
+```
+########################################################################
+```{r evaulateEuModelsTestData,echo=FALSE}
+#Convert predicted probabilities of EU level risk maps into binary risk maps (present/absence) using thresholds from earlier step
+
+# Eu level
+binary_eu_rasters<-sapply(names(thresholds), function(x) raster::reclassify(ens_pred_hab_eu1[[x]],c(0,thresholds[[x]]$predicted,0, thresholds[[x]]$predicted,1,1)),simplify=FALSE)
+
+
+
+
+eu_eval<-function (ras,y){
+indep.bil<-raster::extract(ras,y,method="bilinear")
+indep.bil.df<-as.data.frame(indep.bil)
+indep.bil.df<-indep.bil.df %>%
+  mutate(predicted= ifelse(indep.bil >= 0.5,"present","absent")) 
+indep.bil.df$observed<-rep("present",nrow(indep.bil.df))
+indep.bil.df$predicted<-as.factor(indep.bil.df$predicted)
+indep.bil.df$observed<-as.factor(indep.bil.df$observed)
+xtab<-table(indep.bil.df$predicted,indep.bil.df$observed)
+return(xtab)
+}
+
+
+testeval.eu.bin.rast<-sapply(names(binary_eu_rasters), function(x) eu_eval(binary_eu_rasters[[x]],eval.data.occ.proj),simplify=FALSE)
+testeval.eu.bin.rast
+
+```
+```{r evaulateCountryModelsTestData,echo=FALSE}
+binary_be_rasters<-sapply(names(thresholds), function(x) raster::reclassify(ens_pred_hab_be[[x]],c(0,thresholds[[x]]$predicted,0, thresholds[[x]]$predicted,1,1)),simplify=FALSE)
+testeval.be.bin.rast<-sapply(names(binary_eu_rasters), function(x) eu_eval(binary_be_rasters[[x]],eval.data.occ.proj),simplify=FALSE)
+testeval.be.bin.rast
+```
+

@@ -42,7 +42,7 @@ The species selected for modelling are saved in a separate file for each group e
 
 
 ```{r load_modelling_species_file_eu}
-taxa_input_file <-here("./data/external/PRA/pra_reptiles.csv")
+taxa_input_file <-here("./data/external/PRA/PRA_test.csv")
 taxa <- read.csv(taxa_input_file)
 ```
 
@@ -66,11 +66,10 @@ All types of occurrences, except `FOSSIL SPECIMEN` and `LIVING SPECIMEN`, which 
 basis_of_record <- c(
   "OBSERVATION", 
   "HUMAN_OBSERVATION",
-  "MATERIAL_SAMPLE", 
-  "LITERATURE", 
   "PRESERVED_SPECIMEN", 
   "UNKNOWN", 
-  "MACHINE_OBSERVATION"
+  "MACHINE_OBSERVATION",
+  "OCCURRENCE"
 )
 ```
 
@@ -80,7 +79,7 @@ Occurrences with a valid year:
 
 ```{r define_year_eu}
 year_begin <- 1976
-year_end <-2020
+year_end <-2011
 ```
 
 ## Geographic coordinates
@@ -101,7 +100,7 @@ Trigger download:
 
 ```{r trigger_gbif_download_eu}
 # Reuse existing download (comment to trigger new download)
-#gbif_download_key <- "0004487-200127171203522"
+gbif_download_key <- "0168922-220831081235567"
 # Trigger new download (commented by default)
  gbif_download_key <- occ_download(
    pred_in("taxonKey", taxon_keys),
@@ -140,7 +139,9 @@ occ_download_get(paste(metadata$key), path = here("./data/raw"))
 ```{r extract_GBIF_occurrence}
 raw.path<- here("data/raw//")
 unzip(paste0(raw.path,metadata$key,".zip"),exdir=paste0(raw.path,metadata$key))
-occ<-read.delim(paste0(raw.path,metadata$key,"/occurrence.txt"),header=TRUE)
+
+occ<- data.table::fread(paste0(raw.path,metadata$key,"/occurrence.txt"),header=TRUE)
+
 ```
 #split dataframe by taxon key
 ```{r split_GBIF_occurrence_bySpecies}
@@ -148,4 +149,6 @@ sort(unique(occ$species))
 splitDFs1<-split(occ,occ$species) 
 lapply(names(splitDFs1), function(x){write.csv(splitDFs1[[x]], file = paste0(raw.path,"/",x,".csv"))})
 ```
+
+
 
