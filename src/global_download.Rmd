@@ -123,6 +123,20 @@ rgbif::occ_download_wait(gbif_download_key)
 Write download to list of downloads and check pending downloads:
 
 ```{r update_download_list_eu}
+#If the file gbif_downloads.tsv does not exist, create and store an empty file
+if(!file.exists(here::here("data", "raw", "gbif_downloads.tsv"))) {
+  download_list<-data.frame(
+    gbif_download_key= character(),
+    input_checklist= character(),
+    gbif_download_created=character(),
+    gbif_download_status=character(),
+    gbif_download_doi=character()
+  )
+  write_tsv(download_list, here::here("data", "raw", "gbif_downloads.tsv"))
+  
+  remove(download_list)
+}
+
 update_download_list(
   file = here::here("data", "raw", "gbif_downloads.tsv"), 
   download_to_add = gbif_download_key, 
