@@ -175,9 +175,9 @@ Trigger download:
 ### Check status of download
 
 ```{r check_metadata_eu}
-metadata <- occ_download_meta(key = gbif_download_key)
-metadata$key
-metadata$status
+
+occ_download_wait(gbif_download_key)
+
 ```
 
 
