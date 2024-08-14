@@ -250,7 +250,22 @@ decimalplaces <- function(x) {
 ```{r filter global occurrence data}
 
 #remove unverified records
-identificationVerificationStatus_to_discard <- c("unverified", "unvalidated","not able to validate","control could not be conclusive due to insufficient knowledge")
+identificationVerificationStatus_to_discard <- c( "unverified",
+                                                  "unvalidated",
+                                                  "not validated",
+                                                  "under validation",
+                                                  "not able to validate",
+                                                  "control could not be conclusive due to insufficient knowledge",
+                                                  "1",
+                                                  "uncertain",
+                                                  "unconfirmed",
+                                                  "Douteux",
+                                                  "Invalide",
+                                                  "Non r\u00E9alisable",
+                                                  "verification needed" ,
+                                                  "Probable",
+                                                  "unconfirmed - not reviewed",
+                                                  "validation requested")
 
 #enter value for max coordinate uncertainty in meters.
 
