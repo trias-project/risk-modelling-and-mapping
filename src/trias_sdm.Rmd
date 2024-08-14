@@ -268,7 +268,6 @@ identificationVerificationStatus_to_discard <- c( "unverified",
                                                   "validation requested")
 
 #enter value for max coordinate uncertainty in meters.
-
 global.occ<-global %>%
   dplyr::filter(speciesKey%in%taxon_key) %>%   #using taxonKey filters out accepted synonyms, DO WE WANT THAT?
   dplyr::filter(is.na(coordinateUncertaintyInMeters)| coordinateUncertaintyInMeters<= 1000) %>%
@@ -277,7 +276,7 @@ global.occ<-global %>%
 #Remove coordinates that for both lon and lat values, have less than 4 decimal places
  global.occ$lon_dplaces<-sapply(global.occ$decimalLongitude, function(x) decimalplaces(x))
  global.occ$lat_dplaces<-sapply(global.occ$decimalLatitude, function(x) decimalplaces(x))
- global.occ[global.occ$lon_dplaces < 4& global.occ$lat_dplaces < 4 , ]<-NA
+ global.occ[global.occ$lon_dplaces < 4 & global.occ$lat_dplaces < 4 , ]<-NA
  global.occ<-global.occ[ which(!is.na(global.occ$lon_dplaces)),]
  global.occ<-within(global.occ,rm("lon_dplaces","lat_dplaces"))
  
