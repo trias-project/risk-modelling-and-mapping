@@ -1,6 +1,10 @@
 ---
 title: "Risk and confidence maps for `r params$species`"
-author: "Amy J.S Davis"
+author: 
+  - name:  "Amy J.S Davis"
+  - name:  "Peter Desmet" 
+  - name:  "Damiano Oldoni"
+  - name:  "Soria Delva"
 date: "`r Sys.Date()`"
 output:
   html_notebook:
