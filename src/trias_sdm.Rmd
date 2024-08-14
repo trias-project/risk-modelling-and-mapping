@@ -274,11 +274,14 @@ global.occ<-global %>%
   dplyr::filter(is.na(coordinateUncertaintyInMeters)| coordinateUncertaintyInMeters<= 1000) %>%
   dplyr::filter(!str_to_lower(identificationVerificationStatus) %in% identificationVerificationStatus_to_discard)
 
+#Remove coordinates that for both lon and lat values, have less than 4 decimal places
  global.occ$lon_dplaces<-sapply(global.occ$decimalLongitude, function(x) decimalplaces(x))
  global.occ$lat_dplaces<-sapply(global.occ$decimalLatitude, function(x) decimalplaces(x))
  global.occ[global.occ$lon_dplaces < 4& global.occ$lat_dplaces < 4 , ]<-NA
  global.occ<-global.occ[ which(!is.na(global.occ$lon_dplaces)),]
  global.occ<-within(global.occ,rm("lon_dplaces","lat_dplaces"))
+ 
+ #Only keep occurrences between the years 1970 and 2011 (not including these two years)
 global.occ<-global.occ[which( global.occ$year > 1970 & global.occ$year < 2011),]
 
 ``` 
@@ -295,11 +298,13 @@ global.occ.LL<-data.frame(global.occ)[c(1:2)] #extract long and lat
 ```{r remove invalid_pts_and_centroids,echo=FALSE}
 global.occ.LL$species<-rep("Vaccinium corymbosum",nrow(global.occ.LL))  
 
+#Coordinates are tested for several things: whether they in capitals, whether ... . For each coordinate a column per test is added indicating wether the result is potentially problematic (FALSE) or a clean coordinate (TRUE)
 flags_report<-clean_coordinates(x = global.occ.LL, lon= "decimalLongitude", lat= "decimalLatitude",
                           tests = c("capitals", 
                           "centroids","gbif", "institutions", 
                            "seas", "zeros"))
 
+#Only keep coordinates that are not flagged as potentially problematic
 cleaned<-clean_coordinates(x = global.occ.LL, lon= "decimalLongitude", lat= "decimalLatitude",
                           tests = c("capitals", 
                           "centroids","gbif", "institutions", 
