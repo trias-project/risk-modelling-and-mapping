@@ -19,7 +19,7 @@ params:
   species: Vaccinium corymbosum
   GBIF_taxonkey: '2882849'
 editor_options:
-  chunk_output_type: inline
+  chunk_output_type: console
 ---
 
 ```{r setup, include=FALSE}
