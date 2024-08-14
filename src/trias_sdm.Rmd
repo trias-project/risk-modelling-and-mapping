@@ -270,9 +270,9 @@ identificationVerificationStatus_to_discard <- c( "unverified",
 #enter value for max coordinate uncertainty in meters.
 
 global.occ<-global %>%
-  filter(speciesKey==taxonkey) %>%   #using taxonKey filters out accepted synonyms
-  filter(is.na(coordinateUncertaintyInMeters)| coordinateUncertaintyInMeters<= 1000) %>%
-  filter(!str_to_lower(identificationVerificationStatus) %in% identificationVerificationStatus_to_discard)
+  dplyr::filter(speciesKey%in%taxon_key) %>%   #using taxonKey filters out accepted synonyms, DO WE WANT THAT?
+  dplyr::filter(is.na(coordinateUncertaintyInMeters)| coordinateUncertaintyInMeters<= 1000) %>%
+  dplyr::filter(!str_to_lower(identificationVerificationStatus) %in% identificationVerificationStatus_to_discard)
 
  global.occ$lon_dplaces<-sapply(global.occ$decimalLongitude, function(x) decimalplaces(x))
  global.occ$lat_dplaces<-sapply(global.occ$decimalLatitude, function(x) decimalplaces(x))
