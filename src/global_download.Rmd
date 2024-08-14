@@ -116,10 +116,8 @@ gbif_download_key <- "0168922-220831081235567"
 
 ## Check status of download
 
-```{r check_metadata_eu}
-metadata <- occ_download_meta(key = gbif_download_key)
-metadata$key
-metadata$status
+```{r check_download_status}
+rgbif::occ_download_wait(gbif_download_key)
 ```
 
 Write download to list of downloads and check pending downloads:
@@ -133,14 +131,14 @@ update_download_list(
 ```
 
 ```{r retrieve_GBIF_download}
-occ_download_get(paste(metadata$key), path = here("./data/raw"))
+occ_download_get(gbif_download_key, path = here("./data/raw"))
 ```
 
 ```{r extract_GBIF_occurrence}
 raw.path<- here("data/raw//")
-unzip(paste0(raw.path,metadata$key,".zip"),exdir=paste0(raw.path,metadata$key))
+unzip(paste0(raw.path,gbif_download_key,".zip"),exdir=paste0(raw.path,gbif_download_key))
 
-occ<- data.table::fread(paste0(raw.path,metadata$key,"/occurrence.txt"),header=TRUE)
+occ<- data.table::fread(paste0(raw.path,gbif_download_key,"/occurrence.txt"),header=TRUE)
 
 ```
 #split dataframe by taxon key
