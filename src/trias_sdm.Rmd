@@ -369,7 +369,7 @@ biasgrid_sub<-mask(biasgrid_crop,wwf_ecoSub1)
 # generates pseudo absences equal to (or close to) the number of presences, from cells that are not NA in biasgrid_sub and not from cells that have occurrence points as indicated in global.occ.sp. extf 1.1 increases the size of extent with 5% at each side of the extent (default value).excludep = TRUE indicates that presence points are excluded from the background, prob: if TRUE the values in mask are interpreted as probability weights (only works for rasters with a modest size that can be loaded into RAM)
 #based on the paper I would expect prob to be TRUE? CHECK
 set.seed(728)
-global_points<-randomPoints(biasgrid_sub,numb.global.pseudoabs, global.occ.sp, ext=NULL, extf=1.1, excludep=TRUE, prob=FALSE, cellnumbers=FALSE, tryf=70, warn=2, lonlatCorrection=TRUE) 
+global_points<-dismo::randomPoints(biasgrid_sub,numb.global.pseudoabs, global.occ.sp, ext=NULL, extf=1.1, excludep=TRUE, prob=FALSE, cellnumbers=FALSE, tryf=70, warn=2, lonlatCorrection=TRUE) 
 # will throw a warning if randomPoints generated is less than numb.pseudoabs. If this happens, increase the number of tryf or ignore bias grid and sample from ecoregion only.
 ```
 
@@ -397,7 +397,7 @@ global_presabs<- spRbind(global.occ.sp,global_pseudoAbs) # join pseudoabsences w
 
 ```{r extractClimateData,message=FALSE}
 
-global.data <- sdmData(species~.,train=global_presabs, predictors=globalclimpreds)
+global.data <- sdm::sdmData(species~.,train=global_presabs, predictors=globalclimpreds)
 global.data.df<-as.data.frame(global.data)
 ```
 
@@ -414,7 +414,7 @@ kable_styling(bootstrap_options = c("striped"))
 ### Remove highly correlated predictors from dataframe 
 
 ```{r removeCorrelatedPreds,echo=FALSE,message=FALSE,warning=FALSE}
-global.data.df.subset<-select (global.data.df,-c(highlyCorrelated))
+global.data.df.subset<-dplyr::select (global.data.df,-all_of(highlyCorrelated))
 global.data.df.subset<-within(global.data.df.subset,rm("rID"))
 global.data.df.subset$species<-as.factor(global.data.df.subset$species) #later steps require non numeric dependent variable
 levels(global.data.df.subset$species)<-c("absent","present")
@@ -438,7 +438,7 @@ global.data.df.uncor<-cbind("species"=  global.data.df.subset$species,divide10(g
 
 ```{r run_globalModel,cache=TRUE,results= 'hide',message=FALSE,warning=FALSE}
 
-control <- trainControl(method="cv",number=10,savePredictions="final", preProc=c("center","scale"),classProbs=TRUE)
+control <- caret::trainControl(method="cv",number=10,savePredictions="final", preProc=c("center","scale"),classProbs=TRUE)
 classList1 <- c("glm","gbm","rf","earth")
 set.seed(457)
 global_train <- caretList(
