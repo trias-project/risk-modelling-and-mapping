@@ -337,7 +337,10 @@ plot(global.occ.sp,pch=21,bg="green",cex=.5,add=TRUE)
 ```{r select ecoregions,cache= TRUE,echo=FALSE}
 wwf_eco<-shapefile(here("./data/external/GIS/official/wwf_terr_ecos.shp"))
 #alternative to above
+wwf_eco<-sf::st_read(here("./data/external/GIS/official/wwf_terr_ecos.shp"))
+wwf_eco<-as_Spatial(wwf_eco)
 crs(global.occ.sp)<-CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
+crs(wwf_eco)<-CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
 occ_ecoIntersect <- over(wwf_eco,global.occ.sp) 
 wwf_ecoSub1 <- wwf_eco[!is.na(occ_ecoIntersect$species),]
 ```
