@@ -104,12 +104,13 @@ run_old_workflow <- function(downloadkey) {
   biasgrid<-raster(here("./data/external/bias_grids/final/trias/plants_1deg_min5.tif"))### specify appropriate bias grid here
 
   ### Subset bias grid by ecoregions containing occurrence points
+
   ext_wwf_ecoSub<-extent(wwf_ecoSub1)
   biasgrid_crop<-crop(biasgrid,ext_wwf_ecoSub)
   biasgrid_sub<-mask(biasgrid_crop,wwf_ecoSub1)
-
+ 
   
-  ###  Use randomPoints function from dismo package to locate pseduobasences within the bias grid subset 
+  ###  Use randomPoints function from dismo package to locate pseudoabsences within the bias grid subset 
   # generates pseudo absences equal to (or close to) the number of presences.
   set.seed(728)
   global_points<-randomPoints(biasgrid_sub,numb.global.pseudoabs, global.occ.sp, ext=NULL, extf=1.1, excludep=TRUE, prob=FALSE, cellnumbers=FALSE, tryf=70, warn=2, lonlatCorrection=TRUE) 
