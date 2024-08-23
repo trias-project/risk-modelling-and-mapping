@@ -282,11 +282,8 @@ global.occ<-global %>%
  global.occ$lat_dplaces<-sapply(global.occ$decimalLatitude, function(x) decimalplaces(x))
  global.occ[global.occ$lon_dplaces < 4 & global.occ$lat_dplaces < 4 , ]<-NA
  global.occ<-global.occ[ which(!is.na(global.occ$lon_dplaces)),]
- global.occ<-within(global.occ,rm("lon_dplaces","lat_dplaces"))
+ global.occ<-within(global.occ,rm("lon_dplaces","lat_dplaces")) # n= 1758
  
- #Only keep occurrences between the years 1970 and 2011 (not including these two years)
-global.occ<-global.occ[which( global.occ$year > 1970 & global.occ$year < 2011),]
-
 ``` 
 
 #### Convert global occurrences to spatial points needed for modelling
@@ -294,7 +291,7 @@ global.occ<-global.occ[which( global.occ$year > 1970 & global.occ$year < 2011),]
 ```{r occ to spatialData,echo=FALSE}
 global.occ<-global.occ[c("decimalLongitude", "decimalLatitude")]
 coordinates(global.occ)<- c("decimalLongitude", "decimalLatitude")
-global.occ.LL<-data.frame(global.occ)[c(1:2)] #extract long and lat 
+global.occ.LL<-data.frame(global.occ)[c(1:2)] #extract long and lat, n= 1758
 
 ```
 #### Flag and remove centroids and invalid georeferenced points
@@ -312,7 +309,7 @@ cleaned<-clean_coordinates(x = global.occ.LL, lon= "decimalLongitude", lat= "dec
                           tests = c("capitals", 
                           "centroids","gbif", "institutions", 
                            "seas", "zeros"),value="clean")
-global.occ.LL.cleaned<-subset(cleaned,select= -c(species))
+global.occ.LL.cleaned<-subset(cleaned,select= -c(species)) #n=1692
 ```
 #### Create global rasterstack using CHELSA data for model building
 
@@ -325,7 +322,7 @@ globalclimpreds <- stack(globalclimrasters)
 
 ```{r remove global duplicates,echo=TRUE}
 
-global.SDMtable<- SDMPlay:::SDMtab(global.occ.LL.cleaned, globalclimpreds, unique.data = TRUE,background.nb= 0) #
+global.SDMtable<- SDMPlay:::SDMtab(global.occ.LL.cleaned, globalclimpreds, unique.data = TRUE,background.nb= 0) #n=1111
 numb.global.pseudoabs <-length(global.SDMtable$id) #sets the number of pseudoabsences equal to number of unique presences
 
 
@@ -390,7 +387,7 @@ global_pseudoAbs<-as.data.frame(global_points)
 coordinates(global_pseudoAbs)<-c("x","y")
 crs(global_pseudoAbs)<-CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
 global_pseudoAbs$species<-rep(0,length(global_pseudoAbs$x))
-global_presabs<- spRbind(global.occ.sp,global_pseudoAbs) # join pseudoabsences with presences (occurrences)
+global_presabs<- spRbind(global.occ.sp,global_pseudoAbs) # join pseudoabsences with presences (occurrences), each 1111
 
 ```
 
