@@ -58,6 +58,9 @@ library(knitr)
 library(kableExtra)
 library(PresenceAbsence)
 library(rmarkdown)
+library(terra)
+library(ggplot2)
+library(rnaturalearth)
 
 ```
 ### 1, Download global occurrence data from GBIF
