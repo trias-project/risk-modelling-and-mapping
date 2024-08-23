@@ -213,7 +213,7 @@ remove(taxa_input_file)
 
 ```{r extract_GBIF_occurrence}
 raw.path<- here("data/raw//")
-unzip(paste0(raw.path,gbif_download_key,".zip"),exdir=paste0(raw.path,gbif_download_key))
+unzip(paste0(raw.path,gbif_download_key,".zip"),exdir=paste0(raw.path,gbif_download_key), overwrite=TRUE)
 
 global<-as.data.frame(data.table::fread(paste0(raw.path,gbif_download_key,"/occurrence.txt"),header=TRUE))
 ```
