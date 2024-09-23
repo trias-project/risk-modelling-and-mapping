@@ -53,7 +53,6 @@ library(pdp)
 library(purrr)
 library(here)
 library(CoordinateCleaner)
-library(humboldt) #PROBLEM
 library(knitr)
 library(kableExtra)
 library(PresenceAbsence)
@@ -61,6 +60,14 @@ library(rmarkdown)
 library(terra)
 library(ggplot2)
 library(rnaturalearth)
+library(foreach)
+library(doParallel)
+library(tidyterra)
+library(mapview)
+library(future)
+library(future.apply)
+library(progressr)
+library(humboldt) #PROBLEM
 
 ```
 ### 1, Download global occurrence data from GBIF
@@ -68,7 +75,8 @@ Retrieve the `taxonKey`s we want to use to download occurrences:
 
 ```{r retrieve_taxon_data}
 # TO DO: specify the scientific name of the species to be modelled
-species<- c("Vaccinium corymbosum", "Erigeron karvinskianus DC.", "Houttuynia cordata", "Leycesteria formosa", "Verbena bonariensis")
+#species<- c("Vaccinium corymbosum", "Erigeron karvinskianus DC.", "Houttuynia cordata", "Leycesteria formosa", "Verbena bonariensis")
+species<-c("Elodea densa","Koenigia polystachya", "Hydrocharis laevigata")
 
 # Match species names with the GBIF backbone, retrieve taxon keys from GBIF when a match is found
 taxon_df <- as.data.frame(species)
@@ -93,7 +101,7 @@ mapped_taxa <- purrr::map_dfr(
 
 #Make sure that only species info is stored as it is possible that genus information is captured when the species part of the name is not clear
 mapped_taxa<-mapped_taxa %>%
-  filter(rank =="SPECIES")
+  dplyr::filter(rank =="SPECIES")
 
 #Make sure that all species were mapped to the GBIF backbone, if not an error will appear indicating which species are missing
 assertthat::assert_that(nrow(mapped_taxa)==length(species),
@@ -173,16 +181,14 @@ Trigger download:
    pwd = rstudioapi::askForPassword("GBIF password"),
    email = rstudioapi::askForPassword("Email address for notification")
  )
+
+occ_download_wait(gbif_download_key)#Check download status
 ```
 
-### Check status of download
-
-```{r check_downloadstatus}
-occ_download_wait(gbif_download_key)
-```
-
+###     Retrieve download
 
 ```{r retrieve_GBIF_download}
+#gbif_download_key<-"0096867-240626123714530"
 occ_download_get(gbif_download_key, path = here("data","raw"), overwrite=TRUE)
 ```
 
@@ -551,7 +557,7 @@ plot(occ.eu,pch=21,bg="green",cex=.5,add=TRUE)
 
 # stack climate data 
 ```{r stack all_euclimate_preds}  
-rmiclimrasters <- list.files((here("./data/external/climate/rmi_corrected")),pattern='tif',full.names = T) 
+rmiclimrasters <- list.files((here("./data/external/climate/EU_data/tifs")),pattern='tif',full.names = T) 
 rmiclimrasters #shows all available climate data
 rmiclimpreds <- stack(rmiclimrasters) #includes all available climate data
 ```

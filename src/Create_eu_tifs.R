@@ -29,15 +29,23 @@ for(file in eudata){
  # Create a data frame with lon, lat, and variable data
  lonlatvar <- data.frame(lon = lon_vec, lat = lat_vec, var1 = df)
  
- # Create a raster object and set crs to a Lambert Azimuthal Equal-Area projection 
- r <- raster::rasterFromXYZ(lonlatvar, crs="+proj=laea +lat_0=52 +lon_0=10 +x_0=4321000 +y_0=3210000 +ellps=GRS80 +towgs84=0,0,0,-0,-0,-0,0 +units=m +no_defs")
+ # Create a raster object and set crs to WGS84
+ r <- raster::rasterFromXYZ(lonlatvar, crs="epsg:4326")
  
+ #Reproject raster to epsg:3035
+ r<-terra::project(rast(r), terra::crs(habitatexample))
+ r<-crop(r, ext(habitatexample))
  #Create filepath
  filename <- sub("\\.csv$", "", basename(file))
  filepath<- paste0("./data/external/climate/EU_data/tifs/",filename,".tif")
  
+ # Explicitly remove existing file
+ if (file.exists(filepath)) {
+   file.remove(filepath)
+ }
+ 
  #Export raster
- raster::writeRaster(r, filepath , format = "GTiff", overwrite = TRUE)
+ terra::writeRaster(r, filepath , filetype = "GTiff", overwrite = TRUE)
  
  #Set progressbar
 print(paste0("Exported layer ",i," of ",length(eudata),": ",filename))
@@ -49,4 +57,12 @@ print(paste0("Exported layer ",i," of ",length(eudata),": ",filename))
  
 }
 
+rm(lat_vec, lon_vec)
 
+
+
+
+
+habitat<-list.files((here("./data/external/habitat")),pattern='tif',full.names = T)
+habitat_stack<-stack(habitat[1:5])
+fullstack<-stack(raster(r),habitat_stack) #combine uncorrelated climate variable selected earlier with habitat

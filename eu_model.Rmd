@@ -1,0 +1,398 @@
+---
+title: "Untitled"
+author: "Soria Delva"
+date: "2024-09-09"
+output: html_document
+---
+### Create European subset
+```{r subset_eu_occurrences,echo=FALSE}
+europe<-rnaturalearth::ne_countries(continent="europe", scale=10)%>%
+        dplyr::filter(sovereignt!="Russia") %>%
+    st_transform(., crs="epsg:4326")
+
+#Crop europe to extent of the europe layer used to predict our model before:
+europe_crop <- europe%>%
+          sf::st_crop(xmin=-41.28347, ymin=20, xmax=41, ymax= 81)
+
+eu_occ<-st_join(europe_crop, global.occ.sf)%>%
+  select(decimalLatitude, decimalLongitude, species)%>%
+  filter(!is.na(decimalLatitude))%>%
+  st_drop_geometry()
+
+ggplot()+ 
+  geom_sf(data = europe_crop,  colour = "black", fill = NA)+
+  geom_point(data=eu_occ, aes(x=decimalLongitude, y= decimalLatitude),  fill="green", shape = 22, colour = "black", size=3)+
+  labs(x="Longitude", y="Latitude")+
+  theme_bw()
+```
+
+### Create RasterStack of European climate variables from RMI
+
+# stack climate data 
+```{r stack all_euclimate_preds}
+#Note that the rmiclimrasters are in the following CRS: IGNF/ETRS89LAEA-ETRS89 Lambert Azimutal Equal Area (this is EPSG:3035)
+rmiclimrasters <- list.files((here("./data/external/climate/EU_data/tifs")),pattern='tif',full.names = T) 
+rmiclimrasters #shows all available climate data
+rmiclimpreds<-rast(rmiclimrasters)
+rmiclimpreds<-terra::project(rmiclimpreds,"epsg:3035")
+```
+
+
+### Transform eu occurrence dataset with unique presences to the same crs as the european enviromental layers
+
+```{r eu_occurences_to_spatialDF}
+# Define the CRS using the EPSG code or proj string
+rmiproj <- st_crs("EPSG:3035")
+LLproj<-st_crs("EPSG:4326")
+
+# Transform the sf object 'euocc' to the new projection
+euocc1 <- st_as_sf(eu_occ, coords=c("decimalLongitude", "decimalLatitude"), crs= 4326, remove=FALSE)  %>%
+  st_transform(crs=rmiproj)%>%
+  st_drop_geometry()%>%
+  select(decimalLongitude, decimalLatitude, species)
+
+```
+
+### Clip bias grid to European extent
+
+```{r clip_biasgrid}
+#Get the extent of the rmiclimpred layers
+rmiclimpreds_ext<-terra::ext(rmiclimpreds)
+
+#Crop biasgrid to extent of rmiclimpreds 
+biasgrid_eu <- terra::crop(rast(biasgrid_sub), rmiclimpreds_ext) 
+
+plot(biasgrid_eu)
+```
+
+### Mask areas of high habitat suitability from global climate model
+```{r mask highSuitability}
+crs(global_model)<-"EPSG:4326"
+#m<-global_model >.5 
+#Create a mask of the global_model rasterlayer, containing only areas that are predicted to contain occurrences
+m<-global_model >= global.ens.thresh$predicted
+#Mask the global_model layer with this occurrence layer (i.e., convert all areas where occurrences are predicted to NA)
+global_mask<-mask(global_model,m,maskvalue=TRUE)
+global_mask<-crop(global_mask, rmiclimpreds_ext)
+plot(global_mask)
+```
+
+### Combine areas of low predicted habitat suitability with bias grid to exclude low sampled areas and areas of high suitability
+
+```{r create_pseudoSamplingArea}
+#Biasgrid_eu has different extent (smaller ymax than global model)-> reproject this layer to the extent of global model first
+biasgrid_eu<-terra::project(biasgrid_eu, global_mask)
+pseudoSamplingArea<-terra::mask(global_mask,biasgrid_eu)
+#Reproject this global_mask layer to the CRS of biasgrid_eu
+pseudoSamplingArea<-terra::project(pseudoSamplingArea,crs(rmiclimpreds))
+plot(pseudoSamplingArea)
+```
+
+
+### Randomly locate pseudo absences within "pseudoSamplingArea" 
+```{r create_eu_pseudoAbsences}
+
+# set number of pseudoabsences equal to the number of presences
+numb.eu.pseudoabs<-nrow(euocc1)
+
+# takes 10 draws of random pseudoabsences, returns as dataframes and names them X1-X10
+setlist<-seq(1,10,1)
+set.seed(12)
+
+#If there are a lot of NA's in the raster, randomPoints will have difficulties choosing pseudoabsences and return less values than requested. The solution is asking it to generate more points and then subset on the number you need
+pseudoabs_pts<-lapply(setlist,function(x) {
+    points <- as.data.frame(suppressWarnings(randomPoints(
+    raster(pseudoSamplingArea), 
+    numb.eu.pseudoabs * 4, 
+    euocc1, 
+    ext = NULL, 
+    extf = 1.1, 
+    excludep = TRUE, 
+    prob = FALSE, 
+    cellnumbers = FALSE, 
+    tryf = 50, 
+    warn = 2, 
+    lonlatCorrection = TRUE
+  )))
+  
+  # Subset to final number of points
+  final_points<-points[1:numb.eu.pseudoabs, ] # Only keep as many points as there are presences (= numb.eu.pseudoabs)
+  
+    # Check if the number of rows in the final_points is correct
+  if (nrow(final_points) != numb.eu.pseudoabs) {
+    warning(paste("Requested", numb.eu.pseudoabs, " pseudoabsence points, but only got", nrow(final_points),". Try again with a different seed or increase the multiplication factor of numb.eu.pseudoabs in the randomPoints function indicated above (currently 4)."))
+  }
+  
+  # Return the subset of points
+  return(final_points)
+})
+
+names(pseudoabs_pts)<-paste0("X",setlist)
+```
+
+###  Prepare occurrence (presence-pseudoabsence) datasets for modelling
+
+```{r create eu_presence_absence datasets}
+
+# extract data from predictors for absences
+pseudoabs_pts1<-lapply(pseudoabs_pts, function(x) terra::extract(rmiclimpreds), x, ID=F)
+
+# add absence indicator
+add.occ<-function(x,y){
+  occ<-rep(y,nrow(x))
+  cbind(x,occ)
+}
+
+pseudoabs_pts2<-lapply(pseudoabs_pts1, function(x) add.occ(x,0))
+
+# extract eu presences and add presence indicator 
+presence<-eu_occ%>%
+  select(decimalLongitude, decimalLatitude)%>%
+  rename("x"="decimalLongitude",
+         "y"="decimalLatitude")
+
+presence1<-terra::extract(terra_rmiclimpreds,presence, ID=F)
+presence1$occ<-1
+
+# join each pseudoabsence set with presences 
+eu_presabs.pts<-lapply(pseudoabs_pts2, function(x) rbind(x,presence1))
+eu_presabs.coord<-lapply(pseudoabs_pts, function(x) rbind(x,presence))
+```
+
+
+### Identify highly correlated climate predictors from training data
+
+```{r identifyCorrelated_RMI_Preds}
+# find attributes that are highly corrected 
+highlyCorrelated_climate <-lapply(names(eu_presabs.pts.df),function(x) findCorrelation(cor(eu_presabs.pts.df[[x]],use = 'complete.obs'), cutoff=0.7,exact=TRUE,names=TRUE))
+
+highlyCorrelated_climate 
+eupreds<-as.data.frame(highlyCorrelated_climate[1])
+kable(eupreds) %>%
+  kable_styling(bootstrap_options = c("striped"))
+```
+
+### Reomve highly correlated climate predictors from training data
+```{r removeCorrelated_RMI_Preds}
+drop_climate<-highlyCorrelated_climate[[1]]
+rmiclimpreds_uncor<-subset(terra_rmiclimpreds, drop_climate, negate=TRUE)
+```
+
+### Add habitat and anthropogenic predictors
+
+```{r add_habitatPreds,echo=FALSE}
+#distance2water_EEA_1km.tif has different extent
+habitat_all<-list.files((here("./data/external/habitat/")),pattern='tif',full.names = T)
+habitat<-habitat_all[c(1:5,7)]
+habitat_stack<-rast(habitat)
+distance2water_EEA_1km<-rast(habitat_all[6])
+habitat_stack<-c(habitat_stack, distance2water_EEA_1km)
+habitat_stack<-stack(habitat)
+fullstack<-stack(rmiclimpreds_uncor,habitat_stack) #combine uncorrelated climate variable selected earlier with habitat
+
+
+
+# clip fullstack to belgium extent (if using another country, replace with country boundary shapefile)
+country<-shapefile(here("./data/external/GIS/belgium_boundary.shp"))
+fullstack_crop<-crop(fullstack,country)
+fullstack_be<-mask(fullstack_crop,country)
+
+occ.full.data <-lapply(eu_presabs.coord, function(x) raster::extract(fullstack,x))
+```
+
+
+### Identify highly correlated predictors from the habitat/anthropogenic/climate stack (full stack)
+```{r identifyCorrelatedPreds_from_fullStack}
+
+# find attributes that are highly correlated
+highlyCorrelated_full <-lapply(names(occ.full.data),function(x) findCorrelation(cor(occ.full.data[[x]],use = 'complete.obs'), cutoff=0.7,exact=TRUE,names=TRUE))
+highlyCorrelated_vec<-unlist(highlyCorrelated_full)
+eupreds1<-as.data.frame(highlyCorrelated_vec)
+kable(eupreds1) %>%
+  kable_styling(bootstrap_options = c("striped"))
+```
+### Remove highly correlated predictors from full stack 
+```{r removeCorrelatedPreds_from_fullStack}
+occ.full.data<-sapply(names(occ.full.data),function (x) occ.full.data[[x]][,!(colnames(occ.full.data[[x]]) %in% highlyCorrelated_vec)],simplify=FALSE)
+```
+
+
+###  Identify and remove near zero variance predictors
+```{r removeLowVarPreds_from_fullStack}
+# identify low variance predictors
+nzv_preds<-lapply(names(occ.full.data),function(x) nearZeroVar(occ.full.data[[x]],names=TRUE))
+nzv_preds
+nzv_preds.vec<-unique(unlist(nzv_preds))
+nzv_preds.vec
+# remove near zero variance predictors. They don't contribute to the model.
+occ.full.data<-sapply(names(occ.full.data),function (x) occ.full.data[[x]][,!(colnames(occ.full.data[[x]]) %in% nzv_preds.vec)],simplify=FALSE)
+```
+
+### Build models with climate and habitat data
+
+```{r run_euModel,message=FALSE,warning=FALSE}
+
+# prepare data for modeling
+
+occ.full.data.df<-lapply(occ.full.data, function(x) as.data.frame(x))
+
+occ.full.data.df<- sapply(names(occ.full.data.df), function (x) cbind(occ.full.data.df[[x]],occ=eu_presabs.pts.df[[x]]$occ, deparse.level=0),simplify=FALSE)
+
+
+
+factorVars<-function(df,var){
+  df[,c(var)]<-as.factor(df[,c(var)])
+  levels(df[,c(var)])<-c("absent","present")
+  df[,c(var)]<-relevel(df[,c(var)], ref = "present")
+  return(df)
+}
+
+
+occ.full.data.factor<-sapply(names(occ.full.data.df), function (x) factorVars(occ.full.data.df[[x]], "occ"),simplify=FALSE)
+occ.full.data.forCaret<-sapply(names(occ.full.data.factor), function (x) replace(occ.full.data.factor[[x]], is.na(occ.full.data.factor[[x]]),0),simplify=FALSE)
+
+
+
+# uncomment 2nd control options for  LOOCV (leave one out cross validation, which is aka as "jacknife" ) which should be used when occurrences are smaller than n=10 for each predictor in the model)
+
+#control<-trainControl(method="LOOCV",savePredictions="final", preProc=c("center","scale"),classProbs=TRUE)
+control <- trainControl(method="cv",number=4,savePredictions="final", preProc=c("center","scale"),classProbs=TRUE)
+mylist<-list(
+  glm =caretModelSpec(method = "glm",maxit=100),
+  gbm= caretModelSpec(method = "gbm"),
+  rf = caretModelSpec(method = "rf", importance = TRUE),
+  earth= caretModelSpec(method = "earth"))
+
+# set.seed(167)
+eu_models<-sapply(names(occ.full.data.forCaret), function(x) model_train_habitat <- caretList(
+  occ~temprang + maxtemp + annpvarrecip_eea + corine_perWetland, data= occ.full.data.forCaret[[x]],
+  trControl=control,
+  tuneList=mylist), simplify=FALSE)
+
+```
+### Display model evaluation statistics
+
+```{r show_euModel_accuracy}
+EU_ModelResults1<-sapply(names(eu_models), function(x) resamples(eu_models[[x]]),simplify=FALSE)
+Results.summary<-sapply(names(EU_ModelResults1), function(x) summary(EU_ModelResults1[[x]]),simplify=FALSE)
+Results.summary
+```
+
+```{r show_euModel_correlation}
+Model.cor<-sapply(names(eu_models), function(x) modelCor(resamples(eu_models[[x]])),simplify=FALSE)
+Model.cor
+```
+
+### Create ensemble model 
+
+```{r run eu_ensemble}
+
+set.seed(458)
+
+#hideoutput<-capture.output(
+set.seed(458)
+lm_ens_hab<-sapply(names(eu_models), function (x) caretEnsemble(eu_models[[x]], trControl=trainControl(method="cv",                                                               number=10,savePredictions= "final",classProbs = TRUE)),simplify=FALSE)
+
+```
+
+
+#### PDF export function 
+
+```{r export_toPDF,echo=FALSE}
+exportPDF<-function(rst,taxonkey,taxonName,nameextension,is.diff="FALSE"){
+  filename=file.path(pdfOutput,paste("be_",taxonkey, "_",nameextension,sep=""))
+  pdf(file=filename,width=10,height=8,paper="a4r")
+  par(bty="n")#to turn off box around plot
+  ifelse(is.diff=="TRUE", brks<-seq(-1, 1, by=0.2), brks <- seq(0, 1, by=0.1)) 
+  nb <- length(brks)-1 
+  pal <- colorRampPalette(rev(brewer.pal(11, 'Spectral')))
+  cols<-pal(nb)
+  maintitle<-paste(taxonName,taxonkey,"_",nameextension, sep= " ")
+  plot(rst, breaks=brks, col=cols,main=maintitle, lab.breaks=brks,axes=FALSE)
+  dev.off() 
+} 
+```
+
+#### PNG export function 
+```{r export_toPNG,echo=FALSE}
+exportPNG<-function(rst,taxonkey,taxonName,nameextension,is.diff="FALSE"){
+  filename=file.path(pdfOutput,paste("be_",taxonkey, "_",nameextension,sep=""))
+  png(file=filename)
+  par(bty="n")#to turn off box around plot
+  ifelse(is.diff=="TRUE", brks<-seq(-1, 1, by=0.25), brks <- seq(0, 1, by=0.1)) 
+  nb <- length(brks)-1 
+  pal <- colorRampPalette(rev(brewer.pal(11, 'Spectral')))
+  cols<-pal(nb)
+  maintitle<-paste(taxonName,taxonkey,"_",nameextension, sep= " ")
+  plot(rst, breaks=brks, col=cols,main=maintitle, lab.breaks=brks,axes=FALSE)
+  dev.off() 
+} 
+```
+
+###  Use EU level ensemble models (each using a separate pseudoabsence draw) to predict at European level 
+
+```{r ensModel_predictEU,results= "hide", cache=TRUE}
+ens_pred_hab_eu1<-sapply(names(lm_ens_hab), function(x) raster::predict(fullstack,lm_ens_hab[[x]],type="prob"),simplify=FALSE)
+
+```
+### Use EU level ensemble models to predict for Belgium only  
+
+```{r ensModel_predictBE,results="hide"}
+
+# creates  country level rasters using the European level models
+ens_pred_hab_be<-sapply(names(lm_ens_hab), function(x) raster::predict(fullstack_be,lm_ens_hab[[x]],type="prob"),simplify=FALSE)
+
+# assign proj to rasters
+laea_grs80<-CRS("+proj=laea +lat_0=52 +lon_0=10 +x_0=4321000 +y_0=3210000 +ellps=GRS80 +towgs84=0,0,0,-0,-0,-0,0 +units=m +no_defs ")
+sapply(names(ens_pred_hab_be), function (x) crs(ens_pred_hab_be[[x]])<-laea_grs80)
+
+# export rasters as GeoTiffs
+#lapply(names(ens_pred_hab_be), function(x) writeRaster(ens_pred_hab_be[[x]], filename=file.path(rasterOutput,paste(x,"_",taxonkey,"_hist.tif",sep="")),  format="GTiff",overwrite=TRUE))
+```
+###  Evaluate the performance of each the EU level ensemble models based on results from CV
+```{r findThreshold,echo=FALSE}
+# 1.indentify threshold where sensitivity=specifity
+
+# function to return threshold where sens=spec from caret results 
+findThresh<-function(df){
+  df[c("rowIndex","obs","present")]
+  df<-df %>%
+    mutate(observed= ifelse(obs == "present",1,0)) %>%
+    select(rowIndex,observed,predicted=present)
+  result<-PresenceAbsence::optimal.thresholds(df,opt.methods = 2)
+  return(result)
+}
+
+thresholds<-sapply(names(lm_ens_hab), function(x) findThresh(lm_ens_hab[[x]]$ens_model$pred),simplify=FALSE)
+```
+
+# 2. Using thresholds identified for each model in the previous step, assess performance of each model
+```{r accuracyMetrics,echo=FALSE}
+# accuracy measures
+accuracyStats<-function(df,y){
+  df[c("rowIndex","obs","present")]
+  df<-df %>%
+    mutate(observed= ifelse(obs == "present",1,0)) %>%
+    select(rowIndex,observed,predicted=present)
+  result<-PresenceAbsence::presence.absence.accuracy(df,threshold = y,st.dev=FALSE)
+  return(result)
+}
+thresholds.df<-sapply(names(thresholds), function(x) accuracyStats(lm_ens_hab[[x]]$ens_model$pred,thresholds[[x]]$predicted),simplify=FALSE)
+thresholds.comb<-do.call(rbind,thresholds.df)
+kable(thresholds.comb,digits=2)
+```
+
+### plot the best EU level ensemble model
+```{r Plot_ensModel_eu}
+# specify best model below
+bestModel<-lm_ens_hab$X6
+
+
+brks <- seq(0, 1, by=0.1) 
+nb <- length(brks)-1 
+pal <- colorRampPalette(rev(brewer.pal(8, 'Spectral')))
+cols<-pal(nb)
+plot(ens_pred_hab_eu1$X6, breaks=brks, col=cols,lab.breaks=brks)# specify best model
+plot(euocc1,pch=21,cex=.8,col="white",add=TRUE)#plots species presences in 10 fold cv comment this line to hide
+
+```

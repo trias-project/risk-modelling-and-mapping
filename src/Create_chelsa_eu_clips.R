@@ -7,7 +7,7 @@ library(terra)
 europe<-rnaturalearth::ne_countries(continent="europe", scale=10)%>%
         dplyr::filter(sovereignt!="Russia")
 mapview(europe[1])
-europe <- sf::st_transform(europe_selection, st_crs = "EPSG:4326" )%>%
+europe <- sf::st_transform(europe, st_crs = "EPSG:4326" )%>%
           sf::st_crop(xmin=-50, ymin=0, xmax=60, ymax=90)%>%
           terra::vect()
 
