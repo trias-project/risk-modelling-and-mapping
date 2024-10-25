@@ -51,3 +51,15 @@ basis_of_record <- c(
 )
 ```
 
+### Specify time period to download occurrence data 
+```{r define_year_eu}
+year_begin <- 1971
+year_end <-2010
+```
+
+### Download only georeferenced points
+
+```{r define_hasCoordinate_eu}
+hasCoordinate <- TRUE
+```
+
