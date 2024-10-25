@@ -8,3 +8,9 @@ decimalplaces <- function(x) {
   }
 }
 
+#Divide a numerical value by 10
+divide10<-function(x){
+  value<-x/10
+  return(value)
+}
+
