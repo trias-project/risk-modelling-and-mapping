@@ -40,7 +40,6 @@ Retrieve the `taxonKeys` to download species occurrences:
 ```{r retrieve_taxon_data}
 # TO DO: specify the scientific name of the species to be modelled
 species<-c("Elodea densa","Koenigia polystachya", "Hydrocharis laevigata")
-species<-c("Anthaxia costifera","Vespa citriventris")
 
 # Match species names with the GBIF backbone, retrieve taxon keys from GBIF when a match is found
 taxon_df <- as.data.frame(species)
