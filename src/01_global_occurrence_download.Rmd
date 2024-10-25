@@ -24,3 +24,13 @@ knitr::opts_chunk$set(echo = TRUE,error = TRUE)
 ```
 
 
+```{r load libraries,echo=FALSE,message=FALSE}
+options("rgdal_show_exportToProj4_warnings"="none")
+library(purrr)
+library(rgbif)
+library(dplyr)
+library(assertthat)
+library(readr)
+library(here)
+library(trias)
+```
