@@ -24,3 +24,14 @@ findThresh<-function(df){
   return(result)
 }
 
+#Recalculate accuracy for a given model with the threshold that has been optimized
+#using fingThresh
+accuracyStats<-function(df,y){
+  df<-df[c("rowIndex","obs","present")]
+  df<-df %>%
+    mutate(observed= ifelse(obs == "present",1,0)) %>%
+    select(rowIndex,observed,predicted=present)
+  result<-PresenceAbsence::presence.absence.accuracy(df,threshold = y,st.dev=FALSE)
+  return(result)
+}
+
