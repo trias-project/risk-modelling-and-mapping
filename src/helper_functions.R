@@ -35,3 +35,58 @@ accuracyStats<-function(df,y){
   return(result)
 }
 
+# Model predictions for a large raster in a more efficient way using parallellization 
+predict_large_raster<-function(rasterstack, model, type) {
+  
+  # Ensure that connections are closed even in case of an error
+  on.exit({
+    plan(strategy = "sequential")  # Ensure that the parallel plan is returned to sequential
+    gc()  # Trigger garbage collection
+    closeAllConnections()  # Close any open file connections
+  }, add = TRUE)
+  
+  gc() #Free up memory
+  
+  ncores<-2  #Set up number of cores
+  
+  if(class(rasterstack)!="SpatRaster"){
+    raster_terra<-rast(rasterstack)  #Convert raster to terra raster format if not already
+  }else{
+    raster_terra<-rasterstack
+  }
+  
+  chunk_size <- ceiling(nrow(raster_terra) / ncores)   # Define chunk size
+  
+  # Create a list of row indices for each chunk
+  chunk_indices <- split(seq_len(nrow(raster_terra)), ceiling(seq_along(seq_len(nrow(raster_terra))) / chunk_size))
+  
+  # Extract raster chunks and put raster chunks in list
+  r_list<- vector(mode = "list", length = ncores)
+  for (core in 1:ncores) {
+    r_list[[core]]<- wrap(raster_terra[min(chunk_indices[[core]]):max(chunk_indices[[core]]), ,drop=FALSE])
+  } #SpatRasters need to be wrapped before sending out to different cores
+  
+  
+  predict_parallel <- function(chunk_raster, model, ...) {
+    unwrapped_raster <- unwrap(chunk_raster) # Unwrap raster for processing
+    predicted_raster<- predict( unwrapped_raster, model, type = type, na.rm=TRUE) # Perform prediction
+    wrap(predicted_raster)#Wrap the raster again
+  }
+  
+  plan(strategy = "multisession", workers=ncores) #Set up parallel
+  
+  out_list <- future_lapply(r_list, FUN = function(chunk) {
+    predict_parallel(chunk, model = model)
+  }
+  )
+  
+  
+  plan(strategy = "sequential")   #Close parallel processing
+  rm(r_list) #Remove large objects we don't need anymore
+  out_list<- lapply(out_list, unwrap) #unwrap chunks
+  gc() # Clean up memory after processing
+  model_parallel<- do.call(terra::merge, out_list)  # Merge the chunks 
+  rm(out_list) #Remove large objects we don't need anymore
+  gc()  #Final garbage collect
+  return(model_parallel)
+}
