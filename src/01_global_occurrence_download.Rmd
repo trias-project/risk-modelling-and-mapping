@@ -34,6 +34,77 @@ library(readr)
 library(here)
 library(trias)
 ```
+### Retrieve GBIF taxonkeys
+Retrieve the `taxonKeys` to download species occurrences:
+
+```{r retrieve_taxon_data}
+# TO DO: specify the scientific name of the species to be modelled
+species<-c("Elodea densa","Koenigia polystachya", "Hydrocharis laevigata")
+species<-c("Anthaxia costifera","Vespa citriventris")
+
+# Match species names with the GBIF backbone, retrieve taxon keys from GBIF when a match is found
+taxon_df <- as.data.frame(species)
+
+mapped_taxa <- purrr::map_dfr(
+  taxon_df$species,
+  ~ {
+    tryCatch(
+      {
+        data <- rgbif::name_backbone(name = .x)
+        if (length(data) == 0) {
+          stop("No match with the GBIF backbone found")
+        }
+        data
+      },
+      error = function(e) {
+        NULL
+      }
+    )
+  }
+)
+
+#Make sure that only species info is stored as it is possible that genus information is captured when the species part of the name is not clear
+mapped_taxa<-mapped_taxa %>%
+  dplyr::filter(rank =="SPECIES")
+
+#Make sure that all species were mapped to the GBIF backbone, if not an error will appear indicating which species are missing
+assertthat::assert_that(nrow(mapped_taxa)==length(species),
+                        msg=paste0("The following species could not be found in the GBIF backbone taxonomy: "
+                                   ,species[!sapply(species, function(x) any(grepl(x,mapped_taxa$scientificName)))])
+)
+
+not_accepted <- mapped_taxa %>%
+                dplyr::filter(status !="ACCEPTED")
+
+if (nrow(not_accepted)!=0) {
+      warning(paste0("The following species do not have an accepted taxonomic status in the GBIF backbone: ",paste(unique(not_accepted$scientificName), collapse=", "),". Their corresponding accepted species names will be used for downloading occurrence data.")
+              )
+} else {
+  paste0("All species are accepted taxa in the GBIF backbone 🎉")
+}
+
+#Explore mapped_taxa 
+mapped_taxa
+
+#Extract taxonkeys of each species, for synonyms the acceptedUsageKey is stored
+accepted_taxonkeys<-mapped_taxa %>%
+  dplyr::filter(status =="ACCEPTED")%>%
+  pull(usageKey)
+
+synonym_taxonkeys<-mapped_taxa %>%
+  dplyr::filter(status !="ACCEPTED")%>%
+  pull(acceptedUsageKey)
+
+taxonkeys<-c(accepted_taxonkeys, synonym_taxonkeys)
+
+#Create taxa_input file, holding information that will be added further down to gbif_downloads.tsv
+taxa_input_file<-mapped_taxa[,2]
+
+#Remove objects 
+remove(mapped_taxa, not_accepted, taxon_df, accepted_taxonkeys, synonyms_taxonkeys)
+
+```
+
 ### Basis of record
 
 
@@ -72,7 +143,7 @@ Trigger download:
 ```{r trigger_gbif_download_eu}
 
  gbif_download_key <- occ_download(
-   pred_in("taxonKey", taxon_key),
+   pred_in("taxonKey", taxonkeys),
    pred_in("basisOfRecord", basis_of_record),
    pred_gte("year", year_begin),
    pred_lte("year", year_end),
