@@ -63,3 +63,24 @@ year_end <-2010
 hasCoordinate <- TRUE
 ```
 
+### Trigger download
+
+**Note**: GBIF credentials are required in the next step. 
+
+Trigger download:
+
+```{r trigger_gbif_download_eu}
+
+ gbif_download_key <- occ_download(
+   pred_in("taxonKey", taxon_key),
+   pred_in("basisOfRecord", basis_of_record),
+   pred_gte("year", year_begin),
+   pred_lte("year", year_end),
+  pred("hasCoordinate", hasCoordinate),
+   user = rstudioapi::askForPassword("GBIF username"),
+   pwd = rstudioapi::askForPassword("GBIF password"),
+   email = rstudioapi::askForPassword("Email address for notification")
+ )
+
+occ_download_wait(gbif_download_key)#Check download status
+```
