@@ -14,3 +14,13 @@ divide10<-function(x){
   return(value)
 }
 
+#Function to return threshold where sens=spec from caret results 
+findThresh<-function(df){
+  df<-df[c("rowIndex","obs","present")]
+  df<-df %>%
+    mutate(observed= ifelse(obs == "present",1,0)) %>%
+    select(rowIndex,observed,predicted=present)
+  result<-PresenceAbsence::optimal.thresholds(df,opt.methods = 2)
+  return(result)
+}
+
