@@ -84,3 +84,11 @@ Trigger download:
 
 occ_download_wait(gbif_download_key)#Check download status
 ```
+
+###     Retrieve download
+
+```{r retrieve_GBIF_download}
+#gbif_download_key<-"0096867-240626123714530"
+occ_download_get(gbif_download_key, path = here("data","raw"), overwrite=TRUE)
+```
+
