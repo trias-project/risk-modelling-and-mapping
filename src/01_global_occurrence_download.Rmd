@@ -34,3 +34,20 @@ library(readr)
 library(here)
 library(trias)
 ```
+### Basis of record
+
+
+```{r define_basis_of_record_eu}
+#All types of occurrences are downloaded, except `FOSSIL SPECIMEN` and `LIVING SPECIMEN`, which can have misleading location information (e.g. location of captive animal).
+
+basis_of_record <- c(
+  "OBSERVATION", 
+  "HUMAN_OBSERVATION",
+  "MATERIAL_SAMPLE",
+  "PRESERVED_SPECIMEN", 
+  "UNKNOWN", 
+  "MACHINE_OBSERVATION",
+  "OCCURRENCE"
+)
+```
+
