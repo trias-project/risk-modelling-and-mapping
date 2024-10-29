@@ -1,3 +1,4 @@
+
 ---
 title: "Download of global occurrence data"
 author: 
@@ -90,17 +91,16 @@ accepted_taxonkeys<-mapped_taxa %>%
   dplyr::filter(status =="ACCEPTED")%>%
   pull(usageKey)
 
+if(nrow(not_accepted!=0)){
 synonym_taxonkeys<-mapped_taxa %>%
   dplyr::filter(status !="ACCEPTED")%>%
   pull(acceptedUsageKey)
 
-taxonkeys<-c(accepted_taxonkeys, synonym_taxonkeys)
+accepted_taxonkeys<-c(accepted_taxonkeys, synonym_taxonkeys)
+}
 
 #Create taxa_input file, holding information that will be added further down to gbif_downloads.tsv
 taxa_input_file<-mapped_taxa[,2]
-
-#Remove objects 
-remove(mapped_taxa, not_accepted, taxon_df, accepted_taxonkeys, synonyms_taxonkeys)
 
 ```
 
@@ -142,7 +142,7 @@ Trigger download:
 ```{r trigger_gbif_download_eu}
 
  gbif_download_key <- occ_download(
-   pred_in("taxonKey", taxonkeys),
+   pred_in("taxonKey", accepted_taxonkeys),
    pred_in("basisOfRecord", basis_of_record),
    pred_gte("year", year_begin),
    pred_lte("year", year_end),
@@ -184,7 +184,6 @@ update_download_list(
   download_to_add = gbif_download_key, 
   input_checklist = taxa_input_file
 )
-remove(taxa_input_file)
 ```
 
 ```{r extract_GBIF_occurrence}
@@ -192,4 +191,9 @@ raw.path<- here("data/raw//")
 unzip(paste0(raw.path,gbif_download_key,".zip"),exdir=paste0(raw.path,gbif_download_key), overwrite=TRUE)
 
 global<-as.data.frame(data.table::fread(paste0(raw.path,gbif_download_key,"/occurrence.txt"),header=TRUE))
+```
+
+```{r Clean up environment}
+#Remove all files except for global and taxa_input_file
+rm(list = setdiff(ls(), c("global", "taxa_input_file")))
 ```
