@@ -482,7 +482,8 @@ write.csv(variableImportance_global,file = paste0(genOutput,taxonkey,"_",species
                           global_ensemble_model = global_stack,
                           model_accuracy = ensemble_accurracy,
                           variable_importance = variableImportance_global,
-                          global_model_predictions = global_model
+                          global_model_predictions = global_model,$,
+                          occurrences=global.occ.sf
                                 )
   
 }
