@@ -72,17 +72,13 @@ rmiclimpreds<-rast(rmiclimrasters) #includes all available climate data
 ```
 
 
-### Transform eu occurrence dataset with unique presences back to a SpatialPoints dataframe. 
+### Transform eu occurrence dataset with unique presences back to an sf dataframe 
 
 ```{r eu_occurences_to_spatialDF}
-euocc<-as.data.frame(occ.eu@coords)
-coordinates(euocc)<- c("longitude", "latitude")
-euocc$occ<- rep(1,length(euocc$latitude))#adds columns indicating species presence needed for modeling
-proj4string(euocc)<-CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")#specify here the existing projection of the data
-LLproj<-CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
-
-rmiproj<-CRS("+proj=laea +lat_0=52 +lon_0=10 +x_0=4321000 +y_0=3210000 +ellps=GRS80 +towgs84=0,0,0,-0,-0,-0,0 +units=m +no_defs")
-euocc1<-spTransform(euocc,rmiproj)
+euocc <- st_as_sf(eu_occ, coords=c("decimalLongitude", "decimalLatitude"), crs= 4326, remove=FALSE)  %>%
+  st_transform(crs=st_crs(rmiclimpreds))%>%
+  st_drop_geometry()%>%
+  select(decimalLongitude, decimalLatitude, species)
 ```
 
 ### Clip bias grid to European extent
