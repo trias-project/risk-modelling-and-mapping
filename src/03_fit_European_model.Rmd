@@ -2,9 +2,50 @@
 title: "Fit European model"
 author: "Amy Davis", 
         "Soria Delva"
-date: "2024-08-20"
+date: "2024-10-20"
 output: html_document
 ---
+### 3. Create European SDM
+
+##### 0. Load packages
+```{r load libraries,echo=FALSE,message=FALSE}
+options("rgdal_show_exportToProj4_warnings"="none")
+library(sf)
+library(here)
+```
+
+```{r install or load right version of caretEnsemble}
+# Define the desired version
+desired_version <- "2.0.3"
+
+# Check if caretEnsemble is installed
+if ("caretEnsemble" %in% rownames(installed.packages())) {
+  # Get the current version of caretEnsemble
+  current_version <- packageVersion("caretEnsemble")
+  # Compare current version with the desired version
+  if (as.character(current_version) != desired_version) {
+    # Uninstall the current version if it's not the desired version
+    remove.packages("caretEnsemble")
+    # Install the specific version
+   devtools::install_github("zachmayer/caretEnsemble@2.0.3")
+    # Load 
+    library(caretEnsemble)
+  } else {
+    library(caretEnsemble)
+  }
+  
+} else {
+  # If caretEnsemble is not installed, install the specific version
+ devtools::install_github("zachmayer/caretEnsemble@2.0.3")
+  # Load 
+  library(caretEnsemble)
+}
+```
+
+##### 1. Source helper functions
+```{r source helpers, echo=FALSE}
+source("./src/helper_functions.R")
+```
 
 ### Create European subset
 ```{r subset_eu_occurrences,echo=FALSE}
