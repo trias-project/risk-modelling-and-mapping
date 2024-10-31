@@ -49,11 +49,17 @@ source("./src/helper_functions.R")
 
 ### Create European subset
 ```{r subset_eu_occurrences,echo=FALSE}
-euboundary<-shapefile(here("./data/external/GIS/EUROPE.shp")) 
-euboundaryLL<-spTransform(euboundary,"+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
-occ.eu  <- global.occ.sp[euboundaryLL,]
-plot(euboundaryLL)
-plot(occ.eu,pch=21,bg="green",cex=.5,add=TRUE)
+euboundary<-st_read(here("./data/external/GIS/Europe/EUROPE.shp")) 
+eu_occ<-st_join(euboundary, global.occ.sf)%>%
+  select(decimalLatitude, decimalLongitude, species)%>%
+  filter(!is.na(decimalLatitude))%>%
+  st_drop_geometry()
+
+ggplot()+ 
+  geom_sf(data = euboundary,  colour = "black", fill = NA)+
+  geom_point(data=eu_occ, aes(x=decimalLongitude, y= decimalLatitude),  fill="green", shape = 22, colour = "black", size=3)+
+  labs(x="Longitude", y="Latitude")+
+  theme_bw()
 ```
 
 ### Create RasterStack of European climate variables from RMI
