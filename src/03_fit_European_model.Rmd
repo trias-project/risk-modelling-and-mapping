@@ -68,7 +68,7 @@ ggplot()+
 ```{r stack all_euclimate_preds}  
 rmiclimrasters <- list.files((here("./data/external/climate/rmi_corrected")),pattern='tif',full.names = T) 
 rmiclimrasters #shows all available climate data
-rmiclimpreds <- stack(rmiclimrasters) #includes all available climate data
+rmiclimpreds<-rast(rmiclimrasters) #includes all available climate data
 ```
 
 
