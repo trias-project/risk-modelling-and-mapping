@@ -84,11 +84,16 @@ euocc <- st_as_sf(eu_occ, coords=c("decimalLongitude", "decimalLatitude"), crs= 
 ### Clip bias grid to European extent
 
 ```{r clip_biasgrid}
-studyextent<-euboundary
-ecoregions_eu<-crop(biasgrid_sub,studyextent)
-biasgrid_eu<-projectRaster(ecoregions_eu,rmiclimpreds)
-plot(biasgrid_eu)
-plot(studyextent,add=TRUE)
+ecoregions_eu<-crop(rast(biasgrid_sub),euboundary)
+biasgrid_eu <- project(ecoregions_eu, rmiclimpreds) #reproject the ecoregions raster to match the spatial properties of rmi climpreds
+
+#Plot
+ggplot()+ 
+ geom_sf(data = euboundary,  colour = "black", fill = NA)+
+  geom_spatraster(data=biasgrid_eu)+
+  scale_fill_continuous(na.value = "transparent",low = "blue", high = "orange")+
+ labs(x="Longitude", y="Latitude")+
+  theme_bw()
 ```
 
 ### Mask areas of high habitat suitability from global climate model
