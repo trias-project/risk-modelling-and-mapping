@@ -118,7 +118,7 @@ plot(pseudoSamplingArea)
 ```{r create_eu_pseudoAbsences}
 
 # set number of pseudoabsences equal to the number of presences
-numb.eu.pseudoabs<-nrow(euocc1)
+numb.eu.pseudoabs<-nrow(euocc)
 
 # takes 10 draws of random pseudoabsences, returns as dataframes and names them X1-X10
 setlist<-seq(1,10,1)
