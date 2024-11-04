@@ -125,7 +125,7 @@ numb.eu.pseudoabs<-nrow(euocc)
 # takes 10 draws of random pseudoabsences, returns as dataframes and names them X1-X10
 setlist<-seq(1,10,1)
 set.seed(120)
-pseudoabs_pts<-lapply(setlist,function(x) as.data.frame(randomPoints(pseudoSamplingArea, numb.eu.pseudoabs , euocc, ext=NULL, extf=1.1, excludep=TRUE, prob=FALSE,cellnumbers=FALSE, tryf=50, warn=2, lonlatCorrection=TRUE)))
+pseudoabs_pts<-lapply(setlist,function(x) as.data.frame(randomPoints(raster(pseudoSamplingArea), numb.eu.pseudoabs , euocc, ext=NULL, extf=1.1, excludep=TRUE, prob=FALSE,cellnumbers=FALSE, tryf=50, warn=2, lonlatCorrection=TRUE)))
 names(pseudoabs_pts)<-paste0("X",setlist)
 ```
 
