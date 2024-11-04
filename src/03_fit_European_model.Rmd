@@ -99,13 +99,14 @@ ggplot()+
 
 ### Mask areas of high habitat suitability from global climate model
 ```{r mask highSuitability}
-wgs84_gcs<-CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
-crs(global_model)<-wgs84_gcs
 #m<-global_model >.5 
+#Create a mask of the global_model rasterlayer, containing only areas that are predicted to contain occurrences
 m<-global_model >= global.ens.thresh$predicted
+#Mask the global_model layer with this occurrence layer (i.e., convert all areas where occurrences are predicted to NA)
 global_mask<-mask(global_model,m,maskvalue=TRUE)
-global_masked_proj<-projectRaster(global_mask,biasgrid_eu)
+global_masked_proj<-project(global_mask,biasgrid_eu)
 plot(global_masked_proj)
+
 ```
 
 ### Combine areas of low predicted habitat suitability with bias grid to exclude low sampled areas and areas of high suitability
