@@ -1,6 +1,8 @@
 
+#-----------------------------------------------------------------------------------
 #This function calculates the number of decimal places in any given numeric value 
 # eg., 15.21 has 2 decimal places, 15.2569 has 4 decimal places, 15.25690 also has 4, as 0 in the end doesn't count
+#-----------------------------------------------------------------------------------
 decimalplaces <- function(x) {
   if (abs(x - round(x)) > .Machine$double.eps^0.5) {
     nchar(strsplit(sub('0+$', '', as.character(x)), ".", fixed = TRUE)[[1]][[2]])
@@ -9,13 +11,19 @@ decimalplaces <- function(x) {
   }
 }
 
+
+#-----------------------------------------------------------------------------------
 #Divide a numerical value by 10
+#-----------------------------------------------------------------------------------
 divide10<-function(x){
   value<-x/10
   return(value)
 }
 
+
+#-----------------------------------------------------------------------------------
 #Function to return threshold where sens=spec from caret results 
+#-----------------------------------------------------------------------------------
 findThresh<-function(df){
   df<-df[c("rowIndex","obs","present")]
   df<-df %>%
@@ -25,8 +33,10 @@ findThresh<-function(df){
   return(result)
 }
 
+
+#-----------------------------------------------------------------------------------
 #Recalculate accuracy for a given model with the threshold that has been optimized
-#using fingThresh
+#-----------------------------------------------------------------------------------
 accuracyStats<-function(df,y){
   df<-df[c("rowIndex","obs","present")]
   df<-df %>%
@@ -36,7 +46,10 @@ accuracyStats<-function(df,y){
   return(result)
 }
 
+
+#-----------------------------------------------------------------------------------
 # Model predictions for a large raster in a more efficient way using parallellization 
+#-----------------------------------------------------------------------------------
 predict_large_raster<-function(rasterstack, model, type) {
   
   # Ensure that connections are closed even in case of an error
@@ -92,3 +105,37 @@ predict_large_raster<-function(rasterstack, model, type) {
   options(future.globals.maxSize = 500 * 1024^2)  # Reset to 500 MB
   return(model_parallel)
 }
+
+
+#-----------------------------------------------------------------------------------
+# PDF export function
+#-----------------------------------------------------------------------------------
+exportPDF<-function(rst,taxonkey,taxonName,nameextension,is.diff="FALSE"){
+  filename=file.path(pdfOutput,paste("be_",taxonkey, "_",nameextension,sep=""))
+  pdf(file=filename,width=10,height=8,paper="a4r")
+  par(bty="n")#to turn off box around plot
+  ifelse(is.diff=="TRUE", brks<-seq(-1, 1, by=0.2), brks <- seq(0, 1, by=0.1)) 
+  nb <- length(brks)-1 
+  pal <- colorRampPalette(rev(brewer.pal(11, 'Spectral')))
+  cols<-pal(nb)
+  maintitle<-paste(taxonName,taxonkey,"_",nameextension, sep= " ")
+  plot(rst, breaks=brks, col=cols,main=maintitle, lab.breaks=brks,axes=FALSE)
+  dev.off() 
+} 
+
+
+#-----------------------------------------------------------------------------------
+# Export PNG function
+#-----------------------------------------------------------------------------------
+exportPNG<-function(rst,taxonkey,taxonName,nameextension,is.diff="FALSE"){
+  filename=file.path(pdfOutput,paste("be_",taxonkey, "_",nameextension,sep=""))
+  png(file=filename)
+  par(bty="n")#to turn off box around plot
+  ifelse(is.diff=="TRUE", brks<-seq(-1, 1, by=0.25), brks <- seq(0, 1, by=0.1)) 
+  nb <- length(brks)-1 
+  pal <- colorRampPalette(rev(brewer.pal(11, 'Spectral')))
+  cols<-pal(nb)
+  maintitle<-paste(taxonName,taxonkey,"_",nameextension, sep= " ")
+  plot(rst, breaks=brks, col=cols,main=maintitle, lab.breaks=brks,axes=FALSE)
+  dev.off() 
+} 
