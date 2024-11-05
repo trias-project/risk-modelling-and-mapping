@@ -346,6 +346,7 @@ system.time({
 ens_pred_hab_be<-sapply(names(lm_ens_hab), function(x) terra::predict(fullstack_be,lm_ens_hab[[x]],type="prob", na.rm=TRUE),simplify=FALSE)
 })
 
+
 # export rasters as GeoTiffs
 #lapply(names(ens_pred_hab_be), function(x) writeRaster(ens_pred_hab_be[[x]], filename=file.path(rasterOutput,paste(x,"_",taxonkey,"_hist.tif",sep="")),  format="GTiff",overwrite=TRUE))
 ```
@@ -387,6 +388,20 @@ ggplot() +
                        na.value = NA) +
   geom_sf(data = euocc1, color = "black", fill = "red", 
           size = 1.5, shape = 21) +
+  theme_bw() +
+  labs(fill = "Suitability")
+
+#Plot Belgian model
+brks <- seq(0, 1, by=0.1)
+nb <- length(brks) - 1
+viridis_palette <- viridis(nb)
+
+ggplot() + 
+  geom_spatraster(data = ens_pred_hab_be[[bestmodelname]]) +
+  scale_fill_gradientn(colors = viridis_palette, 
+                       breaks = brks, 
+                       labels = brks, 
+                       na.value = NA) +
   theme_bw() +
   labs(fill = "Suitability")
 ```
