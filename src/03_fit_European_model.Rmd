@@ -176,7 +176,9 @@ kable(eupreds) %>%
 ### Remove highly correlated climate predictors from training data
 ```{r removeCorrelated_RMI_Preds}
 drop_climate<-highlyCorrelated_climate[[1]]
-rmiclimpreds_uncor<-dropLayer(rmiclimpreds,drop_climate)
+keep_layers <- !(names(rmiclimpreds) %in% drop_climate)
+rmiclimpreds_uncor <- subset(rmiclimpreds, keep_layers)
+
 ```
 
 ### Add habitat and anthropogenic predictors
