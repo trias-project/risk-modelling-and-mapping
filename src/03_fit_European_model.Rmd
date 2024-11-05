@@ -79,8 +79,7 @@ rmiclimpreds<-rast(rmiclimrasters) #includes all available climate data
 ```{r eu_occurences_to_spatialDF}
 euocc <- st_as_sf(eu_occ, coords=c("decimalLongitude", "decimalLatitude"), crs= 4326, remove=FALSE)  %>%
   st_transform(crs=st_crs(rmiclimpreds))%>%
-  st_drop_geometry()%>%
-  select(decimalLongitude, decimalLatitude, species)
+   st_coordinates()
 ```
 
 ### Clip bias grid to European extent
