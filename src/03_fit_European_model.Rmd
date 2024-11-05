@@ -311,23 +311,20 @@ exportPDF<-function(rst,taxonkey,taxonName,nameextension,is.diff="FALSE"){
 } 
 ```
 
-#### PNG export function 
-```{r export_toPNG,echo=FALSE}
-exportPNG<-function(rst,taxonkey,taxonName,nameextension,is.diff="FALSE"){
-  filename=file.path(pdfOutput,paste("be_",taxonkey, "_",nameextension,sep=""))
-  png(file=filename)
-  par(bty="n")#to turn off box around plot
-  ifelse(is.diff=="TRUE", brks<-seq(-1, 1, by=0.25), brks <- seq(0, 1, by=0.1)) 
-  nb <- length(brks)-1 
-  pal <- colorRampPalette(rev(brewer.pal(11, 'Spectral')))
-  cols<-pal(nb)
-  maintitle<-paste(taxonName,taxonkey,"_",nameextension, sep= " ")
-  plot(rst, breaks=brks, col=cols,main=maintitle, lab.breaks=brks,axes=FALSE)
-  dev.off() 
-} 
+### Use EU level ensemble models to predict for Belgium only  
+
+```{r ensModel_predictBE,results="hide"}
+
+# creates  country level rasters using the European level models
+system.time({
+ens_pred_hab_be<-sapply(names(lm_ens_hab), function(x) terra::predict(fullstack_be,lm_ens_hab[[x]],type="prob", na.rm=TRUE),simplify=FALSE)
+})
+
+# export rasters as GeoTiffs
+#lapply(names(ens_pred_hab_be), function(x) writeRaster(ens_pred_hab_be[[x]], filename=file.path(rasterOutput,paste(x,"_",taxonkey,"_hist.tif",sep="")),  format="GTiff",overwrite=TRUE))
 ```
 
-###  Use EU level ensemble models (each using a separate pseudoabsence draw) to predict at European level 
+###  Evaluate the performance of each the EU level ensemble models based on results from CV
 
 ```{r findThreshold,echo=FALSE}
 # 1.indentify threshold where sensitivity=specifity
