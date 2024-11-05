@@ -217,6 +217,12 @@ kable_styling(bootstrap_options = c("striped"))
 occ.full.data<-sapply(names(occ.full.data),function (x) occ.full.data[[x]][,!(colnames(occ.full.data[[x]]) %in% highlyCorrelated_vec)],simplify=FALSE)
 ```
 
+### Remove highly correlated predictors from fullstack
+```{r removeCorrelated_RMI_Preds}
+keep_layers <- !(names(fullstack) %in% highlyCorrelated_vec)
+fullstack <- subset(fullstack, keep_layers)
+
+```
 
 ###  Identify and remove near zero variance predictors
 ```{r removeLowVarPreds_from_fullStack}
