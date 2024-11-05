@@ -263,7 +263,8 @@ mylist<-list(
 
 # set.seed(167)
  eu_models<-sapply(names(occ.full.data.forCaret), function(x) model_train_habitat <- caretList(
-   occ~temprang + maxtemp + annpvarrecip_eea + corine_perWetland, data= occ.full.data.forCaret[[x]],
+   occ~., 
+   data= occ.full.data.forCaret[[x]],
    trControl=control,
     tuneList=mylist), simplify=FALSE)
 
