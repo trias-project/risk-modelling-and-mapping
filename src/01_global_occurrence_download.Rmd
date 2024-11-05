@@ -1,0 +1,198 @@
+
+---
+title: "Download of global occurrence data"
+author: 
+  - name:  "Amy J.S Davis"
+  - name:  "Peter Desmet" 
+  - name:  "Damiano Oldoni"
+  - name:  "Soria Delva"
+date: "`r Sys.Date()`"
+output:
+  html_document: 
+    toc: no
+  html_notebook:
+    toc: yes
+    toc_depth: 3
+  pdf_document:
+    toc: 
+    toc_depth: '3'
+editor_options:
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,error = TRUE)
+```
+
+
+```{r load libraries,echo=FALSE,message=FALSE}
+library(purrr)
+library(rgbif)
+library(dplyr)
+library(assertthat)
+library(readr)
+library(here)
+library(trias)
+```
+### Retrieve GBIF taxonkeys
+Retrieve the `taxonKeys` to download species occurrences:
+
+```{r retrieve_taxon_data}
+# TO DO: specify the scientific name of the species to be modelled
+species<-c("Elodea densa","Koenigia polystachya", "Hydrocharis laevigata")
+
+# Match species names with the GBIF backbone, retrieve taxon keys from GBIF when a match is found
+taxon_df <- as.data.frame(species)
+
+mapped_taxa <- purrr::map_dfr(
+  taxon_df$species,
+  ~ {
+    tryCatch(
+      {
+        data <- rgbif::name_backbone(name = .x)
+        if (length(data) == 0) {
+          stop("No match with the GBIF backbone found")
+        }
+        data
+      },
+      error = function(e) {
+        NULL
+      }
+    )
+  }
+)
+
+#Make sure that only species info is stored as it is possible that genus information is captured when the species part of the name is not clear
+mapped_taxa<-mapped_taxa %>%
+  dplyr::filter(rank =="SPECIES")
+
+#Make sure that all species were mapped to the GBIF backbone, if not an error will appear indicating which species are missing
+assertthat::assert_that(nrow(mapped_taxa)==length(species),
+                        msg=paste0("The following species could not be found in the GBIF backbone taxonomy: "
+                                   ,species[!sapply(species, function(x) any(grepl(x,mapped_taxa$scientificName)))])
+)
+
+not_accepted <- mapped_taxa %>%
+                dplyr::filter(status !="ACCEPTED")
+
+if (nrow(not_accepted)!=0) {
+      warning(paste0("The following species do not have an accepted taxonomic status in the GBIF backbone: ",paste(unique(not_accepted$scientificName), collapse=", "),". Their corresponding accepted species names will be used for downloading occurrence data.")
+              )
+} else {
+  paste0("All species are accepted taxa in the GBIF backbone 🎉")
+}
+
+#Explore mapped_taxa 
+mapped_taxa
+
+#Extract taxonkeys of each species, for synonyms the acceptedUsageKey is stored
+accepted_taxonkeys<-mapped_taxa %>%
+  dplyr::filter(status =="ACCEPTED")%>%
+  pull(usageKey)
+
+if(nrow(not_accepted!=0)){
+synonym_taxonkeys<-mapped_taxa %>%
+  dplyr::filter(status !="ACCEPTED")%>%
+  pull(acceptedUsageKey)
+
+accepted_taxonkeys<-c(accepted_taxonkeys, synonym_taxonkeys)
+}
+
+#Create taxa_input file, holding information that will be added further down to gbif_downloads.tsv
+taxa_input_file<-mapped_taxa[,2]
+
+```
+
+### Basis of record
+
+
+```{r define_basis_of_record_eu}
+#All types of occurrences are downloaded, except `FOSSIL SPECIMEN` and `LIVING SPECIMEN`, which can have misleading location information (e.g. location of captive animal).
+
+basis_of_record <- c(
+  "OBSERVATION", 
+  "HUMAN_OBSERVATION",
+  "MATERIAL_SAMPLE",
+  "PRESERVED_SPECIMEN", 
+  "UNKNOWN", 
+  "MACHINE_OBSERVATION",
+  "OCCURRENCE"
+)
+```
+
+### Specify time period to download occurrence data 
+```{r define_year_eu}
+year_begin <- 1971
+year_end <-2010
+```
+
+### Download only georeferenced points
+
+```{r define_hasCoordinate_eu}
+hasCoordinate <- TRUE
+```
+
+### Trigger download
+
+**Note**: GBIF credentials are required in the next step. 
+
+Trigger download:
+
+```{r trigger_gbif_download_eu}
+
+ gbif_download_key <- occ_download(
+   pred_in("taxonKey", accepted_taxonkeys),
+   pred_in("basisOfRecord", basis_of_record),
+   pred_gte("year", year_begin),
+   pred_lte("year", year_end),
+  pred("hasCoordinate", hasCoordinate),
+   user = rstudioapi::askForPassword("GBIF username"),
+   pwd = rstudioapi::askForPassword("GBIF password"),
+   email = rstudioapi::askForPassword("Email address for notification")
+ )
+
+occ_download_wait(gbif_download_key)#Check download status
+```
+
+###     Retrieve download
+
+```{r retrieve_GBIF_download}
+#gbif_download_key<-"0096867-240626123714530"
+occ_download_get(gbif_download_key, path = here("data","raw"), overwrite=TRUE)
+```
+
+### Write download to list of downloads and check pending downloads:
+
+```{r update_download_list_eu}
+#If the file gbif_downloads.tsv does not exist, create and store an empty file
+if(!file.exists(here::here("data", "raw", "gbif_downloads.tsv"))) {
+  download_list<-data.frame(
+    gbif_download_key= character(),
+    input_checklist= character(),
+    gbif_download_created=character(),
+    gbif_download_status=character(),
+    gbif_download_doi=character()
+  )
+  write_tsv(download_list, here::here("data", "raw", "gbif_downloads.tsv"))
+  
+  remove(download_list)
+}
+
+update_download_list(
+  file = here::here("data", "raw", "gbif_downloads.tsv"), 
+  download_to_add = gbif_download_key, 
+  input_checklist = taxa_input_file
+)
+```
+
+```{r extract_GBIF_occurrence}
+raw.path<- here("data/raw//")
+unzip(paste0(raw.path,gbif_download_key,".zip"),exdir=paste0(raw.path,gbif_download_key), overwrite=TRUE)
+
+global<-as.data.frame(data.table::fread(paste0(raw.path,gbif_download_key,"/occurrence.txt"),header=TRUE))
+```
+
+```{r Clean up environment}
+#Remove all files except for global and taxa_input_file
+rm(list = setdiff(ls(), c("global", "taxa_input_file", "accepted_taxonkeys")))
+```

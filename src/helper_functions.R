@@ -1,3 +1,4 @@
+
 #-----------------------------------------------------------------------------------
 #This function calculates the number of decimal places in any given numeric value 
 # eg., 15.21 has 2 decimal places, 15.2569 has 4 decimal places, 15.25690 also has 4, as 0 in the end doesn't count
