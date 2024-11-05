@@ -196,3 +196,4 @@ global<-as.data.frame(data.table::fread(paste0(raw.path,gbif_download_key,"/occu
 #Remove all files except for global and taxa_input_file
 rm(list = setdiff(ls(), c("global", "taxa_input_file", "accepted_taxonkeys")))
 ```
+
