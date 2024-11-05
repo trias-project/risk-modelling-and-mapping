@@ -266,7 +266,20 @@ occ.full.data.forCaret<-sapply(names(occ.full.data.factor), function (x) replace
 # uncomment 2nd control options for  LOOCV (leave one out cross validation, which is aka as "jacknife" ) which should be used when occurrences are smaller than n=10 for each predictor in the model)
 
 #control<-trainControl(method="LOOCV",savePredictions="final", preProc=c("center","scale"),classProbs=TRUE)
-control <- trainControl(method="cv",number=4,savePredictions="final", preProc=c("center","scale"),classProbs=TRUE)
+
+if(nrow(presence)<10){
+  control<-trainControl(method="LOOCV",
+                        savePredictions="final", 
+                        preProc=c("center","scale"),
+                        classProbs=TRUE) 
+}else{
+  control <- trainControl(method="cv",
+                          number=4,
+                          savePredictions="final", 
+                          preProc=c("center","scale"),
+                          classProbs=TRUE)
+}
+
 mylist<-list(
   glm =caretModelSpec(method = "glm",maxit=100),
   gbm= caretModelSpec(method = "gbm"),
