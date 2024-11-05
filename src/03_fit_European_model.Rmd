@@ -286,6 +286,11 @@ mylist<-list(
   rf = caretModelSpec(method = "rf", importance = TRUE),
   earth= caretModelSpec(method = "earth"))
 
+#Remove ID column of each dataframe or it will be used as a predictor variable
+occ.full.data.forCaret <- lapply(occ.full.data.forCaret, function(df) {
+   df[ , !names(df) %in% "ID"]  # Keep all columns except "ID"
+})
+
 # set.seed(167)
  eu_models<-sapply(names(occ.full.data.forCaret), function(x) model_train_habitat <- caretList(
    occ~., 
