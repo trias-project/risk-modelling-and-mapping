@@ -146,7 +146,7 @@ cbind(x,occ)
 pseudoabs_pts2<-lapply(pseudoabs_pts1, function(x) add.occ(x,0))
 
 # extract eu presences and add presence indicator 
-presence<-as.data.frame(euocc1@coords)
+presence<-as.data.frame(euocc)
 names(presence)<- c("x","y")
 presence1<-terra::extract(rmiclimpreds,presence)
 occ<-rep(1,nrow(presence1))
@@ -170,10 +170,10 @@ highlyCorrelated_climate <-lapply(names(eu_presabs.pts.df),function(x) findCorre
 highlyCorrelated_climate 
 eupreds<-as.data.frame(highlyCorrelated_climate[1])
 kable(eupreds) %>%
-kable_styling(bootstrap_options = c("striped"))
+  kable_styling(bootstrap_options = c("striped"))
 ```
 
-### Reomve highly correlated climate predictors from training data
+### Remove highly correlated climate predictors from training data
 ```{r removeCorrelated_RMI_Preds}
 drop_climate<-highlyCorrelated_climate[[1]]
 rmiclimpreds_uncor<-dropLayer(rmiclimpreds,drop_climate)
@@ -203,14 +203,17 @@ occ.full.data <-lapply(eu_presabs.coord, function(x) raster::extract(fullstack,x
 ```{r identifyCorrelatedPreds_from_fullStack}
 
 # find attributes that are highly correlated
-highlyCorrelated_full <-lapply(names(occ.full.data),function(x) findCorrelation(cor(occ.full.data[[x]],use = 'complete.obs'), cutoff=0.7,exact=TRUE,names=TRUE))
+highlyCorrelated_full <-lapply(names(occ.full.data),function(x)
+  findCorrelation(cor(occ.full.data[[x]],use = 'complete.obs'), cutoff=0.7,exact=TRUE,names=TRUE))
+
 highlyCorrelated_vec<-unlist(highlyCorrelated_full)
 eupreds1<-as.data.frame(highlyCorrelated_vec)
 kable(eupreds1) %>%
 kable_styling(bootstrap_options = c("striped"))
 ```
-### Remove highly correlated predictors from full stack 
-```{r removeCorrelatedPreds_from_fullStack}
+
+### Remove highly correlated predictors from occ.full.data
+```{r removeCorrelatedPreds_from_occ.full.data}
 occ.full.data<-sapply(names(occ.full.data),function (x) occ.full.data[[x]][,!(colnames(occ.full.data[[x]]) %in% highlyCorrelated_vec)],simplify=FALSE)
 ```
 
@@ -218,13 +221,14 @@ occ.full.data<-sapply(names(occ.full.data),function (x) occ.full.data[[x]][,!(co
 ###  Identify and remove near zero variance predictors
 ```{r removeLowVarPreds_from_fullStack}
 # identify low variance predictors
-nzv_preds<-lapply(names(occ.full.data),function(x) nearZeroVar(occ.full.data[[x]],names=TRUE))
+nzv_preds<-lapply(names(occ.full.data),function(x) caret::nearZeroVar(occ.full.data[[x]],names=TRUE))
 nzv_preds
 nzv_preds.vec<-unique(unlist(nzv_preds))
 nzv_preds.vec
 # remove near zero variance predictors. They don't contribute to the model.
 occ.full.data<-sapply(names(occ.full.data),function (x) occ.full.data[[x]][,!(colnames(occ.full.data[[x]]) %in% nzv_preds.vec)],simplify=FALSE)
 ```
+
 
 ### Build models with climate and habitat data
 
@@ -245,8 +249,10 @@ df[,c(var)]<-relevel(df[,c(var)], ref = "present")
 return(df)
 }
 
-
+#Recode factor levels of column 'occ' to absent (0) and present(1), and set present as the reference level
 occ.full.data.factor<-sapply(names(occ.full.data.df), function (x) factorVars(occ.full.data.df[[x]], "occ"),simplify=FALSE)
+
+#Replace NA values with 0 in all columns 
 occ.full.data.forCaret<-sapply(names(occ.full.data.factor), function (x) replace(occ.full.data.factor[[x]], is.na(occ.full.data.factor[[x]]),0),simplify=FALSE)
 
 
@@ -266,7 +272,8 @@ mylist<-list(
    occ~., 
    data= occ.full.data.forCaret[[x]],
    trControl=control,
-    tuneList=mylist), simplify=FALSE)
+   tuneList=mylist), 
+   simplify=FALSE)
 
 ```
 ### Display model evaluation statistics
@@ -281,6 +288,7 @@ Results.summary
 Model.cor<-sapply(names(eu_models), function(x) modelCor(resamples(eu_models[[x]])),simplify=FALSE)
 Model.cor
 ```
+
 
 ### Create ensemble model 
 
