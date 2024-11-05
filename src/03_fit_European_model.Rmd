@@ -294,21 +294,12 @@ lm_ens_hab<-sapply(names(eu_models), function (x) caretEnsemble(eu_models[[x]], 
 ```
 
 
-#### PDF export function 
+###  Use EU level ensemble models (each using a separate pseudoabsence draw) to predict at European level 
 
-```{r export_toPDF,echo=FALSE}
-exportPDF<-function(rst,taxonkey,taxonName,nameextension,is.diff="FALSE"){
-  filename=file.path(pdfOutput,paste("be_",taxonkey, "_",nameextension,sep=""))
-  pdf(file=filename,width=10,height=8,paper="a4r")
-  par(bty="n")#to turn off box around plot
-  ifelse(is.diff=="TRUE", brks<-seq(-1, 1, by=0.2), brks <- seq(0, 1, by=0.1)) 
-  nb <- length(brks)-1 
-  pal <- colorRampPalette(rev(brewer.pal(11, 'Spectral')))
-  cols<-pal(nb)
-  maintitle<-paste(taxonName,taxonkey,"_",nameextension, sep= " ")
-  plot(rst, breaks=brks, col=cols,main=maintitle, lab.breaks=brks,axes=FALSE)
-  dev.off() 
-} 
+```{r ensModel_predictEU,results= "hide", cache=TRUE}
+system.time({
+ ens_pred_hab_eu1<-sapply(names(lm_ens_hab), function(x) terra::predict(fullstack,lm_ens_hab[[x]],type="prob", na.rm = TRUE),simplify=FALSE)
+})
 ```
 
 ### Use EU level ensemble models to predict for Belgium only  
