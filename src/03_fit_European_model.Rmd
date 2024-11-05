@@ -101,7 +101,9 @@ ggplot()+
 ```{r mask highSuitability}
 #m<-global_model >.5 
 #Create a mask of the global_model rasterlayer, containing only areas that are predicted to contain occurrences
-m<-global_model >= global.ens.thresh$predicted
+
+
+m<-global_model >= globalmodels[[i]]$model_accuracy$threshold
 #Mask the global_model layer with this occurrence layer (i.e., convert all areas where occurrences are predicted to NA)
 global_mask<-mask(global_model,m,maskvalue=TRUE)
 global_masked_proj<-project(global_mask,biasgrid_eu)
