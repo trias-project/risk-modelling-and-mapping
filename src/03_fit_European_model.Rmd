@@ -128,16 +128,6 @@ ggplot()+
   theme_bw()
 ```
 
-### Create RasterStack of European climate variables from RMI
-
-# stack climate data 
-```{r stack all_euclimate_preds}  
-rmiclimrasters <- list.files((here("./data/external/climate/rmi_corrected")),pattern='tif',full.names = T) 
-rmiclimrasters #shows all available climate data
-rmiclimpreds<-rast(rmiclimrasters) #includes all available climate data
-```
-
-
 ### Transform eu occurrence dataset with unique presences back to an sf dataframe 
 
 ```{r eu_occurences_to_spatialDF}
