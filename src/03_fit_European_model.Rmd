@@ -199,8 +199,11 @@ numb.eu.pseudoabs<-nrow(euocc)
 # takes 10 draws of random pseudoabsences, returns as dataframes and names them X1-X10
 setlist<-seq(1,10,1)
 set.seed(120)
-pseudoabs_pts<-lapply(setlist,function(x) as.data.frame(randomPoints(raster(pseudoSamplingArea), numb.eu.pseudoabs , euocc, ext=NULL, extf=1.1, excludep=TRUE, prob=FALSE,cellnumbers=FALSE, tryf=50, warn=2, lonlatCorrection=TRUE)))
-names(pseudoabs_pts)<-paste0("X",setlist)
+
+# Generate pseudoabsences 10 times, store in a list with 10 datasets
+pseudoabs_pts <- lapply(setlist, generate_pseudoabs, mask = raster(pseudoSamplingArea), alternative_mask = raster(global_masked_proj), n = numb.eu.pseudoabs, p = euocc)
+names(pseudoabs_pts) <- paste0("X", setlist)
+
 ```
 
 ###  Prepare occurrence (presence-pseudoabsence) datasets for modelling
