@@ -136,7 +136,7 @@ global.occ <- global.occ%>%
                             TRUE ~ NA_character_))
 
 
-global.occ.LL<-data.frame(global.occ)[c(99:98,203,193,224)] #extract long and lat, n= 1758
+global.occ.LL<-data.frame(global.occ)[c(4,3,2,1,10)] #dcimalLon, decimalLat, acceptedScientificName, acceptedtaxonkey, Group, n= 1758
 global.occ.LL<-rename(global.occ.LL, "species"="acceptedScientificName")
 rm(global.occ, global)
 ```
