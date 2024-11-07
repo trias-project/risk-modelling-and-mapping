@@ -163,6 +163,11 @@ globalclimrasters <- list.files((here("./data/external/climate/trias_CHELSA")),p
 globalclimpreds_terra <- terra::rast(globalclimrasters)
 ```
 
+#### Create shape of the world
+```{r Create shape of world}
+world<-ne_countries(scale=50)
+```
+
 ### Create rasterstack of CHELSA climate data clipped to European modeling extent for prediction
 
 ```{r prepareEU_chelsaData,echo=TRUE}
@@ -237,8 +242,6 @@ rm(global.occ.LL.cleaned)
 ```
 ### plot distribution of cleaned global occurrences
 ```{r plot_global_occ,echo=TRUE, eval=FALSE}
-world<-ne_countries(scale=50)
-
 ggplot()+ 
   geom_sf(data = world,  colour = "black", fill = NA)+
   geom_point(data=global.occ.sf, aes(x=decimalLongitude, y= decimalLatitude),  fill="green", shape = 22, colour = "black", size=3)+
