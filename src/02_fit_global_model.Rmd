@@ -9,7 +9,13 @@ output: html_document
 
 ### 2. Create a global SDM
 
-##### 0. Load packages
+#### To do: Specify project
+```{r}
+#specify project name
+projectname<-"Test_Frédérique"
+```
+
+#### Load packages
 ```{r load libraries,echo=FALSE,message=FALSE}
 options("rgdal_show_exportToProj4_warnings"="none")
 library(here)
