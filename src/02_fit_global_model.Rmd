@@ -465,9 +465,10 @@ viridis_palette <- viridis(nb)
 ggplot() + 
   #geom_sf(data = world,  colour = "grey", fill = NA)+
   geom_spatraster(data = global_model) +
-  scale_fill_gradientn(colors = viridis_palette, breaks = brks, labels = brks, , na.value = NA) +
+  scale_fill_gradientn(colors = viridis_palette, breaks = brks, labels = brks, na.value = NA) +
   geom_sf(data = global.occ.sf, color = "black", fill = "red", size =1.5, shape = 21) +
-  coord_sf(xlim = c(-10, 30), ylim = c(35, 72)) + 
+  coord_sf(xlim = c(-10, 40), ylim = c(35, 72)) + 
+  labs(fill = "Suitability")+
   theme_bw()
 ```
 
