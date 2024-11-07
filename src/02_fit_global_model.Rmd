@@ -64,20 +64,17 @@ if ("caretEnsemble" %in% rownames(installed.packages())) {
  devtools::install_github("zachmayer/caretEnsemble@2.0.3")
   # Load 
   library(caretEnsemble)
+  rm(current_version, desired_version)
 }
 ```
 
-##### 1. Source helper functions
+####  Source helper functions
 ```{r source helpers, echo=FALSE}
 source("./src/helper_functions.R")
 ```
 
-##### 2. Specify paths for output (defaults to file structure in ReadMe)
-```{r defineOutputPaths, echo=FALSE}
-rasterOutput<-here("data/processed/geotiffs/")
-pdfOutput<-here("data/processed/pdf/")
-genOutput<-here("data/processed/general//")
 ```
+
 
 ####3. Filter global occurrence data 
 
@@ -134,7 +131,7 @@ global.occ <- global.occ%>%
 
 global.occ.LL<-data.frame(global.occ)[c(99:98,203,193,224)] #extract long and lat, n= 1758
 global.occ.LL<-rename(global.occ.LL, "species"="acceptedScientificName")
-rm(global.occ)
+rm(global.occ, global)
 ```
 
 #### Flag and remove centroids and invalid georeferenced points
@@ -194,9 +191,7 @@ lapply(names(split_df), function(x) {
 
 #Remove objects we don't need anymore
 ```{r remove objects}
-rm(global)
-rm(global.occ.LL)
-rm(cleaned)
+rm(global.occ.LL,cleaned)
 gc()
 ```
 
@@ -315,6 +310,7 @@ global_points<-dismo::randomPoints(biasgrid_sub,numb.global.pseudoabs, st_drop_g
 #  set.seed(768)
 #  global_points<-randomPoints(ecoregions_raster, numb.pseudoabs, global.occ.sp, ext=NULL, extf=1.1, excludep=TRUE, prob=FALSE, cellnumbers=FALSE, tryf=150, warn=2, lonlatCorrection=TRUE) 
 ```
+
 
 ### Extract generated pseudo absences and create presence-pseudobasence dataset 
 
@@ -464,10 +460,6 @@ ggplot() +
   geom_sf(data = global.occ.sf, color = "black", fill = "red", size =1.5, shape = 21) +
   coord_sf(xlim = c(-10, 30), ylim = c(35, 72)) + 
   theme_bw()
-```
-### Export global model prediction
-```{r exportGlobal}
-writeRaster(global_model, filename=file.path(rasterOutput,paste("GlobalEnsEU_",taxonkey,"_",species, ".tif",sep="")),overwrite=TRUE) 
 ```
 
 ### Get variable importance of global model
