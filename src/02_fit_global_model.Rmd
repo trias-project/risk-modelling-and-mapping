@@ -36,6 +36,7 @@ library(viridisLite)
 library(kableExtra)
 library(future)
 library(future.apply)
+library(qs)
 ```
 
 ```{r install or load right version of caretEnsemble}
