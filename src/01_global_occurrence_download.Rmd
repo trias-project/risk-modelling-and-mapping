@@ -201,6 +201,8 @@ taxa_info$gbif_download_key <- gbif_download_key
 taxa_info$gbif_download_created <- format(strptime(metadata$created, "%Y-%m-%dT%H:%M:%S"), "%Y-%m-%d %H:%M:%S")
 taxa_info$project<-project
 
+qsave(global, paste0("./data/projects/",project,"/",project,"_occurrences.qs"))
+write.csv2(taxa_info, paste0("./data/projects/",project,"/",project,"_taxa_info.csv"), row.names=FALSE)
 ```
 
 ```{r Clean up environment and local disk}
