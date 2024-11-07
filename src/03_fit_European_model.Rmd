@@ -416,6 +416,7 @@ system.time({
 ens_pred_hab_be<-terra::predict(fullstack_be,lm_ens_hab[[bestmodelname]],type="prob", na.rm=TRUE)
 })
 
+
 # export rasters as GeoTiffs
 #lapply(names(ens_pred_hab_be), function(x) writeRaster(ens_pred_hab_be[[x]], filename=file.path(rasterOutput,paste(x,"_",taxonkey,"_hist.tif",sep="")),  format="GTiff",overwrite=TRUE))
 ```
@@ -453,6 +454,7 @@ ggplot() +
                        na.value = NA) +
   theme_bw() +
   labs(fill = "Suitability")
+
 ```
 
 ### Close loop
@@ -475,4 +477,5 @@ print(paste("European model has been created for", species))
 ```{r Clean up}
 # Clean R environment
 rm(list = ls())
+
 ```
