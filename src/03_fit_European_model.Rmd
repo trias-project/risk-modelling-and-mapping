@@ -55,6 +55,7 @@ if ("caretEnsemble" %in% rownames(installed.packages())) {
  devtools::install_github("zachmayer/caretEnsemble@2.0.3")
   # Load 
   library(caretEnsemble)
+  rm(current_version, desired_version)
 }
 ```
 
