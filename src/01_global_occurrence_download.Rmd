@@ -24,6 +24,15 @@ editor_options:
 knitr::opts_chunk$set(echo = TRUE,error = TRUE)
 ```
 
+### To do: specify project and species to be modelled
+```{r Specify species and project}
+#specify project name
+project<-"Test_Frédérique"
+
+# specify the scientific name of the species to be modelled
+species<-c("Elodea densa","Koenigia polystachya", "Hydrocharis laevigata")
+```
+
 
 ```{r load libraries,echo=FALSE,message=FALSE}
 library(purrr)
