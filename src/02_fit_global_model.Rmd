@@ -443,7 +443,7 @@ ensemble_accurracy<-accuracyStats(global_stack$ens_model$pred,global.ens.thresh$
 ```{r clean up global environment}
 
 #Remove all files except for climate_matching and marine
-rm(list = setdiff(ls(), c("eu_climpreds.10", "global_stack", "split_df","pdfOutput","rasterOutput","genOutput", "taxonkey", "species", "ensemble_accurracy", "accuracyStats", "decimalplaces", "divide10", "findThresh", "predict_large_raster", "globalclimpreds_terra","bias_grid_paths", "i", "globalmodels","global.occ.sf")))
+rm(list = setdiff(ls(), c("eu_climpreds.10", "global_stack", "split_df","pdfOutput","rasterOutput","genOutput", "taxonkey", "species", "ensemble_accurracy", "accuracyStats", "decimalplaces", "divide10", "findThresh", "predict_large_raster", "globalclimpreds_terra","bias_grid_paths", "i", "globalmodels","global.occ.sf", "biasgrid_sub", "world", "projectname", "first_two_words")))
 ```
 
 ### Restrict global model prediction to the extent of Europe
