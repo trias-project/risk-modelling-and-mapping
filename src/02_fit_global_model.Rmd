@@ -308,20 +308,16 @@ biasgrid_sub <- raster(biasgrid_sub) #Convert SpatRaster back to normal raster o
 ###  Use randomPoints function from dismo package to locate pseduobasences within the bias grid subset 
 
 ```{r locatePseudo_absences}
-# generates pseudo absences equal to the number of presences, from cells that are not NA in biasgrid_sub and not from cells that have occurrence points as indicated in global.occ.sp. extf 1.1 increases the size of extent with 5% at each side of the extent (default value) but when ext is NULL it won't do anything.excludep = TRUE indicates that presence points are excluded from the background, prob: if TRUE the values in mask are interpreted as probability weights (only works for rasters with a modest size that can be loaded into RAM)
+# generates pseudo absences equal to the number of presences, from cells that are not NA in biasgrid_sub and not from cells that have occurrence points as indicated in global.occ.sf. extf 1.1 increases the size of extent with 5% at each side of the extent (default value) but when ext is NULL it won't do anything.excludep = TRUE indicates that presence points are excluded from the background, prob: if TRUE the values in mask are interpreted as probability weights (only works for rasters with a modest size that can be loaded into RAM)
 
+#Create alternative raster consisting of only ecoregions without biasgrid mask, used only when not enough pseudoabsence points can be generated using biasgrid_sub as mask layer
+ ecoregions_crop<-terra::crop(globalclimpreds_terra[[1]], wwf_ecoSub1_ext) #Crop one of the climate rasters to extent ecoregions
+  ecoregions_raster<-mask(ecoregions_crop,wwf_ecoSub1_vector) #Mask with ecoregions vector
+
+#Generate pseudoabsences
 set.seed(728)
-global_points<-dismo::randomPoints(biasgrid_sub,numb.global.pseudoabs, st_drop_geometry(global.occ.sf), ext=NULL, extf=1.1, excludep=TRUE, prob=FALSE, cellnumbers=FALSE, tryf=70, warn=2, lonlatCorrection=TRUE) 
-# will throw a warning if randomPoints generated is less than numb.pseudoabs. If this happens, increase the number of tryf or ignore bias grid and sample from ecoregion only.
-```
+global_points <- generate_pseudoabs( mask = biasgrid_sub, alternative_mask = raster(ecoregions_raster) , n = numb.global.pseudoabs, p =  st_drop_geometry(global.occ.sf))
 
-### OPTIONAL: Sample from ecoregion only
-#### run if the bias grid subset of ecoregions results in too small of an area for sampling
-```{r locatePseudo_absences_inEcoregions}
-#  wwf_grid<-raster(here("./data/external/GIS/wwf_ecoregions_v1.tif"))
-#  ecoregions_raster<-mask(wwf_grid,wwf_ecoSub1)
-#  set.seed(768)
-#  global_points<-randomPoints(ecoregions_raster, numb.pseudoabs, global.occ.sp, ext=NULL, extf=1.1, excludep=TRUE, prob=FALSE, cellnumbers=FALSE, tryf=150, warn=2, lonlatCorrection=TRUE) 
 ```
 
 
