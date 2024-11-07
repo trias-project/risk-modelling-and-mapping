@@ -73,6 +73,13 @@ if ("caretEnsemble" %in% rownames(installed.packages())) {
 source("./src/helper_functions.R")
 ```
 
+#### Load global occurrence data and taxa info
+```{r Load data}
+global<-qread( paste0("./data/projects/",projectname,"/",projectname,"_occurrences.qs"))
+taxa_info<-read.csv2(paste0("./data/projects/",projectname,"/",projectname,"_taxa_info.csv"))
+accepted_taxonkeys<-taxa_info%>%
+  pull(accepted_taxonkeys)%>%
+  unique()
 ```
 
 
