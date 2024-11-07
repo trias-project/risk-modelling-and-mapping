@@ -118,6 +118,9 @@ eu_occ<-st_join(euboundary, global.occ.sf)%>%
   filter(!is.na(decimalLatitude))%>%
   st_drop_geometry()
 
+```
+
+```{r Plot european subset, eval=FALSE}
 ggplot()+ 
   geom_sf(data = euboundary,  colour = "black", fill = NA)+
   geom_point(data=eu_occ, aes(x=decimalLongitude, y= decimalLatitude),  fill="green", shape = 22, colour = "black", size=3)+
