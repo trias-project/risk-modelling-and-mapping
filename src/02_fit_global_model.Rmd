@@ -193,12 +193,6 @@ bias_grid_paths <- list(
 sort(unique(cleaned$species))
 split_df<-split(cleaned,cleaned$species) 
 
-raw.path<- here("data/raw//")
-lapply(names(split_df), function(x) {
-  species_name<- sub("\\.$", "", x)
-  write.csv(split_df[[x]], file = paste0(raw.path, "/",species_name, ".csv"))
-})
-
 ```
 
 #Remove objects we don't need anymore
