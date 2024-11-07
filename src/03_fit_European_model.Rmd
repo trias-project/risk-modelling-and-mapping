@@ -64,6 +64,25 @@ if ("caretEnsemble" %in% rownames(installed.packages())) {
 source("./src/helper_functions.R")
 ```
 
+#### Load shapefiles that will be used
+```{r Load shapefiles}
+euboundary<-st_read(here("./data/external/GIS/Europe/EUROPE.shp")) 
+```
+
+#### Create RasterStack of European climate variables from RMI
+```{r stack all_euclimate_preds}  
+rmiclimrasters <- list.files((here("./data/external/climate/rmi_corrected")),pattern='tif',full.names = T) 
+rmiclimrasters #shows all available climate data
+rmiclimpreds<-rast(rmiclimrasters) #includes all available climate data
+```
+
+#### Load species that should be modelled
+```{r Load species}
+taxa_info<-read.csv2(paste0("./data/projects/",projectname,"/",projectname,"_taxa_info.csv"))
+accepted_taxonkeys<-taxa_info%>%
+  pull(accepted_taxonkeys)%>%
+  unique()
+```
 ### Create European subset
 ```{r subset_eu_occurrences,echo=FALSE}
 euboundary<-st_read(here("./data/external/GIS/Europe/EUROPE.shp")) 
