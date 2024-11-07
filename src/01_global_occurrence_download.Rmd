@@ -24,6 +24,15 @@ editor_options:
 knitr::opts_chunk$set(echo = TRUE,error = TRUE)
 ```
 
+### To do: specify project and species to be modelled
+```{r Specify species and project}
+#specify project name
+project<-"Test_Frédérique"
+
+# specify the scientific name of the species to be modelled
+species<-c("Elodea densa","Koenigia polystachya", "Hydrocharis laevigata")
+```
+
 
 ```{r load libraries,echo=FALSE,message=FALSE}
 library(purrr)
@@ -34,12 +43,25 @@ library(readr)
 library(here)
 library(trias)
 ```
+
+### Create project folder
+```{r create project folder}
+# Define the folder path
+folder_path <- paste0("./data/projects/",project)
+
+# Check if the folder exists; if not, create it
+if (!dir.exists(folder_path)) {
+  dir.create(folder_path, recursive = TRUE)
+  message(paste0("Folder '",project,"' created in './data/projects' 🎉"))
+} else {
+ message(paste0("Folder '",project,"' already exists in './data/projects' 🎉"))
+}
+```
+
 ### Retrieve GBIF taxonkeys
 Retrieve the `taxonKeys` to download species occurrences:
 
 ```{r retrieve_taxon_data}
-# TO DO: specify the scientific name of the species to be modelled
-species<-c("Elodea densa","Koenigia polystachya", "Hydrocharis laevigata")
 
 # Match species names with the GBIF backbone, retrieve taxon keys from GBIF when a match is found
 taxon_df <- as.data.frame(species)
@@ -99,7 +121,7 @@ accepted_taxonkeys<-c(accepted_taxonkeys, synonym_taxonkeys)
 }
 
 #Create taxa_input file, holding information that will be added further down to gbif_downloads.tsv
-taxa_input_file<-mapped_taxa[,2]
+taxa_input_file<-mapped_taxa[,2:3]
 
 ```
 
@@ -157,43 +179,42 @@ occ_download_wait(gbif_download_key)#Check download status
 ###     Retrieve download
 
 ```{r retrieve_GBIF_download}
-#gbif_download_key<-"0096867-240626123714530"
+#gbif_download_key<-"0076914-240626123714530"
+#gbif_download_key<-"0064066-240626123714530" #4 species
 occ_download_get(gbif_download_key, path = here("data","raw"), overwrite=TRUE)
-```
-
-### Write download to list of downloads and check pending downloads:
-
-```{r update_download_list_eu}
-#If the file gbif_downloads.tsv does not exist, create and store an empty file
-if(!file.exists(here::here("data", "raw", "gbif_downloads.tsv"))) {
-  download_list<-data.frame(
-    gbif_download_key= character(),
-    input_checklist= character(),
-    gbif_download_created=character(),
-    gbif_download_status=character(),
-    gbif_download_doi=character()
-  )
-  write_tsv(download_list, here::here("data", "raw", "gbif_downloads.tsv"))
-  
-  remove(download_list)
-}
-
-update_download_list(
-  file = here::here("data", "raw", "gbif_downloads.tsv"), 
-  download_to_add = gbif_download_key, 
-  input_checklist = taxa_input_file
-)
+metadata <- occ_download_meta(key = gbif_download_key)
+gbif_download_key<-metadata$key
 ```
 
 ```{r extract_GBIF_occurrence}
-raw.path<- here("data/raw//")
-unzip(paste0(raw.path,gbif_download_key,".zip"),exdir=paste0(raw.path,gbif_download_key), overwrite=TRUE)
+raw.path<- here("data", "raw", gbif_download_key)
+unzip(paste0(raw.path,".zip"),exdir=raw.path, overwrite=TRUE)
 
-global<-as.data.frame(data.table::fread(paste0(raw.path,gbif_download_key,"/occurrence.txt"),header=TRUE))
+global<-as.data.frame(data.table::fread(paste0(raw.path,"/occurrence.txt"),header=TRUE))
+global<-select(global, c(speciesKey,acceptedScientificName, decimalLatitude, decimalLongitude, kingdom, phylum, class, coordinateUncertaintyInMeters, identificationVerificationStatus))
 ```
 
-```{r Clean up environment}
-#Remove all files except for global and taxa_input_file
-rm(list = setdiff(ls(), c("global", "taxa_input_file", "accepted_taxonkeys")))
+```{r Save data}
+#Create dataset taxa_info containing scientific name, canonical name, taxonkeys, gbif download key
+taxa_info<-cbind(taxa_input_file, accepted_taxonkeys)
+taxa_info$gbif_download_key <- gbif_download_key
+taxa_info$gbif_download_created <- format(strptime(metadata$created, "%Y-%m-%dT%H:%M:%S"), "%Y-%m-%d %H:%M:%S")
+taxa_info$project<-project
+
+qsave(global, paste0("./data/projects/",project,"/",project,"_occurrences.qs"))
+write.csv2(taxa_info, paste0("./data/projects/",project,"/",project,"_taxa_info.csv"), row.names=FALSE)
+```
+
+```{r Clean up environment and local disk}
+
+# Remove the zipped folder
+suppressWarnings(file.remove(paste0(raw.path, ".zip"), full.names = TRUE))
+
+# Remove the unzipped folder as well
+unlink(raw.path, recursive = TRUE)
+
+# Clean R environment
+rm(list = ls())
+
 ```
 

@@ -9,7 +9,13 @@ output: html_document
 
 ### 2. Create a global SDM
 
-##### 0. Load packages
+#### To do: Specify project
+```{r}
+#specify project name
+projectname<-"Test_Frédérique"
+```
+
+#### Load packages
 ```{r load libraries,echo=FALSE,message=FALSE}
 options("rgdal_show_exportToProj4_warnings"="none")
 library(here)
@@ -30,6 +36,7 @@ library(viridisLite)
 library(kableExtra)
 library(future)
 library(future.apply)
+library(qs)
 ```
 
 ```{r install or load right version of caretEnsemble}
@@ -57,20 +64,24 @@ if ("caretEnsemble" %in% rownames(installed.packages())) {
  devtools::install_github("zachmayer/caretEnsemble@2.0.3")
   # Load 
   library(caretEnsemble)
+  rm(current_version, desired_version)
 }
 ```
 
-##### 1. Source helper functions
+####  Source helper functions
 ```{r source helpers, echo=FALSE}
 source("./src/helper_functions.R")
 ```
 
-##### 2. Specify paths for output (defaults to file structure in ReadMe)
-```{r defineOutputPaths, echo=FALSE}
-rasterOutput<-here("data/processed/geotiffs/")
-pdfOutput<-here("data/processed/pdf/")
-genOutput<-here("data/processed/general//")
+#### Load global occurrence data and taxa info
+```{r Load data}
+global<-qread( paste0("./data/projects/",projectname,"/",projectname,"_occurrences.qs"))
+taxa_info<-read.csv2(paste0("./data/projects/",projectname,"/",projectname,"_taxa_info.csv"))
+accepted_taxonkeys<-taxa_info%>%
+  pull(accepted_taxonkeys)%>%
+  unique()
 ```
+
 
 ####3. Filter global occurrence data 
 
@@ -125,9 +136,9 @@ global.occ <- global.occ%>%
                             TRUE ~ NA_character_))
 
 
-global.occ.LL<-data.frame(global.occ)[c(99:98,203,193,224)] #extract long and lat, n= 1758
+global.occ.LL<-data.frame(global.occ)[c(4,3,2,1,10)] #dcimalLon, decimalLat, acceptedScientificName, acceptedtaxonkey, Group, n= 1758
 global.occ.LL<-rename(global.occ.LL, "species"="acceptedScientificName")
-rm(global.occ)
+rm(global.occ, global)
 ```
 
 #### Flag and remove centroids and invalid georeferenced points
@@ -150,6 +161,11 @@ cleaned<-clean_coordinates(x = global.occ.LL, lon= "decimalLongitude", lat= "dec
 ```{r importChelsaData,echo=TRUE}
 globalclimrasters <- list.files((here("./data/external/climate/trias_CHELSA")),pattern='tif',full.names = T) #import CHELSA data
 globalclimpreds_terra <- terra::rast(globalclimrasters)
+```
+
+#### Create shape of the world
+```{r Create shape of world}
+world<-ne_countries(scale=50)
 ```
 
 ### Create rasterstack of CHELSA climate data clipped to European modeling extent for prediction
@@ -177,33 +193,34 @@ bias_grid_paths <- list(
 sort(unique(cleaned$species))
 split_df<-split(cleaned,cleaned$species) 
 
-raw.path<- here("data/raw//")
-lapply(names(split_df), function(x) {
-  species_name<- sub("\\.$", "", x)
-  write.csv(split_df[[x]], file = paste0(raw.path, "/",species_name, ".csv"))
-})
-
 ```
 
 #Remove objects we don't need anymore
 ```{r remove objects}
-rm(global)
-rm(global.occ.LL)
-rm(cleaned)
+rm(global.occ.LL,cleaned)
 gc()
 ```
 
 #Run parallel SDM modelling 
 ```{r prepare cores to run in parallel, echo=FALSE}
-globalmodels<-list()
 system.time({ #2576.6sec without parallelization for 5 species (43 min)
 for(i in seq_along (split_df)){ 
+  globalmodels<-list()
   species<-names(split_df)[i]
+  first_two_words <- sub("^(\\w+)\\s+(\\w+).*", "\\1_\\2", species)  # Extract first two words of species name
   global.occ.LL.cleaned<-split_df[[i]]
+  taxonkey<-unique(global.occ.LL.cleaned$speciesKey)
   speciesgroup<-unique(global.occ.LL.cleaned$Group)
-  taxonkey<-unique(global.occ.LL.cleaned$acceptedTaxonKey)
   global.occ.LL.cleaned<-global.occ.LL.cleaned %>%
     dplyr::select(c(decimalLongitude,decimalLatitude))
+```
+
+#### Create species folder
+```{r}
+species_folder<-paste0("./data/projects/",projectname,"/",first_two_words,"_",taxonkey)
+if (!dir.exists(species_folder)) {
+    dir.create(species_folder, recursive = TRUE)
+  }
 ```
 
 #### Remove duplicates per grid cell and define number of pseudoabsences
@@ -228,8 +245,6 @@ rm(global.occ.LL.cleaned)
 ```
 ### plot distribution of cleaned global occurrences
 ```{r plot_global_occ,echo=TRUE, eval=FALSE}
-world<-ne_countries(scale=50)
-
 ggplot()+ 
   geom_sf(data = world,  colour = "black", fill = NA)+
   geom_point(data=global.occ.sf, aes(x=decimalLongitude, y= decimalLatitude),  fill="green", shape = 22, colour = "black", size=3)+
@@ -293,21 +308,18 @@ biasgrid_sub <- raster(biasgrid_sub) #Convert SpatRaster back to normal raster o
 ###  Use randomPoints function from dismo package to locate pseduobasences within the bias grid subset 
 
 ```{r locatePseudo_absences}
-# generates pseudo absences equal to the number of presences, from cells that are not NA in biasgrid_sub and not from cells that have occurrence points as indicated in global.occ.sp. extf 1.1 increases the size of extent with 5% at each side of the extent (default value) but when ext is NULL it won't do anything.excludep = TRUE indicates that presence points are excluded from the background, prob: if TRUE the values in mask are interpreted as probability weights (only works for rasters with a modest size that can be loaded into RAM)
+# generates pseudo absences equal to the number of presences, from cells that are not NA in biasgrid_sub and not from cells that have occurrence points as indicated in global.occ.sf. extf 1.1 increases the size of extent with 5% at each side of the extent (default value) but when ext is NULL it won't do anything.excludep = TRUE indicates that presence points are excluded from the background, prob: if TRUE the values in mask are interpreted as probability weights (only works for rasters with a modest size that can be loaded into RAM)
 
+#Create alternative raster consisting of only ecoregions without biasgrid mask, used only when not enough pseudoabsence points can be generated using biasgrid_sub as mask layer
+ ecoregions_crop<-terra::crop(globalclimpreds_terra[[1]], wwf_ecoSub1_ext) #Crop one of the climate rasters to extent ecoregions
+  ecoregions_raster<-mask(ecoregions_crop,wwf_ecoSub1_vector) #Mask with ecoregions vector
+
+#Generate pseudoabsences
 set.seed(728)
-global_points<-dismo::randomPoints(biasgrid_sub,numb.global.pseudoabs, st_drop_geometry(global.occ.sf), ext=NULL, extf=1.1, excludep=TRUE, prob=FALSE, cellnumbers=FALSE, tryf=70, warn=2, lonlatCorrection=TRUE) 
-# will throw a warning if randomPoints generated is less than numb.pseudoabs. If this happens, increase the number of tryf or ignore bias grid and sample from ecoregion only.
+global_points <- generate_pseudoabs( mask = biasgrid_sub, alternative_mask = raster(ecoregions_raster) , n = numb.global.pseudoabs, p =  st_drop_geometry(global.occ.sf))
+
 ```
 
-### OPTIONAL: Sample from ecoregion only
-#### run if the bias grid subset of ecoregions results in too small of an area for sampling
-```{r locatePseudo_absences_inEcoregions}
-#  wwf_grid<-raster(here("./data/external/GIS/wwf_ecoregions_v1.tif"))
-#  ecoregions_raster<-mask(wwf_grid,wwf_ecoSub1)
-#  set.seed(768)
-#  global_points<-randomPoints(ecoregions_raster, numb.pseudoabs, global.occ.sp, ext=NULL, extf=1.1, excludep=TRUE, prob=FALSE, cellnumbers=FALSE, tryf=150, warn=2, lonlatCorrection=TRUE) 
-```
 
 ### Extract generated pseudo absences and create presence-pseudobasence dataset 
 
@@ -431,7 +443,7 @@ ensemble_accurracy<-accuracyStats(global_stack$ens_model$pred,global.ens.thresh$
 ```{r clean up global environment}
 
 #Remove all files except for climate_matching and marine
-rm(list = setdiff(ls(), c("eu_climpreds.10", "global_stack", "split_df","pdfOutput","rasterOutput","genOutput", "taxonkey", "species", "ensemble_accurracy", "accuracyStats", "decimalplaces", "divide10", "findThresh", "predict_large_raster", "globalclimpreds_terra","bias_grid_paths", "i", "globalmodels","global.occ.sf")))
+rm(list = setdiff(ls(), c("eu_climpreds.10", "global_stack", "split_df","pdfOutput","rasterOutput","genOutput", "taxonkey", "species", "ensemble_accurracy", "accuracyStats", "decimalplaces", "divide10", "findThresh", "predict_large_raster", "globalclimpreds_terra","bias_grid_paths", "i", "globalmodels","global.occ.sf", "biasgrid_sub", "world", "projectname", "first_two_words")))
 ```
 
 ### Restrict global model prediction to the extent of Europe
@@ -453,14 +465,11 @@ viridis_palette <- viridis(nb)
 ggplot() + 
   #geom_sf(data = world,  colour = "grey", fill = NA)+
   geom_spatraster(data = global_model) +
-  scale_fill_gradientn(colors = viridis_palette, breaks = brks, labels = brks, , na.value = NA) +
+  scale_fill_gradientn(colors = viridis_palette, breaks = brks, labels = brks, na.value = NA) +
   geom_sf(data = global.occ.sf, color = "black", fill = "red", size =1.5, shape = 21) +
-  coord_sf(xlim = c(-10, 30), ylim = c(35, 72)) + 
+  coord_sf(xlim = c(-10, 40), ylim = c(35, 72)) + 
+  labs(fill = "Suitability")+
   theme_bw()
-```
-### Export global model prediction
-```{r exportGlobal}
-writeRaster(global_model, filename=file.path(rasterOutput,paste("GlobalEnsEU_",taxonkey,"_",species, ".tif",sep="")),overwrite=TRUE) 
 ```
 
 ### Get variable importance of global model
@@ -469,23 +478,31 @@ writeRaster(global_model, filename=file.path(rasterOutput,paste("GlobalEnsEU_",t
 variableImportance_global<-varImp(global_stack)
 kable(variableImportance_global,digits=2,caption="Variable Importance") %>%
   kable_styling(bootstrap_options = c("striped"))
-write.csv(variableImportance_global,file = paste0(genOutput,taxonkey,"_",species, "_varImp_global_model.csv"))
  
 ```
 
 ```{r store results in list, echo=FALSE}
- print(paste("Global model has been created for", species))
+  
+globalmodels <-list(species = species,
+                    taxonkey = taxonkey,
+                    global_ensemble_model = global_stack, 
+                    model_accuracy = ensemble_accurracy,
+                    variable_importance = variableImportance_global,
+                    global_model_predictions = terra::wrap(global_model), #Needs to be wrapped to export it or will return a null pointer error
+                    occurrences=global.occ.sf,
+                    biasgrid=biasgrid_sub
+)
 
-  globalmodels[[species]] <-list(
-                          species = species,
-                          taxonkey = taxonkey,
-                          global_ensemble_model = global_stack,
-                          model_accuracy = ensemble_accurracy,
-                          variable_importance = variableImportance_global,
-                          global_model_predictions = global_model,$,
-                          occurrences=global.occ.sf
-                                )
+qsave(globalmodels, paste0("./data/projects/",projectname,"/",first_two_words,"_",taxonkey,"/Global_model_",first_two_words,"_",taxonkey,".qs"))
+
+print(paste("Global model has been created for", species))
   
 }
 })
 ```
+
+```{r Clean up}
+# Clean R environment
+rm(list = ls())
+```
+
