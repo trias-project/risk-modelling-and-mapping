@@ -20,6 +20,13 @@ divide10<-function(x){
   return(value)
 }
 
+#-----------------------------------------------------------------------------------
+#Divide occurrence column with either y=0 (absences) or y=1 (presences)
+#-----------------------------------------------------------------------------------
+add.occ<-function(x,y){
+  occ<-rep(y,nrow(x))
+  cbind(x,occ)
+}
 
 #-----------------------------------------------------------------------------------
 #Function to return threshold where sens=spec from caret results 
