@@ -141,8 +141,9 @@ euocc <- st_as_sf(eu_occ, coords=c("decimalLongitude", "decimalLatitude"), crs= 
 ```{r clip_biasgrid}
 ecoregions_eu<-crop(rast(biasgrid_sub),euboundary)
 biasgrid_eu <- project(ecoregions_eu, rmiclimpreds) #reproject the ecoregions raster to match the spatial properties of rmi climpreds
+```
 
-#Plot
+```{r Plot biasgrid eu, eval=FALSE}
 ggplot()+ 
  geom_sf(data = euboundary,  colour = "black", fill = NA)+
   geom_spatraster(data=biasgrid_eu)+
