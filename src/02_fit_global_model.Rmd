@@ -207,6 +207,7 @@ system.time({ #2576.6sec without parallelization for 5 species (43 min)
 for(i in seq_along (split_df)){ 
   globalmodels<-list()
   species<-names(split_df)[i]
+  first_two_words <- sub("^(\\w+)\\s+(\\w+).*", "\\1_\\2", species)  # Extract first two words of species name
   global.occ.LL.cleaned<-split_df[[i]]
   speciesgroup<-unique(global.occ.LL.cleaned$Group)
   taxonkey<-unique(global.occ.LL.cleaned$acceptedTaxonKey)
