@@ -215,6 +215,14 @@ for(i in seq_along (split_df)){
     dplyr::select(c(decimalLongitude,decimalLatitude))
 ```
 
+#### Create species folder
+```{r}
+species_folder<-paste0("./data/projects/",projectname,"/",first_two_words,"_",taxonkey)
+if (!dir.exists(species_folder)) {
+    dir.create(species_folder, recursive = TRUE)
+  }
+```
+
 #### Remove duplicates per grid cell and define number of pseudoabsences
 
 ```{r remove global duplicates,echo=TRUE}
