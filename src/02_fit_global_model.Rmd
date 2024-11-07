@@ -203,9 +203,9 @@ gc()
 
 #Run parallel SDM modelling 
 ```{r prepare cores to run in parallel, echo=FALSE}
-globalmodels<-list()
 system.time({ #2576.6sec without parallelization for 5 species (43 min)
 for(i in seq_along (split_df)){ 
+  globalmodels<-list()
   species<-names(split_df)[i]
   global.occ.LL.cleaned<-split_df[[i]]
   speciesgroup<-unique(global.occ.LL.cleaned$Group)
