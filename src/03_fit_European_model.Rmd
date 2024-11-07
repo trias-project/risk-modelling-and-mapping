@@ -113,7 +113,6 @@ for(key in accepted_taxonkeys){
 
 ### Create European subset
 ```{r subset_eu_occurrences,echo=FALSE}
-euboundary<-st_read(here("./data/external/GIS/Europe/EUROPE.shp")) 
 eu_occ<-st_join(euboundary, global.occ.sf)%>%
   select(decimalLatitude, decimalLongitude, species)%>%
   filter(!is.na(decimalLatitude))%>%
