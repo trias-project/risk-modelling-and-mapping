@@ -231,3 +231,11 @@ generate_pseudoabs <- function(index = NULL,mask, alternative_mask, n, p) {
 
 
 #-----------------------------------------------------------------------------------
+# Recode factor levels to absent (0) and present(1), and set present as the reference level
+#-----------------------------------------------------------------------------------
+factorVars<-function(df,var){
+  df[,c(var)]<-as.factor(df[,c(var)])
+  levels(df[,c(var)])<-c("absent","present")
+  df[,c(var)]<-relevel(df[,c(var)], ref = "present")
+  return(df)
+}
