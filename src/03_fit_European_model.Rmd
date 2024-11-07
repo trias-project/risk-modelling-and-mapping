@@ -163,6 +163,12 @@ global_masked_proj<-project(global_mask,biasgrid_eu)
 
 ```
 
+
+```{r Restrict pseudoSamplingArea to environmental layers}
+#This was not included in Amy's code but mask the pseudoSamplingArea with one of the environmental layers to make sure no pseudoabsences are generated outside the environmental layers
+global_masked_proj<-terra::mask(global_masked_proj, rmiclimpreds[[1]]) 
+```
+
 ### Combine areas of low predicted habitat suitability with bias grid to exclude low sampled areas and areas of high suitability
 
 ```{r create_pseudoSamplingArea}
