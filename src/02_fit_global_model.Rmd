@@ -478,22 +478,24 @@ ggplot() +
 variableImportance_global<-varImp(global_stack)
 kable(variableImportance_global,digits=2,caption="Variable Importance") %>%
   kable_styling(bootstrap_options = c("striped"))
-write.csv(variableImportance_global,file = paste0(genOutput,taxonkey,"_",species, "_varImp_global_model.csv"))
  
 ```
 
 ```{r store results in list, echo=FALSE}
- print(paste("Global model has been created for", species))
+  
+globalmodels <-list(species = species,
+                    taxonkey = taxonkey,
+                    global_ensemble_model = global_stack, 
+                    model_accuracy = ensemble_accurracy,
+                    variable_importance = variableImportance_global,
+                    global_model_predictions = terra::wrap(global_model), #Needs to be wrapped to export it or will return a null pointer error
+                    occurrences=global.occ.sf,
+                    biasgrid=biasgrid_sub
+)
 
-  globalmodels[[species]] <-list(
-                          species = species,
-                          taxonkey = taxonkey,
-                          global_ensemble_model = global_stack,
-                          model_accuracy = ensemble_accurracy,
-                          variable_importance = variableImportance_global,
-                          global_model_predictions = global_model,$,
-                          occurrences=global.occ.sf
-                                )
+qsave(globalmodels, paste0("./data/projects/",projectname,"/",first_two_words,"_",taxonkey,"/Global_model_",first_two_words,"_",taxonkey,".qs"))
+
+print(paste("Global model has been created for", species))
   
 }
 })
