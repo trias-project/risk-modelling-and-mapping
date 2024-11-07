@@ -500,3 +500,9 @@ print(paste("Global model has been created for", species))
 }
 })
 ```
+
+```{r Clean up}
+# Clean R environment
+rm(list = ls())
+```
+
