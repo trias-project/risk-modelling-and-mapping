@@ -187,8 +187,8 @@ ggplot()+
 
 ```{r create_pseudoSamplingArea}
 pseudoSamplingArea<-mask(global_masked_proj,biasgrid_eu)
-plot(pseudoSamplingArea)
 ```
+
 
 ### Randomly locate pseudo absences within "pseudoSamplingArea" 
 ```{r create_eu_pseudoAbsences}
