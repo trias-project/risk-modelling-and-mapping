@@ -199,8 +199,16 @@ taxa_info$project<-project
 global<-as.data.frame(data.table::fread(paste0(raw.path,gbif_download_key,"/occurrence.txt"),header=TRUE))
 ```
 
-```{r Clean up environment}
-#Remove all files except for global and taxa_input_file
-rm(list = setdiff(ls(), c("global", "taxa_input_file", "accepted_taxonkeys")))
+```{r Clean up environment and local disk}
+
+# Remove the zipped folder
+suppressWarnings(file.remove(paste0(raw.path, ".zip"), full.names = TRUE))
+
+# Remove the unzipped folder as well
+unlink(raw.path, recursive = TRUE)
+
+# Clean R environment
+rm(list = ls())
+
 ```
 
