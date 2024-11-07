@@ -62,8 +62,6 @@ if (!dir.exists(folder_path)) {
 Retrieve the `taxonKeys` to download species occurrences:
 
 ```{r retrieve_taxon_data}
-# TO DO: specify the scientific name of the species to be modelled
-species<-c("Elodea densa","Koenigia polystachya", "Hydrocharis laevigata")
 
 # Match species names with the GBIF backbone, retrieve taxon keys from GBIF when a match is found
 taxon_df <- as.data.frame(species)
@@ -185,28 +183,7 @@ occ_download_wait(gbif_download_key)#Check download status
 occ_download_get(gbif_download_key, path = here("data","raw"), overwrite=TRUE)
 ```
 
-### Write download to list of downloads and check pending downloads:
 
-```{r update_download_list_eu}
-#If the file gbif_downloads.tsv does not exist, create and store an empty file
-if(!file.exists(here::here("data", "raw", "gbif_downloads.tsv"))) {
-  download_list<-data.frame(
-    gbif_download_key= character(),
-    input_checklist= character(),
-    gbif_download_created=character(),
-    gbif_download_status=character(),
-    gbif_download_doi=character()
-  )
-  write_tsv(download_list, here::here("data", "raw", "gbif_downloads.tsv"))
-  
-  remove(download_list)
-}
-
-update_download_list(
-  file = here::here("data", "raw", "gbif_downloads.tsv"), 
-  download_to_add = gbif_download_key, 
-  input_checklist = taxa_input_file
-)
 ```
 
 ```{r extract_GBIF_occurrence}
