@@ -146,3 +146,88 @@ exportPNG<-function(rst,taxonkey,taxonName,nameextension,is.diff="FALSE"){
   plot(rst, breaks=brks, col=cols,main=maintitle, lab.breaks=brks,axes=FALSE)
   dev.off() 
 } 
+
+
+#-----------------------------------------------------------------------------------
+# Generate pseudoabsences
+#-----------------------------------------------------------------------------------
+generate_pseudoabs <- function(index = NULL,mask, alternative_mask, n, p) {
+  tryf_values <- c(50,100, 150)  # tryf values to attempt in each stage
+  current_raster <- mask  # Start with the initial raster layer
+  
+  # Attempt to generate points
+  for (tryf in tryf_values) {
+    # Generate random points
+    suppressWarnings(pseudoabs <- as.data.frame(
+      randomPoints(
+        current_raster, 
+        n, 
+        p, 
+        ext = NULL, 
+        extf = 1.1, 
+        excludep = TRUE, 
+        prob = FALSE, 
+        cellnumbers = FALSE, 
+        tryf = tryf, 
+        warn = 2, 
+        lonlatCorrection = TRUE
+      )
+    )
+    )
+    # Check if the number of pseudoabsences reaches required amount
+    if (nrow(pseudoabs) == n) {
+      # If index is provided, include it in the message (only for lists)
+      if (!is.null(index)) {
+        message(paste0(n, " out of ", n, " pseudoabsences generated while accounting for observer bias in set ", index))
+      } else {
+        message(paste0(n, " out of ", n, " pseudoabsences generated while accounting for observer bias."))
+      }
+      return(pseudoabs)  # Return dataset if the required amount of pseudoabsences are generated
+    }
+  }
+  
+  # If unsuccessful with biasgrid ecoregions raster, switch to the full ecoregions raster and retry
+  current_raster <- alternative_mask
+  
+  for (tryf in tryf_values) {
+    pseudoabs <- as.data.frame(
+      randomPoints(
+        current_raster, 
+        n, 
+        p, 
+        ext = NULL, 
+        extf = 1.1, 
+        excludep = TRUE, 
+        prob = FALSE, 
+        cellnumbers = FALSE, 
+        tryf = tryf, 
+        warn = 2, 
+        lonlatCorrection = TRUE
+      )
+    )
+    
+    # Check if the number of rows meets the desired count
+    if (nrow(pseudoabs) == n) {
+      # If index is provided, include it in the warning (only for lists)
+      if (!is.null(index)) {
+        warning(paste0(n, " out of ", n, " pseudoabsences generated without accounting for observer bias in set ", index))
+      } else {
+        warning(paste0(n, " out of ", n, " pseudoabsences generated without accounting for observer bias."))
+      }
+      return(pseudoabs)  # Return dataset if enough pseudoabsences were generated
+    }
+  }
+  
+  # If all attempts fail, return the last generated dataframe with fewer pseudoabsences than requested
+  # If index is provided, include it in the warning
+  if (!is.null(index)) {
+    warning(paste0("Could not generate the required number of pseudoabsences: ", n, " out of ", n, " pseudoabsences generated without accounting for observer bias in set ", index))
+  } else {
+    warning(paste0("Could not generate the required number of pseudoabsences: ", n, " out of ", n, " pseudoabsences generated without accounting for observer bias."))
+  }
+  
+  return(pseudoabs)  # Return the pseudoabs data, even if incomplete
+}
+
+
+#-----------------------------------------------------------------------------------
