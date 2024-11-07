@@ -121,7 +121,7 @@ accepted_taxonkeys<-c(accepted_taxonkeys, synonym_taxonkeys)
 }
 
 #Create taxa_input file, holding information that will be added further down to gbif_downloads.tsv
-taxa_input_file<-mapped_taxa[,2]
+taxa_input_file<-mapped_taxa[,2:3]
 
 ```
 
@@ -189,6 +189,12 @@ occ_download_get(gbif_download_key, path = here("data","raw"), overwrite=TRUE)
 ```{r extract_GBIF_occurrence}
 raw.path<- here("data/raw//")
 unzip(paste0(raw.path,gbif_download_key,".zip"),exdir=paste0(raw.path,gbif_download_key), overwrite=TRUE)
+```{r Save data}
+#Create dataset taxa_info containing scientific name, canonical name, taxonkeys, gbif download key
+taxa_info<-cbind(taxa_input_file, accepted_taxonkeys)
+taxa_info$gbif_download_key <- gbif_download_key
+taxa_info$gbif_download_created <- format(strptime(metadata$created, "%Y-%m-%dT%H:%M:%S"), "%Y-%m-%d %H:%M:%S")
+taxa_info$project<-project
 
 global<-as.data.frame(data.table::fread(paste0(raw.path,gbif_download_key,"/occurrence.txt"),header=TRUE))
 ```
