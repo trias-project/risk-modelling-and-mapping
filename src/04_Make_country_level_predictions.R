@@ -1,5 +1,70 @@
-### Subset Belgium occurrences 
+#--------------------------------------------
+#-----------To do: specify project-----------
+#--------------------------------------------
+#specify project name
+projectname<-"Test_Frédérique"
 
+
+#--------------------------------------------
+#-----------  Load packages  ----------------
+#--------------------------------------------
+library(sf)
+library(here)
+library(ggplot2)
+library(RColorBrewer)
+library(terra)
+
+
+#--------------------------------------------
+#----------- Load taxa info  ----------------
+#--------------------------------------------
+taxa_info<-read.csv2(paste0("./data/projects/",projectname,"/",projectname,"_taxa_info.csv"))
+accepted_taxonkeys<-taxa_info%>%
+  pull(accepted_taxonkeys)%>%
+  unique()
+
+
+#--------------------------------------------
+#-----------Load country data----------------
+#--------------------------------------------
+#If you'd like to predict for another country, change the shapefile
+country<-st_read(here("./data/external/GIS/Belgium/belgium_boundary.shp"))
+country_ext<-terra::ext(country) 
+country_vector <- terra::vect(country) #Convert country to a SpatVector that can be used for masking
+
+
+#--------------------------------------------
+#--------Source helper functions-------------
+#--------------------------------------------
+source("./src/helper_functions.R")
+
+
+#--------------------------------------------
+#-----------  Start loop   ----------------
+#--------------------------------------------
+for(key in accepted_taxonkeys){
+  #Extract species name
+  species<-taxa_info%>%
+    filter(accepted_taxonkeys==key)%>%
+    pull(scientificName)%>%
+    unique()
+  
+  #Extract first two words of species name
+  first_two_words <- sub("^(\\w+)\\s+(\\w+).*", "\\1_\\2", species)
+  
+  #Define taxonkey
+  taxonkey<- key
+  
+  #Read in globalmodels object that was stored as part of  script 03_fit_European_model
+  eumodel<-qread( paste0("./data/projects/",projectname,"/",first_two_words,"_",taxonkey,"/EU_model_",first_two_words,"_",taxonkey,".qs"))
+  
+  #Read in different data objects stored in globalmodels
+  euocc<-eumodel$euocc1
+  bestModel<-unwrap(eumodel$bestModel)
+  fullstack_be<-unwrap(eumodel$fullstack_be)
+  
+  
+### Subset Belgium occurrences 
 #occ.eu is in WGS84, convert to same projection as country level shapefile (which is the same proj used for model outputs)
 occ.eu.proj  <- spTransform(occ.eu,crs(country))
 occ.country <- occ.eu.proj[country,]
