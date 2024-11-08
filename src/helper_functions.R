@@ -239,3 +239,16 @@ factorVars<-function(df,var){
   df[,c(var)]<-relevel(df[,c(var)], ref = "present")
   return(df)
 }
+
+
+#-----------------------------------------------------------------------------------
+#----------------Create folders when they don't exist yet---------------------------
+#-----------------------------------------------------------------------------------
+create_folder <- function(path, name) {
+  if (!dir.exists(path)) {
+    dir.create(path, recursive = TRUE)
+    message(paste0("Folder '", name, "' created at path: '", path, "' 🎉"))
+  } else {
+    message(paste0("Folder '", name, "' already exists at path: '", path, "' 🎉"))
+  }
+}
