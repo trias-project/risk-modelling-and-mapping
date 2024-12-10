@@ -158,12 +158,11 @@ global<-select(global, c(speciesKey,acceptedScientificName, decimalLatitude, dec
 #------------------Save data-----------------
 #--------------------------------------------
 #Create dataset taxa_info containing scientific name, canonical name, taxonkeys, gbif download key,...
-taxa_info<-taxa_input_file %>%
-  cbind(accepted_taxonkeys) %>%
-  as.data.frame() %>%  
-  mutate(gbif_download_key = gbif_download_key,
-         gbif_download_created = format(strptime(metadata$created, "%Y-%m-%dT%H:%M:%S"), "%Y-%m-%d %H:%M:%S"),
-         project = project)
+taxa_info<-data.frame(speciesKey=unique(global$speciesKey),
+                      acceptedScientificName=unique(global$acceptedScientificName),
+                      gbif_download_key = gbif_download_key,
+                      gbif_download_created = format(strptime(metadata$created, "%Y-%m-%dT%H:%M:%S"), "%Y-%m-%d %H:%M:%S"),
+                      project = project)
 
 #Save occurrence data as .qs file and taxa info as .csv
 qsave(global, paste0("./data/projects/",project,"/",project,"_occurrences.qs"))
