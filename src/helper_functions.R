@@ -5,12 +5,18 @@
 #-----------------------------------------------------------------------------------
 decimalplaces <- function(x) {
   if (abs(x - round(x)) > .Machine$double.eps^0.5) {
-    nchar(strsplit(sub('0+$', '', as.character(x)), ".", fixed = TRUE)[[1]][[2]])
+    # Remove trailing zeros and split at the decimal point
+    split_result <- strsplit(sub('0+$', '', as.character(x)), ".", fixed = TRUE)[[1]]
+    # Check if there are any decimals
+    if (length(split_result) > 1) {
+      nchar(split_result[[2]]) # Count characters in the decimal part
+    } else {
+      return(0) # No decimal part
+    }
   } else {
-    return(0)
+    return(0) # No decimals for whole numbers
   }
 }
-
 
 #-----------------------------------------------------------------------------------
 #Divide a numerical value by 10
