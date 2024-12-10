@@ -91,7 +91,7 @@ habitat_stack<-rast(habitat[c(1:5,7)]) #Distance to water (layer 6) has another 
 #--------------------------------------------
 taxa_info<-read.csv2(paste0("./data/projects/",projectname,"/",projectname,"_taxa_info.csv"))
 accepted_taxonkeys<-taxa_info%>%
-  pull(accepted_taxonkeys)%>%
+  pull(speciesKey)%>%
   unique()
 
 
@@ -106,8 +106,8 @@ system.time({
     #--------------------------------------------
     #Extract species name
     species<-taxa_info%>%
-      filter(accepted_taxonkeys==key)%>%
-      pull(scientificName)%>%
+      filter(speciesKey==key)%>%
+      pull(acceptedScientificName)%>%
       unique()
     
     #Extract first two words of species name
