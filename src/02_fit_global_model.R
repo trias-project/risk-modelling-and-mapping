@@ -56,7 +56,7 @@ source("./src/helper_functions.R")
 global<-qread( paste0("./data/projects/",projectname,"/",projectname,"_occurrences.qs"))
 taxa_info<-read.csv2(paste0("./data/projects/",projectname,"/",projectname,"_taxa_info.csv"))
 accepted_taxonkeys<-taxa_info%>%
-  pull(accepted_taxonkeys)%>%
+  pull(speciesKey)%>%
   unique()
 
 
@@ -114,8 +114,7 @@ global.occ <- global.occ%>%
 #--------------------------------------------
 #-------Prepare occurrence dataset-----------
 #--------------------------------------------
-global.occ.LL<-data.frame(global.occ)[c(4,3,2,1,10)] #dcimalLon, decimalLat, acceptedScientificName, acceptedtaxonkey, Group, n= 1758
-global.occ.LL<-rename(global.occ.LL, "species"="acceptedScientificName")
+global.occ.LL<-data.frame(global.occ)[c(4,3,2,1,10)] #decimalLon, decimalLat, species, acceptedtaxonkey, Group, n= 1758
 rm(global.occ, global)
 
 
