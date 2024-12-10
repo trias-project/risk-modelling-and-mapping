@@ -151,7 +151,7 @@ gbif_download_key<-metadata$key
 raw.path<- here("data", "raw", gbif_download_key)
 unzip(paste0(raw.path,".zip"),exdir=raw.path, overwrite=TRUE)
 global<-as.data.frame(data.table::fread(paste0(raw.path,"/occurrence.txt"),header=TRUE))
-global<-select(global, c(speciesKey,acceptedScientificName, decimalLatitude, decimalLongitude, kingdom, phylum, class, coordinateUncertaintyInMeters, identificationVerificationStatus))
+global<-select(global, c(speciesKey,species,  decimalLatitude, decimalLongitude, kingdom, phylum, class, coordinateUncertaintyInMeters, identificationVerificationStatus))
 
 
 #--------------------------------------------
