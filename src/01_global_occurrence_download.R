@@ -94,8 +94,8 @@ if(nrow(not_accepted!=0)){
   accepted_taxonkeys<-c(accepted_taxonkeys, synonym_taxonkeys)
 }
 
-#Create taxa_input file
-taxa_input_file<-mapped_taxa[,2:3]
+#Keep unique accepted taxonkeys
+accepted_taxonkeys<-unique(accepted_taxonkeys)
 
 
 #--------------------------------------------
