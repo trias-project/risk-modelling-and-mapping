@@ -8,11 +8,14 @@ projectname<-"Test_Frédérique"
 #--------------------------------------------
 #-----------  Load packages  ----------------
 #--------------------------------------------
-library(sf)
-library(here)
-library(ggplot2)
-library(RColorBrewer)
-library(terra)
+packages <- c( "dplyr", "here", "qs","terra", "sf", "ggplot2","RColorBrewer","magick","patchwork"
+)
+
+for(package in packages) {
+  print(package)
+  if( ! package %in% rownames(installed.packages()) ) { install.packages( package ) }
+  library(package, character.only = TRUE)
+}
 
 
 #--------------------------------------------
