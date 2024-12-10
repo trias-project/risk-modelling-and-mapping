@@ -23,7 +23,7 @@ for(package in packages) {
 #--------------------------------------------
 taxa_info<-read.csv2(paste0("./data/projects/",projectname,"/",projectname,"_taxa_info.csv"))
 accepted_taxonkeys<-taxa_info%>%
-  pull(accepted_taxonkeys)%>%
+  pull(speciesKey)%>%
   unique()
 
 
