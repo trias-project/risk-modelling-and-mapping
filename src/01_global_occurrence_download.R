@@ -21,6 +21,12 @@ for(package in packages) {
 
 
 #--------------------------------------------
+#---------Load helper functions--------------
+#--------------------------------------------
+source("./src/helper_functions.R")
+
+
+#--------------------------------------------
 #--Create a project folder and a raw folder--
 #--------------------------------------------
 # Define the folder paths
