@@ -159,7 +159,9 @@ global<-select(global, c(speciesKey,species,  decimalLatitude, decimalLongitude,
 #--------------------------------------------
 #Create dataset taxa_info containing scientific name, canonical name, taxonkeys, gbif download key,...
 taxa_info<-data.frame(speciesKey=unique(global$speciesKey),
-                      acceptedScientificName=unique(global$acceptedScientificName),
+                      acceptedScientificName=unique(global$species),
+                      year_begin=metadata[["request"]][["predicate"]][["predicates"]][[3]][["value"]],
+                      year_end=metadata[["request"]][["predicate"]][["predicates"]][[4]][["value"]],
                       gbif_download_key = gbif_download_key,
                       gbif_download_created = format(strptime(metadata$created, "%Y-%m-%dT%H:%M:%S"), "%Y-%m-%d %H:%M:%S"),
                       project = project)
