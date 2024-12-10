@@ -11,14 +11,13 @@ species<-c("Elodea densa","Koenigia polystachya", "Hydrocharis laevigata")
 #--------------------------------------------
 #-----------------Load packages--------------
 #--------------------------------------------
-library(purrr)
-library(rgbif)
-library(dplyr)
-library(assertthat)
-library(readr)
-library(here)
-library(trias)
-library(qs)
+packages <- c("rgbif", "dplyr", "purrr", "assertthat", "readr", "here", "qs")
+
+for(i in packages) {
+  print(i)
+  if( ! i %in% rownames(installed.packages()) ) { install.packages( i ) }
+  library(i, character.only = TRUE)
+}
 
 
 #--------------------------------------------
