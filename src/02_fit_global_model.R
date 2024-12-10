@@ -9,25 +9,16 @@ projectname<-"Test_Frédérique"
 #-------------- Load packages ---------------
 #--------------------------------------------
 options("rgdal_show_exportToProj4_warnings"="none")
-library(here)
-library(dplyr)
-library(stringr)
-library(CoordinateCleaner)
-library(terra)
-library(raster)
-library(sf)
-library(rnaturalearth)
-library(ggplot2)
-library(tidyterra)
-library(mapview)
-library(dismo)
-library(sdm)
-library(caret)
-library(viridisLite)
-library(kableExtra)
-library(future)
-library(future.apply)
-library(qs)
+
+packages <- c( "dplyr", "stringr", "here", "qs","CoordinateCleaner","terra", "raster", "sf", "rnaturalearth", 
+               "ggplot2","tidyterra","mapview", "dismo", "sdm", "caret", "viridisLite", "kableExtra","future", "future.apply"
+               )
+
+for(package in packages) {
+  print(package)
+  if( ! package %in% rownames(installed.packages()) ) { install.packages( package ) }
+  library(package, character.only = TRUE)
+}
 
 
 #--------------------------------------------
