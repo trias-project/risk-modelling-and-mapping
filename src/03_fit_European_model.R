@@ -9,16 +9,15 @@ projectname<-"Test_Frédérique"
 #-----------    Load packages      ----------
 #--------------------------------------------
 options("rgdal_show_exportToProj4_warnings"="none")
-library(sf)
-library(here)
-library(ggplot2)
-library(RColorBrewer)
-library(terra)
-library(dplyr)
-library(qs)
-library(magick)
-library(patchwork)
-library(grid)
+
+packages <- c( "dplyr", "here", "qs","terra", "sf", "ggplot2","RColorBrewer","magick","patchwork","grid"
+)
+
+for(package in packages) {
+  print(package)
+  if( ! package %in% rownames(installed.packages()) ) { install.packages( package ) }
+  library(package, character.only = TRUE)
+}
 
 
 #--------------------------------------------
