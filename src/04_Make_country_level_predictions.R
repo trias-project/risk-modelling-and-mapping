@@ -49,6 +49,16 @@ if ("caretEnsemble" %in% rownames(installed.packages())) {
 
 
 #--------------------------------------------
+#----------  To do: specify country  --------
+#--------------------------------------------
+#If you'd like to predict for another country, change the shapefile
+country_name<-"Belgium"
+country<-sf::st_read(here("./data/external/GIS/Belgium/belgium_boundary.shp"))
+country_ext<-terra::ext(country) 
+country_vector <- terra::vect(country) #Convert to a SpatVector, used for masking
+
+
+#--------------------------------------------
 #----------- Load taxa info  ----------------
 #--------------------------------------------
 taxa_info<-read.csv2(paste0("./data/projects/",projectname,"/",projectname,"_taxa_info.csv"))
