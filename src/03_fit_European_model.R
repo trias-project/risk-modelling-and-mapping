@@ -10,8 +10,7 @@ projectname<-"Test_Frédérique"
 #--------------------------------------------
 options("rgdal_show_exportToProj4_warnings"="none")
 
-packages <- c( "dplyr", "here", "qs","terra", "sf", "ggplot2","RColorBrewer","magick","patchwork","grid"
-)
+packages <- c( "dplyr", "here", "qs","terra", "sf", "ggplot2","RColorBrewer","magick","patchwork","grid", "randomForest")
 
 for(package in packages) {
   print(package)
