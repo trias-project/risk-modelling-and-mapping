@@ -89,7 +89,7 @@ for(key in accepted_taxonkeys){
   #Extract species name
   species<-taxa_info%>%
     filter(accepted_taxonkeys==key)%>%
-    pull(scientificName)%>%
+    pull(acceptedScientificName)%>%
     unique()
   
   #Extract first two words of species name 
