@@ -92,8 +92,11 @@ for(key in accepted_taxonkeys){
     pull(scientificName)%>%
     unique()
   
-  #Extract first two words of species name
+  #Extract first two words of species name 
   first_two_words <- sub("^(\\w+)\\s+(\\w+).*", "\\1_\\2", species)
+  
+  #Extract rest of species name
+  rest_of_name <- sub("^\\w+\\s+\\w+\\s+(.*)", "\\1", species)
   
   #Define taxonkey
   taxonkey<- key
