@@ -19,6 +19,36 @@ for(package in packages) {
 
 
 #--------------------------------------------
+#---  Load right version of caretEnsemble  --
+#--------------------------------------------
+desired_version <- "2.0.3"
+
+# Check if caretEnsemble is installed
+if ("caretEnsemble" %in% rownames(installed.packages())) {
+  # Get the current version of caretEnsemble
+  current_version <- packageVersion("caretEnsemble")
+  # Compare current version with the desired version
+  if (as.character(current_version) != desired_version) {
+    # Uninstall the current version if it's not the desired version
+    remove.packages("caretEnsemble")
+    # Install the specific version
+    devtools::install_github("zachmayer/caretEnsemble@2.0.3")
+    # Load 
+    library(caretEnsemble)
+  } else {
+    library(caretEnsemble)
+  }
+  
+} else {
+  # If caretEnsemble is not installed, install the specific version
+  devtools::install_github("zachmayer/caretEnsemble@2.0.3")
+  # Load 
+  library(caretEnsemble)
+  rm(current_version, desired_version)
+}
+
+
+#--------------------------------------------
 #----------- Load taxa info  ----------------
 #--------------------------------------------
 taxa_info<-read.csv2(paste0("./data/projects/",projectname,"/",projectname,"_taxa_info.csv"))
