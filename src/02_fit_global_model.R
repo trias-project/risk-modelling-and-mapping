@@ -127,11 +127,13 @@ rm(global.occ, global)
 # "centroids","gbif", "institutions", 
 # "seas", "zeros"))
 
-# Only keep coordinates that are not flagged as potentially problematic
-cleaned<-clean_coordinates(x = global.occ.LL, lon= "decimalLongitude", lat= "decimalLatitude",
-                           tests = c("capitals", 
-                                     "centroids","gbif", "institutions", 
-                                     "zeros"),value="clean")
+# Clean coordinates based on their proximity to country centroids, capitals, biodiversity institutions, GBIF headquarters, and the 0/0 point
+cleaned<-global.occ.LL%>%
+  cc_cen(buffer=100) %>% # remove points within a buffer of 100m around country centroids, default 1km
+  cc_cap(buffer=100) %>% # remove capitals centroids (buffer 100m), default 10km
+  cc_inst(buffer=100) %>% # remove zoo and herbaria records buffer of 100 m around biodiversity institutes, default 100m
+  cc_gbif(buffer=100)%>% #remove around GBIF headquarters in Copenhagen (buffer 100m), default 100m
+  cc_zero() #Remove around the 0/0 point (buffer 0.5 degrees)
 
 
 #--------------------------------------------
