@@ -69,22 +69,107 @@ for(key in accepted_taxonkeys){
   
 ### Subset Belgium occurrences 
 #occ.eu is in WGS84, convert to same projection as country level shapefile (which is the same proj used for model outputs)
-occ.eu.proj  <- spTransform(occ.eu,crs(country))
-occ.country <- occ.eu.proj[country,]
-plot(country)
-plot(occ.country,pch=21,bg="green",cex=1,add=TRUE)
+suppressWarnings(
+  occ.country <- euocc%>%
+  st_transform(crs=st_crs(country))%>%
+    st_intersection(country)%>%
+    select(geometry)%>%
+    mutate(decimalLongitude = sf::st_coordinates(.)[,1],
+           decimalLatitude = sf::st_coordinates(.)[,2])
+)
+  
+#--------------------------------------------
+#-------- Plot country occurrences ---------
+#--------------------------------------------
+ggplot()+ 
+    geom_sf(data = country,  colour = "black", fill = NA)+
+    geom_point(data=occ.country, aes(x=decimalLongitude, y= decimalLatitude),  fill="green", shape = 22, colour = "black", size=3)+
+    labs(x="Longitude", y="Latitude")+
+    theme_bw()
 
-### plot the best EU level ensemble model showing only Belgium
 
-brks <- seq(0, 1, by=0.1) 
-nb <- length(brks)-1 
-pal <- colorRampPalette(rev(brewer.pal(11, 'Spectral')))
-cols<-pal(nb)
-plot(ens_pred_hab_be$X6, breaks=brks, col=cols,lab.breaks=brks) # specify best model
-plot(occ.country,pch=21,cex=1,add=TRUE)
-
-
-
+  #--------------------------------------------
+  #-Create country predictions using best model -
+  #--------------------------------------------
+  # creates  country level rasters using the European level models
+  system.time({
+    ens_pred_hab_be<-terra::predict(fullstack_be,bestModel,type="prob", na.rm=TRUE)
+  })
+  
+  
+  #--------------------------------------------
+  #-------- ¨Plot predictions for country -----
+  #--------------------------------------------
+  brks <- seq(0, 1, by=0.1)
+  nb <- length(brks) - 1
+  viridis_palette <- viridis(nb)
+  
+  country_plot<-ggplot() + 
+    geom_spatraster(data = ens_pred_hab_be) +
+    scale_fill_gradientn(colors = viridis_palette, 
+                         breaks = brks, 
+                         labels = brks, 
+                         na.value = NA) +
+    geom_sf(data = occ.country, color = "black", fill = "red", 
+            size = 1.5, shape = 21) +
+    theme_bw() +
+    labs(fill = "Suitability")
+  
+  #Create an empty plot to fill PDF
+  empty_plot <- ggplot() + 
+    theme_void() + 
+    theme(plot.background = element_blank()) 
+  
+  #Create final plot
+  plot_final<-country_plot /empty_plot 
+  
+  
+  #-------------------------------------------------
+  #- Export country predictions as raster and PDF --
+  #-------------------------------------------------
+  #---------Specify folder paths------------
+  raster_folder <- file.path("./data/projects", projectname, paste0(first_two_words, "_", taxonkey), "Rasters")
+  PDF_folder <- file.path("./data/projects", projectname, paste0(first_two_words, "_", taxonkey), "PDFs")
+  
+  #---------------Export raster-------------
+  writeRaster(ens_pred_hab_be,
+              filename=file.path(raster_folder,paste(first_two_words,"_",taxonkey,"_hist_",country_name,".tif",sep="")),
+              overwrite=TRUE)
+  
+  #---------------Export PDF----------------
+  #Define the file paths
+  plot_png_path <- file.path(PDF_folder,paste(first_two_words,"_",taxonkey,"_hist_",country_name,".png",sep=""))
+  plot_pdf_path <- file.path(PDF_folder,paste(first_two_words,"_",taxonkey,"_hist_",country_name,".pdf",sep=""))
+  
+  # Save each plot as a PDF file
+  ggsave(filename = paste0(first_two_words,"_",taxonkey,"_hist_",country_name,".png"), plot = plot_final, 
+         device = "png", width =8.27 , height = 11.69, path= PDF_folder)
+  
+  # Read the PNG image back in
+  img <- image_read(plot_png_path)
+  
+  # Start a PDF device for output
+  pdf(plot_pdf_path, width = 8.27, height = 11.69)
+  
+  # Create a layout for title and image
+  grid.newpage()
+  
+  # Add title at the top of the PDF
+  grid.text(
+    label = bquote(italic(.(first_two_words)) ~ .(rest_of_name) ~ "(" * .(taxonkey) * ")"),
+    x = 0.5, y = 0.95, just = "center", gp = gpar(fontsize = 12, fontface = "bold")
+  )
+  
+  # Add the PNG image below the title
+  grid.raster(img, width = unit(0.9, "npc"), height = unit(0.9, "npc"), y = 0.47)
+  
+  # Close the PDF device
+  while (dev.cur() > 1) dev.off()
+  
+  # Remove the PNG file from the local directory
+  file.remove(plot_png_path)
+  
+  
 
 ### Clip habitat raster stack to Belgium 
 habitat_stack<-stack(habitat)
