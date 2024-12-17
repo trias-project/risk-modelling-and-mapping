@@ -76,6 +76,13 @@ country_ext<-terra::ext(country)
 country_vector <- terra::vect(country) #Convert country to a SpatVector that can be used for masking
 
 
+#-------------------------------------------------
+#---------- Load habitat raster data -------------
+#-------------------------------------------------
+habitat<-list.files((here("./data/external/habitat")),pattern='tif',full.names = T)
+habitat_stack<-rast(habitat[c(1:5,7)]) #Distance to water (layer 6) has another extent
+
+
 #--------------------------------------------
 #--------Source helper functions-------------
 #--------------------------------------------
