@@ -227,11 +227,12 @@ ggplot()+
   file.remove(plot_png_path)
   
   
+  #-------------------------------------------------
+  #- Clip habitat raster stack to extent of country --
+  #-------------------------------------------------
+habitat_only_stack<-terra::crop(habitat_stack,country)
+habitat_only_stack_be<-terra::mask(habitat_only_stack,country)
 
-### Clip habitat raster stack to Belgium 
-habitat_stack<-stack(habitat)
-habitat_only_stack<-crop(habitat_stack,country)
-habitat_only_stack_be<-crop(habitat_only_stack,country)
 
 ### Create individual RCP (2.6, 4.5, 8.5) climate raster stacks for Belgium
 be26 <- list.files((here("./data/external/climate/byEEA_finalRCP/belgium_rcps/rcp26")),pattern='tif',full.names = T)
