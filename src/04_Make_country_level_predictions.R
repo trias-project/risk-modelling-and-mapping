@@ -234,22 +234,45 @@ habitat_only_stack<-terra::crop(habitat_stack,country)
 habitat_only_stack_be<-terra::mask(habitat_only_stack,country)
 
 
-### Create individual RCP (2.6, 4.5, 8.5) climate raster stacks for Belgium
+#-----------------------------------------------------------
+#-Create individual RCP climate raster stacks for country --
+#-----------------------------------------------------------
 be26 <- list.files((here("./data/external/climate/byEEA_finalRCP/belgium_rcps/rcp26")),pattern='tif',full.names = T)
-belgium_stack26 <- stack(be26)
+belgium_stack26 <- rast(be26)
 
 be45 <- list.files((here("./data/external/climate/byEEA_finalRCP/belgium_rcps/rcp45")),pattern='tif',full.names = T)
-belgium_stack45 <- stack(be45)
+belgium_stack45 <- rast(be45)
 
 be85 <- list.files((here("./data/external/climate/byEEA_finalRCP/belgium_rcps/rcp85")),pattern='tif',full.names = T)
-belgium_stack85 <- stack(be85)
+belgium_stack85 <- rast(be85)
 
 
-### Combine habitat stacks with climate stacks for each RCP scenario
-fullstack26<-stack(be26,habitat_only_stack_be)
-fullstack45<-stack(be45,habitat_only_stack_be)
-fullstack85<-stack(be85,habitat_only_stack_be)
+#--------------------------------------------------------------------
+#-Combine habitat stacks with climate stacks for each RCP scenario --
+#--------------------------------------------------------------------
+fullstack26_list <- list(belgium_stack26,habitat_only_stack_be)
+fullstack26 <- rast(fullstack26_list) 
 
+fullstack45_list <- list(belgium_stack45,habitat_only_stack_be)
+fullstack45 <- rast(fullstack45_list) 
+
+fullstack85_list <- list(belgium_stack85,habitat_only_stack_be)
+fullstack85 <- rast(fullstack85_list) 
+
+country_layers<-list(
+  "historical"=list("layers"=fullstack_be,
+                    "scenario"= "hist",
+                    "scenario_title"="historical"),
+  "rcp26"=list("layers"=fullstack26,
+               "scenario"="rcp26",
+               "scenario_title"="RCP 2.6"), 
+  "rcp45"=list("layers"=fullstack45,
+               "scenario"="rcp45",
+               "scenario_title"="RCP 4.5"),
+  "rcp85"=list("layers"=fullstack85,
+               "scenario"="rcp85",
+               "scenario_title"="RCP 8.5")
+)
 
 ### Create and export RCP risk maps for each RCP scenario
 ens_pred_hist<-raster::predict(fullstack_be,bestModel,type="prob")
