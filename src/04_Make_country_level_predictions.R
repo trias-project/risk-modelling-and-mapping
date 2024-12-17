@@ -84,6 +84,13 @@ habitat_stack<-rast(habitat[c(1:5,7)]) #Distance to water (layer 6) has another 
 
 
 #--------------------------------------------
+#--------- Specify folder paths -------------
+#--------------------------------------------
+raster_folder <- file.path("./data/projects", projectname, paste0(first_two_words, "_", taxonkey), "Rasters")
+PDF_folder <- file.path("./data/projects", projectname, paste0(first_two_words, "_", taxonkey), "PDFs")
+
+
+#--------------------------------------------
 #--------Source helper functions-------------
 #--------------------------------------------
 source("./src/helper_functions.R")
