@@ -79,3 +79,11 @@ lapply(folder_paths, function(folder){
 
 
 #-------------------------------------------------
+#--------- Download and store data ---------------
+#-------------------------------------------------
+#The WWF ecoregions file
+curl::curl_download("http://assets.worldwildlife.org/publications/15/files/original/official_teow.zip?1349272619", destfile = paste0(Ecoregions_folder,"/official.zip"))
+unzip(paste0(Ecoregions_folder,"/official.zip"), exdir = paste0(Ecoregions_folder,"/official"))
+unlink(paste0(Ecoregions_folder,"/official.zip"))
+
+#The CHELSA layers
