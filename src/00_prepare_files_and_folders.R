@@ -130,3 +130,23 @@ download_zenodo(doi="https://doi.org/10.5281/zenodo.7841324",
 
 
 #-------------------------------------------------
+#- Store climate layers for the European model  --
+#-------------------------------------------------
+download_zenodo(doi="https://doi.org/10.5281/zenodo.15102496", 
+                path=eu_climate_folder, 
+                files=list("var10_30yrMeanAnnualCumulatedGDDAbove5degreesC_historical_1971_2005_Europe.tif",
+                           "var11_AnnualMeanPotentialEvapotranspiration_historical_1971_2005_Europe.tif",
+                           "var12_AnnualMeanSolarRadiation_historical_1971_2005_Europe.tif",
+                           "var13_AnnualVariationSolarRadiation_historical_1971_2005_Europe.tif",
+                           "var1_AnnualMeanTemperature_historical_1971_2005_Europe.tif",
+                           "var2_AnnualAmountPrecipitation_historical_1971_2005_Europe.tif",
+                           "var3_AnnualVariationPrecipitation_historical_1971_2005_Europe.tif",
+                           "var4_AnnualVariationTemperature_historical_1971_2005_Europe.tif",
+                           "var5_MaximumTemperatureWarmestMonth_historical_1971_2005_Europe.tif",
+                           "var6_MinimumTemperatureColdestMonth_historical_1971_2005_Europe.tif",
+                           "var7_TemperatureAnnualRange_historical_1971_2005_Europe.tif",
+                           "var8_PrecipitationWettestMonth_historical_1971_2005_Europe.tif",
+                           "var9_PrecipitationDriestMonth_historical_1971_2005_Europe.tif"), 
+                quiet=FALSE)
+
+
