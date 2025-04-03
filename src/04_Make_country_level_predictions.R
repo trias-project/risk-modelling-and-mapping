@@ -663,6 +663,60 @@ for(key in accepted_taxonkeys){
   rcp85_masked<-mask(pred_list$rcp85$model,m4,maskvalue=TRUE)
   
   
+  #-----------------------------------------------------------------------------
+  #-------------------- Export rasterfiles of masked predictions ------------------
+  #-----------------------------------------------------------------------------
+  
+  masked_maps<-list(
+    "historical"=list("layers"=hist_masked,
+                      "scenario"= "hist",
+                      "scenario_title"="historical"),
+    "rcp26"=list("layers"=rcp26_masked,
+                 "scenario"="rcp26",
+                 "scenario_title"="RCP 2.6"), 
+    "rcp45"=list("layers"=rcp45_masked,
+                 "scenario"="rcp45",
+                 "scenario_title"="RCP 4.5"),
+    "rcp85"=list("layers"=rcp85_masked,
+                 "scenario"="rcp85",
+                 "scenario_title"="RCP 8.5")
+  )
+  
+  walk(masked_maps, function(x) {
+    scenario<-x$scenario
+    masked_confidencemap<- x$layers
+    
+    #Reproject predictions if the global model was used
+    if( Final_model=="Global model"){
+      masked_confidencemap<- masked_confidencemap%>%
+        project(crs(country))%>%
+        resample(resampling_raster, method="bilinear") #Make sure the climatic layers have the same resolution (1000 1000)and align with the habitat stack layer or the climatic layers used for the eu model (interpolation)
+      
+    }
+    
+    #export raster
+    raster_file<-paste(first_two_words, "_", taxonkey, "_", scenario, "_",cutoff,"_masked_predictions_", country_name, ".tif", sep="")
+    writeRaster(masked_confidencemap,
+                filename=file.path(raster_country_folder, raster_file),
+                overwrite=TRUE)
+    
+    print(paste(raster_file, "has been created"))
+    
+    #export PDFs and store PNGs in plot_list
+    exportPDF(predictions=masked_confidencemap,
+              taxonName=first_two_words,
+              nameExtension=rest_of_name,
+              taxonNameTitle=species_title,
+              taxonKey=taxonkey,
+              scenario=scenario,
+              regionName=country_name,
+              dataType = "Masked_Suit",
+              returnPredictions=FALSE,
+              returnPNG=FALSE)
+  }
+  )
+  
+  
 
 
 eu_eval<-function (ras,y){
