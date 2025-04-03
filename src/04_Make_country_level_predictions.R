@@ -90,21 +90,16 @@ accepted_taxonkeys<-taxa_info%>%
   unique()
 
 
-#--------------------------------------------
-#-----------Load country data----------------
-#--------------------------------------------
-#If you'd like to predict for another country, change the shapefile
-country<-st_read(here("./data/external/GIS/Belgium/belgium_boundary.shp"))
-country_ext<-terra::ext(country) 
-country_vector <- terra::vect(country) #Convert country to a SpatVector that can be used for masking
-
-
 #-------------------------------------------------
 #---------- Load habitat raster data -------------
 #-------------------------------------------------
+#ONE LAYER HAS A SLIGHTLY DIFFERENT EXTENT: CUT ALL OTHERS TO THIS EXTENT
 habitat<-list.files((here("./data/external/habitat")),pattern='tif',full.names = T)
-habitat_stack<-rast(habitat[c(1:5,7)]) #Distance to water (layer 6) has another extent
+habitat_stack<-rast(habitat[c(1:5,7)]) #Distance to water (layer 6) has another extent and we're not sure whether it is correct: leave it out!
+#habitat_stack2<-rast(habitat[6])
 
+#habitat_stack1<-crop(habitat_stack1, ext(habitat_stack2))
+#habitat_stack<-c(habitat_stack1, habitat_stack2)
 
 #--------------------------------------------
 #--------- Specify folder paths -------------
