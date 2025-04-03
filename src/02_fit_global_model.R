@@ -271,6 +271,15 @@ with_progress({
     #--------------------------------------------
     numb.global.pseudoabs <-length(global.occ.sf$decimalLongitude) #sets the number of pseudoabsences equal to number of unique presences
     rm(global.occ.LL.cleaned)
+
+    
+    #-------------------------------------------------------
+    #-Don't fit model if less than 20 global presences -----
+    #-------------------------------------------------------   
+    if(numb.global.pseudoabs<20){
+        warning(paste0("Skipping species ", species, " because the number of occurrences is less than 20 (n =",numb.global.pseudoabs,")"))
+        next  # Skip the rest of the loop and move to the next iteration
+    }
     
     
     #--------------------------------------------
