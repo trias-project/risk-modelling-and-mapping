@@ -273,6 +273,17 @@ for(key in accepted_taxonkeys){
   
 
   #--------------------------------------------
+  #------- Get model performance ---------
+  #--------------------------------------------
+  #identify threshold where sensitivity=specifity
+  thresholds<- findThresh(bestModel$ens_model$pred)
+  
+  #Using thresholds identified for each model in the previous step, assess performance of each model
+  # accuracy measures
+  thresholds.df<-accuracyStats(bestModel$ens_model$pred,thresholds$predicted) 
+  
+  
+  #--------------------------------------------
   #------- Subset country occurrences ---------
   #--------------------------------------------
   #occ.eu is in WGS84, convert to same projection as country level shapefile (which is the same proj used for model outputs)
