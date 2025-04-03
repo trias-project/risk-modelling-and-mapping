@@ -345,8 +345,12 @@ for(key in accepted_taxonkeys){
   habitat_only_stack_be<-terra::mask(habitat_only_stack,country)
   
   
-  # Save each plot as a PDF file
-         device = "png", width =8.27 , height = 11.69, path= PDF_folder)
+  #-Create individual RCP climate raster stacks for country --
+  be26 <- list.files((here("./data/external/climate/byEEA_finalRCP/belgium_rcps/rcp26")),pattern='tif',full.names = T)
+  belgium_stack26 <- rast(be26)
+  
+  be45 <- list.files((here("./data/external/climate/byEEA_finalRCP/belgium_rcps/rcp45")),pattern='tif',full.names = T)
+  belgium_stack45 <- rast(be45)
   
   be85 <- list.files((here("./data/external/climate/byEEA_finalRCP/belgium_rcps/rcp85")),pattern='tif',full.names = T)
   belgium_stack85 <- rast(be85)
@@ -362,8 +366,6 @@ for(key in accepted_taxonkeys){
   fullstack85_list <- list(belgium_stack85,habitat_only_stack_be)
   fullstack85 <- rast(fullstack85_list) 
   
-  # Close the PDF device
-  while (dev.cur() > 1) dev.off()
   
   }else if(file.exists(global_model_file)){
     
