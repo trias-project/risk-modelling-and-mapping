@@ -521,44 +521,25 @@ with_progress({
     
     #--------------------------------------------
     #- Export Eu predictions as raster and PDF --
-    #--------------------------------------------
-    #Create folders
-    raster_folder <- file.path("./data/projects", projectname, paste0(first_two_words, "_", taxonkey), "Rasters")
-    PDF_folder <- file.path("./data/projects", projectname, paste0(first_two_words, "_", taxonkey), "PDFs")
-    dir.create(raster_folder, recursive = TRUE, showWarnings = FALSE)
-    dir.create(PDF_folder, recursive = TRUE, showWarnings = FALSE)
-    
+    #-------------------------------------------
     #---------------Export raster-------------
     writeRaster(ens_pred_hab_eu1,
-                filename=file.path(raster_folder,paste(first_two_words,"_",taxonkey,"_hist_EU.tif",sep="")),
+                filename=file.path(raster_EU_folder,paste(first_two_words,"_",taxonkey,"_hist_EU.tif",sep="")),
                 overwrite=TRUE)
     
     #---------------Export PDF----------------
-    #Define the file paths
-    plot_png_path <- file.path(PDF_folder,paste(first_two_words,"_",taxonkey,"_hist_EU.png",sep=""))
-    plot_pdf_path <- file.path(PDF_folder,paste(first_two_words,"_",taxonkey,"_hist_EU.pdf",sep=""))
+    exportPDF(predictions=ens_pred_hab_eu1,
+              taxonName=first_two_words,
+              nameExtension=rest_of_name,
+              dataType="",
+              taxonNameTitle=species_title,
+              taxonKey=taxonkey,
+              scenario="hist",
+              regionName="EU",
+              returnPredictions=FALSE,
+              returnPNG=FALSE)
     
-    # Save each plot as a PDF file
-    ggsave(filename = paste0(first_two_words,"_",taxonkey,"_hist_EU.png"), plot = plot_final, 
-           device = "png", width =8.27 , height = 11.69, path= PDF_folder)
     
-    # Read the PNG image back in
-    img <- image_read(plot_png_path)
-    
-    # Start a PDF device for output
-    pdf(plot_pdf_path, width = 8.27, height = 11.69)
-    
-    # Create a layout for title and image
-    grid.newpage()
-    
-    # Add title at the top of the PDF
-    grid.text(
-      label = bquote(italic(.(first_two_words)) ~ .(rest_of_name) ~ "( " * .(taxonkey) * ")"),
-      x = 0.5, y = 0.95, just = "center", gp = gpar(fontsize = 12, fontface = "bold")
-    )
-    
-    # Add the PNG image below the title
-    grid.raster(img, width = unit(0.9, "npc"), height = unit(0.9, "npc"), y = 0.47)
     
     # Close the PDF device
     while (dev.cur() > 1) dev.off()
