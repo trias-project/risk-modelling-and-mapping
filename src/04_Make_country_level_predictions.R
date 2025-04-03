@@ -271,50 +271,56 @@ for(key in accepted_taxonkeys){
     
   }
   
-#--------------------------------------------
-#-------- Plot country occurrences ---------
-#--------------------------------------------
-ggplot()+ 
-    geom_sf(data = country,  colour = "black", fill = NA)+
-    geom_point(data=occ.country, aes(x=decimalLongitude, y= decimalLatitude),  fill="green", shape = 22, colour = "black", size=3)+
-    labs(x="Longitude", y="Latitude")+
-    theme_bw()
 
-
+  #--------------------------------------------
+  #------- Subset country occurrences ---------
+  #--------------------------------------------
+  #occ.eu is in WGS84, convert to same projection as country level shapefile (which is the same proj used for model outputs)
+  #suppressWarnings({
+    #occ.country <- euocc %>%
+     # st_transform(st_crs(country)) %>%
+     # st_intersection(country) %>%
+     # mutate(coords = st_coordinates(.)) %>%
+     # transmute(geometry, 
+               # decimalLongitude = coords[,1], 
+                #decimalLatitude = coords[,2])
+  #}) 
+  
+  
+  #--------------------------------------------
+  #-------- Plot country occurrences ---------
+  #--------------------------------------------
+  #ggplot()+ 
+  #geom_sf(data = country,  colour = "black", fill = "white")+
+  #geom_point(data=occ.country, aes(x=decimalLongitude, y= decimalLatitude),  fill="green", shape = 22, colour = "black", size=3)+
+  #labs(x="Longitude", y="Latitude")+
+  #theme_bw()
+  
+  
   #--------------------------------------------
   #-Create country predictions using best model -
   #--------------------------------------------
   # creates  country level rasters using the European level models
-  system.time({
-    ens_pred_hab_be<-terra::predict(fullstack_be,bestModel,type="prob", na.rm=TRUE)
-  })
+  #ens_pred_hab_be<-terra::predict(fullstack_be,bestModel,type="prob", na.rm=TRUE)
   
   
   #--------------------------------------------
   #-------- ¨Plot predictions for country -----
   #--------------------------------------------
-  brks <- seq(0, 1, by=0.1)
-  nb <- length(brks) - 1
-  viridis_palette <- viridis(nb)
+  #brks <- seq(0, 1, by=0.1)
+  #nb <- length(brks) - 1
+  #viridis_palette <- viridis(nb)
   
-  country_plot<-ggplot() + 
-    geom_spatraster(data = ens_pred_hab_be) +
-    scale_fill_gradientn(colors = viridis_palette, 
-                         breaks = brks, 
-                         labels = brks, 
-                         na.value = NA) +
-    geom_sf(data = occ.country, color = "black", fill = "red", 
-            size = 1.5, shape = 21) +
-    theme_bw() +
-    labs(fill = "Suitability")
-  
-  #Create an empty plot to fill PDF
-  empty_plot <- ggplot() + 
-    theme_void() + 
-    theme(plot.background = element_blank()) 
-  
-  #Create final plot
-  plot_final<-country_plot /empty_plot 
+  #ggplot() + 
+  #geom_spatraster(data = ens_pred_hab_be) +
+  #scale_fill_gradientn(colors = viridis_palette, 
+  #                    breaks = brks, 
+  #                   labels = brks, 
+  #                  na.value = NA) +
+  #geom_sf(data = occ.country, color = "black", fill = "red", 
+  #       size = 1.5, shape = 21) +
+  #theme_bw() +
+  #labs(fill = "Suitability")
   
   
   #-------------------------------------------------
@@ -347,11 +353,6 @@ ggplot()+
   # Create a layout for title and image
   grid.newpage()
   
-  # Add title at the top of the PDF
-  grid.text(
-    label = bquote(italic(.(first_two_words)) ~ .(rest_of_name) ~ "(" * .(taxonkey) * ")"),
-    x = 0.5, y = 0.95, just = "center", gp = gpar(fontsize = 12, fontface = "bold")
-  )
   
   # Add the PNG image below the title
   grid.raster(img, width = unit(0.9, "npc"), height = unit(0.9, "npc"), y = 0.47)
