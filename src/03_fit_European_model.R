@@ -540,12 +540,19 @@ with_progress({
               returnPNG=FALSE)
     
     
+    #--------------------------------------------
+    #- Store datasets linked to best Model
+    #--------------------------------------------
+    eu_presabs.coord<-eu_presabs.coord[[bestmodelname]]
+    occ.full.data.forCaret<-occ.full.data.forCaret[[bestmodelname]]
     
-    # Close the PDF device
-    while (dev.cur() > 1) dev.off()
     
-    # Remove the PNG file from the local directory
-    file.remove(plot_png_path)
+    #--------------------------------------------
+    #- Store layers used to create best model for country
+    #--------------------------------------------
+    # create a rasterstack for Belgium in this case
+    fullstack_crop<-crop(fullstack,country_ext)
+    fullstack_be<-mask(fullstack_crop,country_vector)
     
     
     #--------------------------------------------
