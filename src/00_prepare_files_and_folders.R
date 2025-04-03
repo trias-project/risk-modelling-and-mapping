@@ -10,7 +10,6 @@ for(package in packages) {
 }
 
 
-
 #--------------------------------------------
 #--------- Source helper functions ----------
 #--------------------------------------------
@@ -85,11 +84,41 @@ lapply(folder_paths, function(folder){
 
 
 #-------------------------------------------------
-#--------- Download and store data ---------------
+#------ Store WWF ecoregions file   --------------
 #-------------------------------------------------
-#The WWF ecoregions file
 curl::curl_download("http://assets.worldwildlife.org/publications/15/files/original/official_teow.zip?1349272619", destfile = paste0(Ecoregions_folder,"/official.zip"))
 unzip(paste0(Ecoregions_folder,"/official.zip"), exdir = paste0(Ecoregions_folder,"/official"))
 unlink(paste0(Ecoregions_folder,"/official.zip"))
 
-#The CHELSA layers
+
+#-------------------------------------------------
+#------ Store the CHELSA layers  --------------
+#-------------------------------------------------
+options(timeout = 600) #set time-out to 10 min 
+
+for(i in c("01", "04", "05", "06","07", "12","13","14","15")){
+  
+  # Define CHELSA layer name
+  layer_name <- switch(i,
+                       "01" = "meantemp",
+                       "04" = "temp_seasonality",
+                       "05" = "maxTmpWarmestMon",
+                       "06"= "minTmpColdestMon",
+                       "07"="temp_annRange",
+                       "12"="annPrecip",
+                       "13"="precipWettestMon",
+                       "14"="precipDriestMon",
+                       "15"="precipSeasonality")
+  
+  if(grepl("windows", Sys.getenv("OS"), ignore.case = TRUE)) {
+    download.file(url = paste0("https://os.zhdk.cloud.switch.ch/chelsav1/climatologies/bio/CHELSA_bio10_",i,".tif"),
+                  mode = "wb",
+                  destfile = file.path(global_climate_folder,paste0("CHELSA_",layer_name,"_",i,".tif")))
+  }else{
+    download.file(url = paste0("https://os.zhdk.cloud.switch.ch/chelsav1/climatologies/bio/CHELSA_bio10_",i,".tif"),
+                  destfile = file.path(global_climate_folder,paste0("CHELSA_",layer_name,"_",i,".tif")))
+  }
+}
+
+
+#-------------------------------------------------
