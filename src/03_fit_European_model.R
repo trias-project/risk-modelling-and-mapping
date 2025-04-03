@@ -171,13 +171,15 @@ with_progress({
     
     
     #--------------------------------------------
-    #-------- Plot European occurrences ---------
+    #------------ Import raster layers ----------
     #--------------------------------------------
-    ggplot()+ 
-      geom_sf(data = euboundary,  colour = "black", fill = NA)+
-      geom_point(data=eu_occ, aes(x=decimalLongitude, y= decimalLatitude),  fill="green", shape = 22, colour = "black", size=3)+
-      labs(x="Longitude", y="Latitude")+
-      theme_bw()
+    #Define file paths
+    biasgrid_file<- file.path("./data/projects",projectname,paste0(first_two_words,"_",taxonkey),"Rasters","Interim",paste0("Biasgrid_",first_two_words,"_",taxonkey,".tif"))
+    global_model_file<- file.path("./data/projects",projectname,paste0(first_two_words,"_",taxonkey),"Rasters","Global",paste0("Global_model_",first_two_words,"_",taxonkey,".tif"))
+    
+    #Load rasterlayers
+    biasgrid_sub<-terra::rast(biasgrid_file)
+    global_model<-terra::rast(global_model_file)
     
     
     #--------------------------------------------
