@@ -265,12 +265,12 @@ with_progress({
     #--------------------------------------------
     #----------- Visualize biasgrid  ------------
     #--------------------------------------------
-    ggplot()+ 
-      geom_sf(data = euboundary,  colour = "black", fill = NA)+
-      geom_spatraster(data=biasgrid_eu)+
-      scale_fill_continuous(na.value = "transparent",low = "blue", high = "orange")+
-      labs(x="Longitude", y="Latitude")+
-      theme_bw()
+    #ggplot()+ 
+     # geom_sf(data = euboundary,  colour = "black", fill = NA)+
+      #geom_spatraster(data=biasgrid_eu)+
+      #scale_fill_continuous(na.value = "transparent",low = "blue", high = "orange")+
+      #labs(x="Longitude", y="Latitude")+
+      #theme_bw()
     
     
     #--------------------------------------------
@@ -297,17 +297,17 @@ with_progress({
     #--------------------------------------------
     #-------- Plot pseudosampling area ----------
     #--------------------------------------------
-    brks <- seq(0, 1, by=0.1) 
-    nb <- length(brks)-1 
+    #brks <- seq(0, 1, by=0.1) 
+    #nb <- length(brks)-1 
     # Generate Viridis palette
-    viridis_palette <- viridis(nb)
+    #viridis_palette <- viridis(nb)
     
-    ggplot()+ 
-      geom_spatraster(data=global_masked_proj)+
-      geom_sf(data = euboundary,  colour = "black", fill = NA)+
-      scale_fill_gradientn(colors = viridis_palette, breaks = brks, labels = brks , na.value = NA) +
-      labs(x="Longitude", y="Latitude")+
-      theme_bw()
+    #ggplot()+ 
+     # geom_spatraster(data=global_masked_proj)+
+      #geom_sf(data = euboundary,  colour = "black", fill = NA)+
+      #scale_fill_gradientn(colors = viridis_palette, breaks = brks, labels = brks , na.value = NA) +
+      #labs(x="Longitude", y="Latitude")+
+      #theme_bw()
     
     
     #--------------------------------------------
@@ -336,8 +336,7 @@ with_progress({
     presence<-as.data.frame(euocc)
     names(presence)<- c("x","y")
     presence1<-terra::extract(rmiclimpreds,presence, ID=FALSE)
-    occ<-rep(1,nrow(presence1))
-    presence1<-cbind(presence1,occ)
+    presence1$occ<-1
     
     # join each pseudoabsence set with presences 
     eu_presabs.pts<-lapply(pseudoabs_pts2,  function(x) rbind(x, presence1))
@@ -496,7 +495,6 @@ with_progress({
     # accuracy measures
     thresholds.df<-sapply(names(thresholds), function(x) accuracyStats(lm_ens_hab[[x]]$ens_model$pred,thresholds[[x]]$predicted),simplify=FALSE)
     thresholds.comb<-do.call(rbind,thresholds.df)
-    kable(thresholds.comb,digits=2)
     
     
     #--------------------------------------------
@@ -524,36 +522,6 @@ with_progress({
     #--------------------------------------------
     euocc1<-st_as_sf(as.data.frame(euocc), coords=c("X","Y"),crs=st_crs(rmiclimpreds))
   
-    
-    #--------------------------------------------
-    #-------- ¨Plot predictions for Europe  -----
-    #--------------------------------------------
-    #Plot
-    brks <- seq(0, 1, by=0.1)
-    nb <- length(brks) - 1
-    viridis_palette <- viridis(nb)
-    
-    eu_plot<-ggplot() + 
-      geom_spatraster(data = ens_pred_hab_eu1) +
-      scale_fill_gradientn(colors = viridis_palette, 
-                           breaks = brks, 
-                           labels = brks, 
-                           na.value = NA) +
-      geom_sf(data = euocc1, color = "black", fill = "red", 
-              size = 1.5, shape = 21) +
-      theme_bw() +
-      labs(fill = "Suitability")+
-      coord_sf(xlim = c(2254476, 6005897), 
-               ylim = c(1363659, 5469923))
-    
-    #Create an empty plot to fill PDF
-    empty_plot <- ggplot() + 
-      theme_void() + 
-      theme(plot.background = element_blank()) 
-    
-    #Create final plot
-    plot_final<-eu_plot /empty_plot 
-
     
     #--------------------------------------------
     #- Export Eu predictions as raster and PDF --
