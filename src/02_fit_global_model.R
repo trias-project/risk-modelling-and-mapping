@@ -152,6 +152,17 @@ eu_climpreds<-rast(euclimrasters)
 eu_climpreds.10<-divide10(eu_climpreds)  # correct for integer format of Chelsa preds
 
 
+#---------------------------------------------
+#-- Remove NA pixels from climate rasters ----
+#---------------------------------------------
+#This is to avoid that some layers have NA while others have values in certain pixels
+#Mask pixels in the rasterstack where at least one layer has NA
+na_mask_globalclimpreds_terra<- app(globalclimpreds_terra, function(x) any(is.na(x)))
+na_mask_eu_climpreds.10<- app(eu_climpreds.10, function(x) any(is.na(x)))
+globalclimpreds_terra<- mask(globalclimpreds_terra, na_mask_globalclimpreds_terra, maskvalue=1)
+eu_climpreds.10<- mask(eu_climpreds.10, na_mask_eu_climpreds.10, maskvalue=1)
+
+
 #--------------------------------------------
 #--------- Load shape of the world ----------
 #--------------------------------------------
