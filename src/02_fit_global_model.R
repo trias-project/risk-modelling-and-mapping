@@ -285,11 +285,11 @@ with_progress({
     #--------------------------------------------
     #------ Plot distribution of occurrences ----
     #--------------------------------------------
-    ggplot()+ 
-      geom_sf(data = world,  colour = "black", fill = NA)+
-      geom_point(data=global.occ.sf, aes(x=decimalLongitude, y= decimalLatitude),  fill="green", shape = 22, colour = "black", size=3)+
-      labs(x="Longitude", y="Latitude")+
-      theme_bw()
+    #ggplot()+ 
+      #geom_sf(data = world,  colour = "black", fill = NA)+
+      #geom_point(data=global.occ.sf, aes(x=decimalLongitude, y= decimalLatitude),  fill="green", shape = 22, colour = "black", size=3)+
+      #labs(x="Longitude", y="Latitude")+
+      #theme_bw()
     
     
     #--------------------------------------------
@@ -302,11 +302,11 @@ with_progress({
     #--------------------------------------------
     #------------- Plot ecoregions --------------
     #--------------------------------------------
-    ggplot()+ 
-      geom_sf(data = world,  colour = "black", fill = NA)+
-      geom_sf(data=wwf_ecoSub1, fill="#f7786f")+
-      labs(x="Longitude", y="Latitude")+
-      theme_bw()
+    #ggplot()+ 
+      #geom_sf(data = world,  colour = "black", fill = NA)+
+      #geom_sf(data=wwf_ecoSub1, fill="#f7786f")+
+      #labs(x="Longitude", y="Latitude")+
+      #theme_bw()
     
     
     #--------------------------------------------
@@ -337,12 +337,12 @@ with_progress({
     #--------------------------------------------
     #---------------Visualize biasgrid-----------
     #--------------------------------------------
-    ggplot()+ 
-      geom_sf(data = world,  colour = "black", fill = NA)+
-      geom_spatraster(data=biasgrid_sub)+
-      scale_fill_continuous(na.value = "transparent",low = "blue", high = "orange")+
-      labs(x="Longitude", y="Latitude")+
-      theme_bw()
+    #ggplot()+ 
+      #geom_sf(data = world,  colour = "black", fill = NA)+
+      #geom_spatraster(data=biasgrid_sub)+
+      #scale_fill_continuous(na.value = "transparent",low = "blue", high = "orange")+
+      #labs(x="Longitude", y="Latitude")+
+      #theme_bw()
     
     
     #--------------------------------------------
@@ -378,14 +378,14 @@ with_progress({
     #--------------------------------------------
     #--Visualize presence-pseudoabsence dataset--
     #--------------------------------------------
-    mapview(biasgrid_sub_raster, 
-            col.regions = colorRampPalette(c("blue", "orange")),
-            alpha=1, 
-            na.color = "transparent", 
-            layer.name = "Bias Grid") +
-      mapview(global_presabs, zcol = "species", 
-              col.regions = c("red", "yellow"),
-              layer.name = "Species distribution")
+    #mapview(biasgrid_sub_raster, 
+            #col.regions = colorRampPalette(c("blue", "orange")),
+            #alpha=1, 
+            #  na.color = "transparent", 
+            #layer.name = "Bias Grid") +
+      #mapview(global_presabs, zcol = "species", 
+              #col.regions = c("red", "yellow"),
+              #layer.name = "Species distribution")
     
     
     #--------------------------------------------
@@ -402,8 +402,6 @@ with_progress({
     correlationMatrix<-cor(global.data.df[,-c(1,2)]) #Calculate pearson correlation among environmental values
     highlyCorrelated <- findCorrelation(correlationMatrix, cutoff=0.7,exact=TRUE,names=TRUE)#Returns names of environmental variables to be removed because they are correlated more than 0.7 with other variables.  If two variables have a high correlation, the function removes the variable with the largest mean absolute correlation.
     preds<-as.data.frame(highlyCorrelated)
-    kable(preds) %>%
-      kable_styling(bootstrap_options = c("striped"))
     
     # Remove highly correlated predictors from dataframe 
     global.data.df.subset<- global.data.df %>%
@@ -446,19 +444,11 @@ with_progress({
     
     # Display accuracy of each model
     Global.Mod.Accuracy<-summary(GlobalModelResults)
-    kable(Global.Mod.Accuracy$statistics$Accuracy,digits=2) %>%
-      kable_styling(bootstrap_options = c("striped"))
-    
-    # Display kappa of each model
-    kable(Global.Mod.Accuracy$statistics$Kappa,digits=2) %>%
-      kable_styling(bootstrap_options = c("striped"))
     
     #Display correlation among models.
     #Weakly correlated algorithms are persuasive for stacking them in ensemble.
     Global.Mod.Cor<-modelCor(resamples(global_train))
-    kable(Global.Mod.Cor,digits=2)%>%
-      kable_styling(bootstrap_options = c("striped"))
-    
+   
     
     #--------------------------------------------
     #---------- Create ensemble model -----------
@@ -480,6 +470,7 @@ with_progress({
     #--------------------------------------------
     #Identify threshold that maximizes spec=sens
     global.ens.thresh<-findThresh(global_stack$ens_model$pred)
+    
     #Return accurracy
     ensemble_accurracy<-accuracyStats(global_stack$ens_model$pred,global.ens.thresh$predicted)
     
@@ -488,14 +479,6 @@ with_progress({
     #-- Get variable importance of global model--
     #--------------------------------------------
     variableImportance_global<-varImp(global_stack)
-    kable(variableImportance_global,digits=2,caption="Variable Importance") %>%
-      kable_styling(bootstrap_options = c("striped"))
-    
-    
-    #--------------------------------------------
-    #------------------ Clean up-----------------
-    #--------------------------------------------
-    rm(list = setdiff(ls(), c("eu_climpreds.10", "global_stack", "split_df", "taxonkey", "species", "ensemble_accurracy", "accuracyStats", "decimalplaces", "divide10", "findThresh", "predict_large_raster", "globalclimpreds_terra","bias_grid_paths", "i", "globalmodels","global.occ.sf", "biasgrid_sub", "world", "projectname", "first_two_words", "generate_pseudoabs", "variableImportance_global")))
     
     
     #--------------------------------------------
@@ -509,19 +492,29 @@ with_progress({
     #--------------------------------------------
     #-------------- Plot predictions-------------
     #--------------------------------------------
-    brks <- seq(0, 1, by=0.1) 
-    nb <- length(brks)-1 
+    #brks <- seq(0, 1, by=0.1) 
+    #nb <- length(brks)-1 
     # Generate Viridis palette
-    viridis_palette <- viridis(nb)
+    #viridis_palette <- viridis(nb)
     
-    ggplot() + 
+    #ggplot() + 
       #geom_sf(data = world,  colour = "grey", fill = NA)+
-      geom_spatraster(data = global_model) +
-      scale_fill_gradientn(colors = viridis_palette, breaks = brks, labels = brks, na.value = NA) +
-      geom_sf(data = global.occ.sf, color = "black", fill = "red", size =1.5, shape = 21) +
-      coord_sf(xlim = c(-10, 40), ylim = c(35, 72)) + 
-      labs(fill = "Suitability")+
-      theme_bw()
+      #geom_spatraster(data = global_model) +
+      #scale_fill_gradientn(colors = viridis_palette, breaks = brks, labels = brks, na.value = NA) +
+      #geom_sf(data = global.occ.sf, color = "black", fill = "red", size =1.5, shape = 21) +
+      #coord_sf(xlim = c(-10, 40), ylim = c(35, 72)) + 
+      #labs(fill = "Suitability")+
+      #theme_bw()
+    
+    #--------------------------------------------
+    #-- Prepare global_presabs for export--------
+    #--------------------------------------------  
+    #Decimallon and decimalLat are converted to x and y, geometry is dropped
+    global_presabs<-global_presabs%>%
+      select(decimalLongitude, decimalLatitude)%>%
+      rename("x"= decimalLongitude,
+             "y"= decimalLatitude)%>%
+      st_drop_geometry()
     
     
     #--------------------------------------------
