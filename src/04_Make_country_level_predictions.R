@@ -717,6 +717,18 @@ for(key in accepted_taxonkeys){
   )
   
   
+  #-----------------------------------------------------------------------------
+  #-------------- Get variable importance of best european model ---------------
+  #-----------------------------------------------------------------------------
+  #Variable importance for each model is calculated and then averaged by the weight of the overall model in the ensembled object.
+  variableImportance<-caret::varImp(bestModel)
+  #kable(variableImportance,digits=2,caption="Variable Importance") %>%
+  #kable_styling(bootstrap_options = c("striped"))
+  
+  #Store variable importance
+  Varimp_path<-file.path("./data/projects", projectname, paste0(first_two_words, "_", taxonkey), "PDFs")
+  write.csv(variableImportance,file = file.path(VarImp_folder, paste0(taxonkey,"_varImp_EU_model.csv")))
+  
 
 
 eu_eval<-function (ras,y){
