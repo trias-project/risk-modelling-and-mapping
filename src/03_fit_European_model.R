@@ -571,7 +571,6 @@ with_progress({
     #Save eumodel as .qs file
     qsave(eumodel, paste0("./data/projects/",projectname,"/",first_two_words,"_",taxonkey,"/EU_model_",first_two_words,"_",taxonkey,".qs")) 
     
-    qsave(eumodel, paste0("./data/projects/",projectname,"/",first_two_words,"_",taxonkey,"/EU_model_",first_two_words,"_",taxonkey,".qs"))
     
     #--------------------------------------------
     #- ------ Save rasters-----------------------
