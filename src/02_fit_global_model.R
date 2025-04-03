@@ -114,7 +114,8 @@ global.occ <- global.occ%>%
 #--------------------------------------------
 #-------Prepare occurrence dataset-----------
 #--------------------------------------------
-global.occ.LL<-data.frame(global.occ)[c(4,3,2,1,10)] #decimalLon, decimalLat, species, acceptedtaxonkey, Group, n= 1758
+global.occ.LL<-global.occ%>%
+  dplyr::select(decimalLongitude, decimalLatitude, species, speciesKey, Group) #decimalLon, decimalLat, species, acceptedtaxonkey, Group, n= 1758
 rm(global.occ, global)
 
 
