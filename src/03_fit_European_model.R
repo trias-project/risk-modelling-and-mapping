@@ -273,13 +273,13 @@ with_progress({
       #theme_bw()
     
     
-    #--------------------------------------------
-    #Mask areas of high suitability in global model
-    #--------------------------------------------
+    #----------------------------------------------
+    #------- Mask areas of high suitability -------
+    #----------------------------------------------
     #Create a mask of the global_model rasterlayer, containing only areas that are predicted to contain occurrences
     m<- global_model >= model_accuracy$threshold
     
-    #Mask the global_model layer with this occurrence layer (i.e., convert all areas where occurrences are predicted to NA)
+    #Mask the global_model layer with this occurrence layer (i.e., only keep pixels where absences are predicted, rest becomes NA)
     global_mask<-mask(global_model,m,maskvalue=TRUE)
     global_masked_proj<-project(global_mask,biasgrid_eu)
     
@@ -290,10 +290,10 @@ with_progress({
     #--------------------------------------------
     #--Create sampling area for pseudoabsences --
     #--------------------------------------------
-    # Combine areas of low predicted habitat suitability with bias grid to exclude low sampled areas and areas of high suitability
+    # Combine areas of low predicted habitat suitability with bias grid to exclude pixels with no sampling effort or falling outside ecoregions with global occurrences! (NA in biasgrid_eu)
     pseudoSamplingArea<-mask(global_masked_proj,biasgrid_eu)
     
-   
+    
     #--------------------------------------------
     #-------- Plot pseudosampling area ----------
     #--------------------------------------------
@@ -313,7 +313,7 @@ with_progress({
     #--------------------------------------------
     #Randomly generate pseudoabsences in pseudoSamplingArea
     #--------------------------------------------
-    # set number of pseudoabsences equal to the number of presences
+    # Set number of pseudoabsences equal to the number of presences
     numb.eu.pseudoabs<-nrow(euocc)
     
     # Generate pseudoabsences 10 times, store in a list with 10 datasets and names them X1-X10
@@ -326,7 +326,7 @@ with_progress({
     #--------------------------------------------
     #Prepare presence-absence dataset for modelling
     #--------------------------------------------
-    # extract data from environmental predictors for absences
+    # extract data from environmental predictors for each list of absences
     pseudoabs_pts1<-lapply(pseudoabs_pts, function(x) terra::extract(rmiclimpreds,x, ID=FALSE))
     
     # add occ column with value 0 (indicating absences)
@@ -369,15 +369,10 @@ with_progress({
     #combine uncorrelated climate variable selected earlier with habitat layers
     fullstack<-c(rmiclimpreds_uncor,habitat_stack) 
     
-    # create a rasterstack for specified country (Belgium in example case)
-    fullstack_crop<-crop(fullstack,country_ext)
-    fullstack_be<-mask(fullstack_crop,country_vector)
-    
     
     #-----------------------------------------------------------
     #- Extract predictor values for presences and pseudoabsences
     #-----------------------------------------------------------
-    # Why first extract for environmental predictors and not immediately do this step?
     occ.full.data <-lapply(eu_presabs.coord, function(x) extract(fullstack,x, ID=FALSE))
 
     
@@ -406,7 +401,6 @@ with_progress({
     # identify low variance predictors
     nzv_preds<-lapply(names(occ.full.data),function(x) caret::nearZeroVar(occ.full.data[[x]],names=TRUE))
     nzv_preds.vec<-unique(unlist(nzv_preds))
-    nzv_preds.vec
     
     # remove near zero variance predictors. They don't contribute to the model.
     occ.full.data<-sapply(names(occ.full.data),function (x) occ.full.data[[x]][,!(colnames(occ.full.data[[x]]) %in% nzv_preds.vec)],simplify=FALSE)
@@ -465,11 +459,9 @@ with_progress({
     #--------------------------------------------
     EU_ModelResults1<-sapply(names(eu_models), function(x) resamples(eu_models[[x]]),simplify=FALSE)
     Results.summary<-sapply(names(EU_ModelResults1), function(x) summary(EU_ModelResults1[[x]]),simplify=FALSE)
-    Results.summary
   
     #show_euModel_correlation
     Model.cor<-sapply(names(eu_models), function(x) modelCor(resamples(eu_models[[x]])),simplify=FALSE)
-    Model.cor
  
     
     #--------------------------------------------
