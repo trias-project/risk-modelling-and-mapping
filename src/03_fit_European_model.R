@@ -417,10 +417,7 @@ with_progress({
     occ.full.data.df<- sapply(names(occ.full.data.df), function (x) cbind(occ.full.data.df[[x]],occ=eu_presabs.pts.df[[x]]$occ, deparse.level=0),simplify=FALSE)
     
     #Recode factor levels of column 'occ' to absent (0) and present(1), and set present as the reference level
-    occ.full.data.factor<-sapply(names(occ.full.data.df), function (x) factorVars(occ.full.data.df[[x]], "occ"),simplify=FALSE)
-    
-    #Replace NA values with 0 in all columns 
-    occ.full.data.forCaret<-sapply(names(occ.full.data.factor), function (x) replace(occ.full.data.factor[[x]], is.na(occ.full.data.factor[[x]]),0),simplify=FALSE)
+    occ.full.data.forCaret<-sapply(names(occ.full.data.df), function (x) factorVars(occ.full.data.df[[x]], "occ"),simplify=FALSE)
     
     
     #--------------------------------------------
