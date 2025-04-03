@@ -559,8 +559,56 @@ for(key in accepted_taxonkeys){
   )
   
   
+  #--------------------------------------------------------------------
+  #-------------- Check spatial correlation of residuals----------------
+  #--------------------------------------------------------------------
+  ### This is done to assess whether occurrence data should be thinned
+  # Load dataframe with predictions and observations of best model 
+  predEns1<-bestModel$ens_model$pred
+  
+  #Create vector of observed values (0-1 format)
+  obs.numeric<-ifelse(predEns1$obs == "absent",0,1)
+  
+  #Create a vector with standardized residuals
+  hab.res<-stdres(obs.numeric,predEns1$present)
+  
+  # Load coordinates of presences and absences used to fit the best model (stored in eu_presabs.coord) and combine with explanatory data
+  res.best.coords1<-cbind(eu_presabs.coord,occ.full.data.forCaret)
+  
+  #Remove rows with NAs (in explanatory data)
+  removedNAs.coords<-na.omit(res.best.coords1)
+  
+  #Combine coordinate data with residuals
+  res.best.df<-cbind(removedNAs.coords[1:2],hab.res) #Standardized residuals
+  res.best.df$res<-obs.numeric-predEns1$present #Regular residuals
+  
+  #Clean up
+  rm(predEns1, obs.numeric, hab.res, res.best.coords1,removedNAs.coords)
+  gc()
+  
+  #---------- Check Morans I.- THIS CODE FAILS FOR LARGE DATASETS: NEEDS TOO MUCH RAM
+  #If Moran's I is very low (<0.10) or not significant, do not need to thin occurrences.
+  #If the observed value is significantly greater than the expected value then there is positive autocorrelation
+  #https://stats.oarc.ucla.edu/r/faq/how-can-i-calculate-morans-i-in-r/
+  
+  if(nrow(res.best.df)<10000){
+    occ.dists <- as.matrix(dist(res.best.df[1:2]))
+    occ.dists.inv <- 1/occ.dists
+    diag(occ.dists.inv) <- 0
+    autocor_result<-Moran.I(res.best.df$hab.res,occ.dists.inv,scaled=TRUE,alternative="greater") #‘greater’ evaluates whether the data exhibit more spatial autocorrelation than expected
+    MoransI_method<-"Original (ape)"
+    observedmoransI<-autocor_result$observed #Observed Moran's I
+    pvalue_moransI<-autocor_result$p.value # p-value
+    
   }else{
-    predClass<-"bothClasses"
+    ##ALTERNATIVE CODE from: https://github.com/mcooper/moranfast
+    #Note that it calculates it a bit differently from the code in ape
+    autocor_result<-moranfast(res.best.df$hab.res, res.best.df$x, res.best.df$y, alternative="greater")
+    observedmoransI<-autocor_result$observed #Observed Moran's I
+    pvalue_moransI<-autocor_result$p.value # p-value
+    MoransI_method<-"C++ alternative (moranfast)"
+  }
+  
     
     return(predClass)
   }}
