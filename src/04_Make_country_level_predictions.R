@@ -166,13 +166,41 @@ for(key in accepted_taxonkeys){
   #Define taxonkey
   taxonkey<- key
   
-  #Read in globalmodels object that was stored as part of  script 03_fit_European_model
-  eumodel<-qread( paste0("./data/projects/",projectname,"/",first_two_words,"_",taxonkey,"/EU_model_",first_two_words,"_",taxonkey,".qs"))
   
-  #Read in different data objects stored in globalmodels
-  euocc<-eumodel$euocc1
-  bestModel<-unwrap(eumodel$bestModel)
-  fullstack_be<-unwrap(eumodel$fullstack_be)
+  #--------------------------------------------
+  #----- Specify folder and file paths --------
+  #--------------------------------------------
+  raster_folder <- file.path("./data/projects", projectname, paste0(first_two_words, "_", taxonkey), "Rasters")
+  raster_country_folder<-file.path(raster_folder, country_name)
+  PDF_folder <- file.path("./data/projects", projectname, paste0(first_two_words, "_", taxonkey), "PDFs")
+  PDF_country_folder<-file.path(PDF_folder, country_name)
+  PNG_folder <- file.path("./data/projects", projectname, paste0(first_two_words, "_", taxonkey), "PNGs")
+  PNG_country_folder <- file.path(PNG_folder, country_name)
+  VarImp_folder <-file.path("./data/projects", projectname, paste0(first_two_words, "_", taxonkey), "Variable_importance")
+  RC_folder<-file.path("./data/projects", projectname, paste0(first_two_words, "_", taxonkey), "Response_curves")
+  eu_model_file<-file.path("./data/projects",projectname,paste0(first_two_words,"_",taxonkey), paste0("EU_model_",first_two_words,"_",taxonkey,".qs"))
+  global_model_file<-file.path("./data/projects",projectname, paste0(first_two_words,"_",taxonkey),paste0("Global_model_",first_two_words,"_",taxonkey,".qs"))
+  
+  
+  #-----------------------------------------------------------------------------------
+  #-Create folders for variable importance, response curves, and Belgian rasters -----
+  #-----------------------------------------------------------------------------------
+  # Define the folder paths
+  folder_paths<-list(list("path"=VarImp_folder,
+                          "name"= "Variable_importance"),
+                     list("path"= RC_folder,
+                          "name"= "Response_curves"),
+                     list("path"= raster_country_folder,
+                          "name"= paste0("Rasters/",country_name)),
+                     list("path"= PDF_country_folder,
+                          "name"= paste0("PDF/",country_name)),
+                     list("path"= PNG_country_folder,
+                          "name"= paste0("PNG/",country_name)))
+  
+  # Check and create each folder if necessary
+  lapply(folder_paths, function(folder){
+    create_folder(folder$path, folder$name)
+  })
   
   
 ### Subset Belgium occurrences 
