@@ -145,32 +145,30 @@ with_progress({
     #Define taxonkey
     taxonkey<- key
     
-    #Read in globalmodels object that was stored as part of  script 02_fit_global_model
-    globalmodels<-qread( paste0("./data/projects/",projectname,"/",first_two_words,"_",taxonkey,"/Global_model_",first_two_words,"_",taxonkey,".qs"
-    ))
-    
-    #Extract different data objects stored in globalmodels
-    global.occ.sf<-globalmodels$occurrences
-    biasgrid_sub<-terra::unwrap(globalmodels$biasgrid)
-    global_model<-terra::unwrap(globalmodels$global_model_predictions)
-    model_accuracy<-globalmodels$model_accuracy
-
     
     #--------------------------------------------
-    #--  Create European subset of occurrences --
+    #-- Define file path of global model file  --
+    #--------------------------------------------  
+    global_model_file<-file.path("./data/projects",projectname, paste0(first_two_words,"_",taxonkey),paste0("Global_model_",first_two_words,"_",taxonkey,".qs"))
+   
+   
     #--------------------------------------------
-    eu_occ<-st_join(euboundary, global.occ.sf)%>%
-      select(decimalLatitude, decimalLongitude, species)%>%
-      filter(!is.na(decimalLatitude))%>%
-      st_drop_geometry()
-    
-    # Check if there are any occurrences in Europe, if not go to the next species
-    if (nrow(eu_occ) == 0) {
-      warning(paste("No occurrences in Europe for species:", species, 
-                    "\n- European model cannot be constructed, skipping to the next species."))
-      next  # Skip to the next species in the loop
+    #-Check if global model exists, if not, skip-
+    #--------------------------------------------
+    if(file.exists(global_model_file)){
+      
+      #This was stored as part of  script 02_fit_global_model
+      globalmodels<-qread( paste0("./data/projects/",projectname,"/",first_two_words,"_",taxonkey,"/Global_model_",first_two_words,"_",taxonkey,".qs"))
+      
+      #Extract different data objects stored in globalmodels
+      global.occ.sf<-globalmodels$occurrences
+      model_accuracy<-globalmodels$model_accuracy
+      
+    }else{
+      warning(paste0("Skipping species ", species, " because no global model could be fitted"))
+      next  # Skip the rest of the loop and move to the next iteration
     }
-  
+    
     
     #--------------------------------------------
     #-------- Plot European occurrences ---------
