@@ -344,3 +344,19 @@ download_zenodo(doi="https://doi.org/10.5281/zenodo.15102496",
                            "belgium_boundary.shp.xml"), 
                 quiet=FALSE)
 
+
+#-------------------------------------------------
+#----- Store the European boundary shapefile  ----
+#-------------------------------------------------
+download_zenodo(doi="https://doi.org/10.5281/zenodo.15102496", 
+                path=Europe_folder, 
+                files=list("EUROPE.shp", 
+                           "EUROPE.dbf",
+                           "EUROPE.shx",
+                           "EUROPE.prj",
+                           "EUROPE.sbn",
+                           "EUROPE.sbx",
+                           "EUROPE.shp.xml"), 
+                quiet=FALSE)
+
+
