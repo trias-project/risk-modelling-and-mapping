@@ -350,17 +350,14 @@ with_progress({
     eu_presabs.pts.df<-lapply(eu_presabs.pts,function(x) as.data.frame(x))
     
     # find attributes that are highly corrected 
-    highlyCorrelated_climate <-lapply(names(eu_presabs.pts.df),function(x) findCorrelation(cor(eu_presabs.pts.df[[x]],use = 'complete.obs'), cutoff=0.7,exact=TRUE,names=TRUE))
+    highlyCorrelated_climate <-lapply(eu_presabs.pts.df, function(df) as.data.frame(cor(df[, 1:13], use = "complete.obs")))
     
-    highlyCorrelated_climate 
-    eupreds<-as.data.frame(highlyCorrelated_climate[1])
-    kable(eupreds) %>%
-      kable_styling(bootstrap_options = c("striped"))
+    #Calculate the mean correlation over the 10 datsets and identify highly correlated variables
+    mean_correlation_matrix <- Reduce("+", highlyCorrelated_climate) / length(highlyCorrelated_climate)
+    drop_climate<-findCorrelation(as.matrix(mean_correlation_matrix), cutoff=0.7,exact=TRUE,names=TRUE)
     
-    # Remove first set of highly correlated climate predictors
-    drop_climate<-highlyCorrelated_climate[[1]]
-    keep_layers <- !(names(rmiclimpreds) %in% drop_climate)
-    rmiclimpreds_uncor <- subset(rmiclimpreds, keep_layers)
+    #Only keep layers that are not highly correlated
+    rmiclimpreds_uncor <- subset(rmiclimpreds, !(names(rmiclimpreds) %in% drop_climate))
     
     
     #--------------------------------------------
@@ -379,20 +376,20 @@ with_progress({
     #--------------------------------------------
     #--- Remove highly correlated predictors ----
     #--------------------------------------------
-    highlyCorrelated_full <-lapply(names(occ.full.data),function(x)
-      findCorrelation(cor(occ.full.data[[x]],use = 'complete.obs'), cutoff=0.7,exact=TRUE,names=TRUE))
+    # find attributes that are highly correlated in at least one of the models and remove them from all
+    highlyCorrelated_full <-lapply(names(occ.full.data),function(x) findCorrelation(cor(occ.full.data[[x]],use = 'complete.obs'), cutoff=0.7,exact=TRUE,names=TRUE))
+    highlyCorrelated_vec<-unique(unlist(highlyCorrelated_full))
     
-    highlyCorrelated_vec<-unlist(highlyCorrelated_full)
-    eupreds1<-as.data.frame(highlyCorrelated_vec)
-    kable(eupreds1) %>%
-      kable_styling(bootstrap_options = c("striped"))
+    #highlyCorrelated_full <-lapply(occ.full.data, function(df) as.data.frame(cor(df, use = "complete.obs")))
+    #Calculate the mean correlation over the 10 datsets and identify highly correlated variables
+    #mean_correlation_full_matrix <- Reduce("+", highlyCorrelated_full) / length(highlyCorrelated_full)
+    #highlyCorrelated_vec<-findCorrelation(as.matrix(mean_correlation_full_matrix), cutoff=0.7,exact=TRUE,names=TRUE)
     
     # Remove highly correlated predictors from dataset holding occurrences
     occ.full.data<-sapply(names(occ.full.data),function (x) occ.full.data[[x]][,!(colnames(occ.full.data[[x]]) %in% highlyCorrelated_vec)],simplify=FALSE)
     
     # Remove highly correlated predictors from rasterlayers
-    keep_layers <- !(names(fullstack) %in% highlyCorrelated_vec)
-    fullstack <- subset(fullstack, keep_layers)
+    fullstack <- subset(fullstack, !(names(fullstack) %in% highlyCorrelated_vec))
 
     
     #--------------------------------------------
@@ -405,7 +402,11 @@ with_progress({
     # remove near zero variance predictors. They don't contribute to the model.
     occ.full.data<-sapply(names(occ.full.data),function (x) occ.full.data[[x]][,!(colnames(occ.full.data[[x]]) %in% nzv_preds.vec)],simplify=FALSE)
   
-  
+    #remove them from fullstack
+    fullstack <- fullstack%>%
+      subset(!names(fullstack) %in% nzv_preds.vec)
+    
+    
     #--------------------------------------------
     #-------- Prepare data for modelling --------
     #--------------------------------------------
