@@ -346,31 +346,42 @@ for(key in accepted_taxonkeys){
   
   
   # Save each plot as a PDF file
-  ggsave(filename = paste0(first_two_words,"_",taxonkey,"_hist_",country_name,".png"), plot = plot_final, 
          device = "png", width =8.27 , height = 11.69, path= PDF_folder)
   
-  # Read the PNG image back in
-  img <- image_read(plot_png_path)
-  
-  # Start a PDF device for output
-  pdf(plot_pdf_path, width = 8.27, height = 11.69)
-  
-  # Create a layout for title and image
-  grid.newpage()
+  be85 <- list.files((here("./data/external/climate/byEEA_finalRCP/belgium_rcps/rcp85")),pattern='tif',full.names = T)
+  belgium_stack85 <- rast(be85)
   
   
-  # Add the PNG image below the title
-  grid.raster(img, width = unit(0.9, "npc"), height = unit(0.9, "npc"), y = 0.47)
+  #-Combine habitat stacks with climate stacks for each RCP scenario --
+  fullstack26_list <- list(belgium_stack26,habitat_only_stack_be)
+  fullstack26 <- rast(fullstack26_list) 
+  
+  fullstack45_list <- list(belgium_stack45,habitat_only_stack_be)
+  fullstack45 <- rast(fullstack45_list) 
+  
+  fullstack85_list <- list(belgium_stack85,habitat_only_stack_be)
+  fullstack85 <- rast(fullstack85_list) 
   
   # Close the PDF device
   while (dev.cur() > 1) dev.off()
   
-  # Remove the PNG file from the local directory
-  file.remove(plot_png_path)
+  }else if(file.exists(global_model_file)){
+    
+    #-Only use future climate layers--
+    be26 <- list.files((here("./data/external/climate/Global_finalRCP/belgium_rcps/rcp26")),pattern='tif',full.names = T)
+    fullstack26 <- rast(be26)
+    
+    be45 <- list.files((here("./data/external/climate/Global_finalRCP/belgium_rcps/rcp45")),pattern='tif',full.names = T)
+    fullstack45 <- rast(be45)
+    
+    be85 <- list.files((here("./data/external/climate/Global_finalRCP/belgium_rcps/rcp85")),pattern='tif',full.names = T)
+    fullstack85 <- rast(be85)
+    
+  }
   
   
   #-------------------------------------------------
-  #- Clip habitat raster stack to extent of country --
+  #------------- Store layers in a list ------------
   #-------------------------------------------------
 habitat_only_stack<-terra::crop(habitat_stack,country)
 habitat_only_stack_be<-terra::mask(habitat_only_stack,country)
