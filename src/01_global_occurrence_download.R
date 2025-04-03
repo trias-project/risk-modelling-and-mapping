@@ -30,12 +30,16 @@ source("./src/helper_functions.R")
 #-------------Create folders-----------------
 #--------------------------------------------
 # Define the folder paths
-project_path <- file.path("./data/projects",project)
-raw_path<-file.path("./data/raw")
+folder_paths<-list(list("path"=file.path("./data/projects",project),
+                        "name"= project),
+                   list("path"=file.path("./data/raw"),
+                        "name"= "raw")
+)
 
 # Check and create each folder if necessary
-create_folder(project_path, project)
-create_folder(raw_path, "raw")
+lapply(folder_paths, function(folder){
+  create_folder(folder$path, folder$name)
+})
 
 #--------------------------------------------
 #-----------Retrieve GBIF taxonkeys----------
