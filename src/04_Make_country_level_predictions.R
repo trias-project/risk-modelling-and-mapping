@@ -385,154 +385,133 @@ for(key in accepted_taxonkeys){
   #-------------------------------------------------
   #------------- Store layers in a list ------------
   #-------------------------------------------------
-habitat_only_stack<-terra::crop(habitat_stack,country)
-habitat_only_stack_be<-terra::mask(habitat_only_stack,country)
+  country_layers<-list(
+    "historical"=list("layers"=fullstack_be,
+                      "scenario"= "hist",
+                      "scenario_title"="historical"),
+    "rcp26"=list("layers"=fullstack26,
+                 "scenario"="rcp26",
+                 "scenario_title"="RCP 2.6"), 
+    "rcp45"=list("layers"=fullstack45,
+                 "scenario"="rcp45",
+                 "scenario_title"="RCP 4.5"),
+    "rcp85"=list("layers"=fullstack85,
+                 "scenario"="rcp85",
+                 "scenario_title"="RCP 8.5")
+  )
+  
+  
+  #--------------------------------------------------------------------
+  #------- Create and export risk maps for each scenario ------
+  #--------------------------------------------------------------------
+  pred_list<-lapply(country_layers,function(country_layer) {
+    
+    # Extract layers and scenario
+    layers <- country_layer[[1]]  # climatic and habitat layers
+    scenario <- country_layer[[2]]    # scenario name
+    
+    # Check model predictors
+    required_vars <- bestModel$models$glm$coefnames 
+    
+    # Subset only the required predictors
+    predictors <- layers[[required_vars]]
+    
+    #Make predictions
+    predictions<-terra::predict(predictors,bestModel,type="prob", na.rm=TRUE)
+    
+    #Reproject predictions if the global model was used
+    if( Final_model=="Global model"){
+      
+      #Resample
+      predictions_to_export<-predictions%>%
+        project(crs(country))%>%
+        resample(resampling_raster, method="bilinear") #Make sure the climatic layers have the same resolution (1000 1000)and align with the habitat stack layer or the climatic layers used for the eu model (interpolation)
+      
+    }else{
+      predictions_to_export<-predictions
+    }
+    
+    #------------Export country predictions as raster and PDF -----------
+    #Export raster
+    raster_file<-paste(first_two_words, "_", taxonkey, "_", scenario, "_", country_name, ".tif", sep="")
+    
+    writeRaster(predictions_to_export,
+                filename=file.path(raster_country_folder, raster_file),
+                overwrite=TRUE)
+    
+    print(paste(raster_file, "has been created"))
+    
+    #export PDFs and PNGs
+    exportPDF(predictions=predictions_to_export,
+              taxonName=first_two_words,
+              nameExtension=rest_of_name,
+              taxonNameTitle=species_title,
+              taxonKey=taxonkey,
+              scenario=scenario,
+              dataType="Suit",
+              regionName=country_name,
+              returnPredictions=TRUE,
+              returnPNG=TRUE,
+              keep_PNG=TRUE)
+    
+  }
+  )
+  
+  
+  
+  #--------------------------------------------------------------------
+  #-------------- Export PDF with the four predictions ----------------
+  #--------------------------------------------------------------------
+  #TO SOLVE:different suitability axes are used and plotted when global model is used!!
+  plot_combined <- (pred_list[[1]][[2]]+ pred_list[[2]][[2]] + plot_layout(ncol = 2)) /
+    (pred_list[[3]][[2]] + pred_list[[4]][[2]] + plot_layout(ncol = 2)) /
+    plot_spacer() +
+    plot_layout(heights = c(1, 1, 1), guides = "collect") &
+    theme(legend.position = "top",
+          legend.direction = "horizontal",
+          legend.key.width = unit(12, "mm"),
+          legend.key.height = unit(6, "mm"))
+  
+  
+  exportPDF(taxonName=first_two_words,
+            nameExtension=rest_of_name,
+            taxonNameTitle=species_title,
+            taxonKey=taxonkey,
+            scenario="all",
+            dataType="Suit",
+            regionName=country_name,
+            providePNG=TRUE,
+            PNGprovided=plot_combined)
+  
+  
+  #--------------------------------------------------------------------------------
+  #-------If global model is used, export predictions that are not resampled ------
+  #--------------------------------------------------------------------------------
+  #This is done to stay as close as possible to the original model and only resample at the end
+ if(Final_model=="Global model"){
+   pred_list<-lapply(country_layers,function(country_layer) {
+    
+    # Extract layers and scenario 
+    layers <- country_layer[[1]]  # climatic and habitat layers
+    scenario <- country_layer[[2]]    # scenario name
+    
+    # Check model predictors
+    required_vars <- bestModel$models$glm$coefnames 
+    
+    # Subset only the required predictors
+    predictors <- layers[[required_vars]]
+    
+    #Make predictions
+    predictions<-terra::predict(predictors,bestModel,type="prob", na.rm=TRUE)
+    
+    #Store in list
+    return(list("model" = predictions,
+                "scenario"=scenario))
+   }
+  )
+ }
 
-
-#-----------------------------------------------------------
-#-Create individual RCP climate raster stacks for country --
-#-----------------------------------------------------------
-be26 <- list.files((here("./data/external/climate/byEEA_finalRCP/belgium_rcps/rcp26")),pattern='tif',full.names = T)
-belgium_stack26 <- rast(be26)
-
-be45 <- list.files((here("./data/external/climate/byEEA_finalRCP/belgium_rcps/rcp45")),pattern='tif',full.names = T)
-belgium_stack45 <- rast(be45)
-
-be85 <- list.files((here("./data/external/climate/byEEA_finalRCP/belgium_rcps/rcp85")),pattern='tif',full.names = T)
-belgium_stack85 <- rast(be85)
-
-
-#--------------------------------------------------------------------
-#-Combine habitat stacks with climate stacks for each RCP scenario --
-#--------------------------------------------------------------------
-fullstack26_list <- list(belgium_stack26,habitat_only_stack_be)
-fullstack26 <- rast(fullstack26_list) 
-
-fullstack45_list <- list(belgium_stack45,habitat_only_stack_be)
-fullstack45 <- rast(fullstack45_list) 
-
-fullstack85_list <- list(belgium_stack85,habitat_only_stack_be)
-fullstack85 <- rast(fullstack85_list) 
-
-country_layers<-list(
-  "historical"=list("layers"=fullstack_be,
-                    "scenario"= "hist",
-                    "scenario_title"="historical"),
-  "rcp26"=list("layers"=fullstack26,
-               "scenario"="rcp26",
-               "scenario_title"="RCP 2.6"), 
-  "rcp45"=list("layers"=fullstack45,
-               "scenario"="rcp45",
-               "scenario_title"="RCP 4.5"),
-  "rcp85"=list("layers"=fullstack85,
-               "scenario"="rcp85",
-               "scenario_title"="RCP 8.5")
-)
-
-### Create and export RCP risk maps for each RCP scenario
-ens_pred_hist<-raster::predict(fullstack_be,bestModel,type="prob")
-ens_pred_hab26<-raster::predict(fullstack26,bestModel,type="prob")
-crs(ens_pred_hab26)<-laea_grs80
-writeRaster(ens_pred_hab26, filename=file.path(rasterOutput,paste("be_",taxonkey, "_rcp26.tif",sep="")), format="GTiff",overwrite=TRUE) 
-exportPDF(ens_pred_hab26,taxonkey,taxonName=taxonName,"rcp26.pdf")
-ens_pred_hab45<-raster::predict(fullstack45,bestModel,type="prob")
-crs(ens_pred_hab45)<-laea_grs80
-writeRaster(ens_pred_hab45, filename=file.path(rasterOutput,paste("be_",taxonkey, "_rcp45.tif",sep="")), format="GTiff",overwrite=TRUE) 
-exportPDF(ens_pred_hab45,taxonkey,taxonName=taxonName,"rcp45.pdf")
-ens_pred_hab85<-raster::predict(fullstack85,bestModel,type="prob")
-crs(ens_pred_hab85)<-laea_grs80
-writeRaster(ens_pred_hab85, filename=file.path(rasterOutput,paste("be_",taxonkey, "_rcp85.tif",sep="")), format="GTiff",overwrite=TRUE) 
-exportPDF(ens_pred_hab85,taxonkey,taxonName=taxonName,"rcp85.pdf")
-
-
-
-### Create and export RCP risk maps for each RCP scenario
-
-par(mfrow=c(2,2), mar= c(2,3,0.8,0.8))
-plot(ens_pred_hist,breaks=brks, col=cols,lab.breaks=brks)
-plot(ens_pred_hab26,breaks=brks, col=cols,lab.breaks=brks)
-plot(ens_pred_hab45,breaks=brks, col=cols,lab.breaks=brks)
-plot(ens_pred_hab85,breaks=brks, col=cols,lab.breaks=brks)
-
-
-
-### Create and export "difference maps": the difference between predicted risk by each RCP scenario and historical climate
-hist26_diff_hab<-overlay(ens_pred_hab26, ens_pred_hist, fun=function(r1,r2){return(r1-r2)})
-writeRaster(hist26_diff_hab,filename=file.path(rasterOutput,paste("be_",taxonkey, "_rcp26_diff.tif",sep="")) , format="GTiff",overwrite=TRUE) 
-exportPDF(hist26_diff_hab,taxonkey,taxonName=taxonName,"rcp26_diff.pdf","TRUE")
-
-
-hist45_diff_hab<-overlay(ens_pred_hab45, ens_pred_hist, fun=function(r1,r2){return(r1-r2)})
-writeRaster(hist45_diff_hab,filename=file.path(rasterOutput,paste("be_",taxonkey, "_rcp45_diff.tif",sep="")), format="GTiff",overwrite=TRUE) 
-exportPDF(hist45_diff_hab,taxonkey,taxonName=taxonName,"rcp45_diff.pdf","TRUE")
-
-
-hist85_diff_hab<-overlay(ens_pred_hab85, ens_pred_hist, fun=function(r1,r2){return(r1-r2)})
-writeRaster(hist85_diff_hab, filename=file.path(rasterOutput,paste("be_",taxonkey, "_rcp_85_diff.tif",sep="")), format="GTiff",overwrite=TRUE) 
-exportPDF(hist85_diff_hab,taxonkey,taxonName=taxonName,"rcp85_diff.pdf","TRUE")
-
-par(mfrow=c(2,2), mar= c(2,3,0.8,0.8))
-plot(hist26_diff_hab)
-plot(hist45_diff_hab)
-plot(hist85_diff_hab)
-
-
-
-
-### Check spatial autocorrelation of residuals to assess whether occurrence data should be thinned
-#### derive residuals from best model
-predEns1<-bestModel$ens_model$pred
-obs.numeric<-ifelse(predEns1$obs == "absent",0,1)
-
-
-#### standardize residuals
-stdres<-function(obs.numeric, yhat){
-  num<-obs.numeric-yhat
-  denom<-sqrt(yhat*(1-yhat))
-  return(num/denom)
-}
-hab.res<-stdres(obs.numeric,predEns1$present)
-
-# specify corresponding model number from eu_presabs.coord datafile to join data with xy locations. If best model is "X1", join with eu_presabs.coord$X1
-
-
-res.best.coords1<-cbind(coordinates(eu_presabs.coord$X1),occ.full.data.forCaret$X1)
-removedNAs.coords<-na.omit(res.best.coords1)
-res.best.coords<-cbind(removedNAs.coords,hab.res)
-res.best.geo<-as.geodata(res.best.coords,coords.col=1:2,data.col = 3)
-summary(res.best.geo) #note distance is in meters
-
-
-### Check Morans I.
-
-#If Moran's I is very low (<0.10), or not significant, do not need to thin occurrences.
-library(ape)
-res.best.df<-as.data.frame(res.best.coords)
-occ.dists <- as.matrix(dist(cbind(res.best.df[1], res.best.df[2])))
-occ.dists.inv <- 1/occ.dists
-diag(occ.dists.inv) <- 0
-Moran.I(res.best.df$hab.res,occ.dists.inv,scaled=TRUE,alternative="greater")
-
-
-### Code for Mondrian conformal prediction functions
-
-# functions needed for conformal prediction function
-
-
-GetLength<-function(x,y){
-  length(x[which(x<= y)])
-}
-
-
-
-
-CPconf<-function(pA,pB,confidence){
-  if(pA > confidence && pB< confidence){
-    predClass<-"classA"
-  }else if(pA < confidence && pB> confidence){
-    predClass<-"classB"
-  }else if(pA< confidence && pB< confidence){
-    predClass<-"noClass"
+  
   }else{
     predClass<-"bothClasses"
     
