@@ -229,12 +229,23 @@ with_progress({
     
 
     #--------------------------------------------
-    #--------- Create species folder ------------
+    #-------------Create folders-----------------
     #--------------------------------------------
-    species_folder<-paste0("./data/projects/",projectname,"/",first_two_words,"_",taxonkey)
-    if (!dir.exists(species_folder)) {
-      dir.create(species_folder, recursive = TRUE)
-    }
+    # Define the folder paths
+    folder_paths<-list(list("path"=file.path("./data/projects", projectname, paste0(first_two_words, "_", taxonkey), "Rasters", "Interim"),
+                            "name"= "Rasters/Interim"),
+                       list("path"=file.path("./data/projects", projectname, paste0(first_two_words, "_", taxonkey), "Rasters", "Global"),
+                            "name"= "Rasters/Global"),
+                       list("path"=file.path("./data/projects", projectname, paste0(first_two_words, "_", taxonkey), "PDFs"),
+                            "name"= "PDFs"),
+                       list("path"=file.path("./data/projects", projectname, paste0(first_two_words, "_", taxonkey), "PNGs"),
+                            "name"= "PNGs"))
+    
+    # Check and create each folder if necessary
+    lapply(folder_paths, function(folder){
+      create_folder(folder$path, folder$name)
+    })
+    
     
     #--------------------------------------------
     #------ Remove duplicates per grid cell -----
