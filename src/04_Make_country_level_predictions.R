@@ -116,7 +116,30 @@ source("./src/helper_functions.R")
 
 
 #--------------------------------------------
-#-----------  Start loop   ----------------
+#------ Create start df for model info-------
+#--------------------------------------------
+model_info<-taxa_info%>%
+  select(speciesKey, acceptedScientificName)%>%
+  mutate(Final_model=NA,
+         n_presences = NA,
+         Threshold= NA,
+         Specificity=NA,
+         Sensitivity=NA,
+         AUC=NA,
+         PCC=NA,
+         Kappa =NA,
+         Morans_I_method=NA,
+         Morans_I = NA,
+         Pvalue_Morans_I= NA,
+         correlation_glm_gbm=NA,
+         correlation_glm_rf=NA,
+         correlation_glm_earth=NA,
+         correlation_gbm_rf=NA,
+         correlation_gbm_earth=NA,
+         correlation_rf_earth=NA)
+
+#--------------------------------------------
+#-----------  Start loop   ------------------
 #--------------------------------------------
 for(key in accepted_taxonkeys){
   #Extract species name
