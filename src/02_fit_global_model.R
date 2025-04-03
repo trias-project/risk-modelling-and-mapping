@@ -207,9 +207,18 @@ gc()
 #--------------------------------------------
 #-------Start loop for SDM modelling --------
 #--------------------------------------------
-system.time({ # 5 species (43 min)
+with_progress({
+  p <- progressor(along = 1:length(split_df)) 
   for(i in seq_along (split_df)){ 
-    globalmodels<-list()
+    
+    #--------------------------------------------
+    #------------- Trach progress ---------------
+    #--------------------------------------------
+    p()
+    
+    #--------------------------------------------
+    #----------Load species data ----------------
+    #--------------------------------------------
     species<-names(split_df)[i]
     first_two_words <- sub("^(\\w+)\\s+(\\w+).*", "\\1_\\2", species)  # Extract first two words of species name
     global.occ.LL.cleaned<-split_df[[i]]
@@ -218,7 +227,7 @@ system.time({ # 5 species (43 min)
     global.occ.LL.cleaned<-global.occ.LL.cleaned %>%
       dplyr::select(c(decimalLongitude,decimalLatitude))
     
-    
+
     #--------------------------------------------
     #--------- Create species folder ------------
     #--------------------------------------------
@@ -498,23 +507,42 @@ system.time({ # 5 species (43 min)
     #--------------------------------------------
     #-- Export results as .qs list
     #--------------------------------------------
-    globalmodels <-list(species = species,
-                        taxonkey = taxonkey,
-                        global_ensemble_model = global_stack, 
-                        model_accuracy = ensemble_accurracy,
-                        variable_importance = variableImportance_global,
-                        global_model_predictions = terra::wrap(global_model), #Needs to be wrapped to export it or will return a null pointer error
-                        occurrences=global.occ.sf,
-                        biasgrid=terra::wrap(biasgrid_sub)
+    globalmodels <-list(species = species, #Species name
+                        taxonkey = taxonkey, #Species taxonkey
+                        global_ensemble_model = global_stack, #Global ensemble model 
+                        global_data_df_uncor=global.data.df.uncor, #Data used to fit the global ensemble model (climate data for each presence/pseudoabsence)
+                        global_presabs=global_presabs,#xy coordinates of presences and pseudoabsences used to fit the models
+                        model_accuracy = ensemble_accurracy, #Accuracy of ensemble model
+                        variable_importance = variableImportance_global, #Variable importance in each separate model and overall
+                        occurrences=global.occ.sf, #Sf dataframe of occurrence data used to fit the models
+                        model_correlation = Global.Mod.Cor #Correlation between the separate models
     )
     
     qsave(globalmodels, paste0("./data/projects/",projectname,"/",first_two_words,"_",taxonkey,"/Global_model_",first_two_words,"_",taxonkey,".qs"))
     
-    print(paste("Global model has been created for", species))
     
+    #--------------------------------------------
+    #--Export raster layers in folder "rasters"--
+    #--------------------------------------------
+    #We don't store them in .qs file as some important metadate would be stored in a temp folder, which would be removed after a while 
+    biasgrid_file<- file.path("./data/projects",projectname,paste0(first_two_words,"_",taxonkey),"Rasters","Interim",paste0("Biasgrid_",first_two_words,"_",taxonkey,".tif"))
+    global_model_file<- file.path("./data/projects",projectname,paste0(first_two_words,"_",taxonkey),"Rasters","Global",paste0("Global_model_",first_two_words,"_",taxonkey,".tif"))
+    euclimpreds_file<- file.path("./data/projects",projectname,paste0(first_two_words,"_",taxonkey),"Rasters","Interim",paste0("EU_climpreds10_",first_two_words,"_",taxonkey,".tif"))
+    
+    terra::writeRaster(biasgrid_sub, filename = biasgrid_file, overwrite = TRUE)
+    terra::writeRaster(global_model, filename = global_model_file, overwrite = TRUE)
+    terra::writeRaster(eu_climpreds.10_selection, filename = euclimpreds_file, overwrite = TRUE)
+  
+    
+    #--------------------------------------------
+    #------------------ Clean up-----------------
+    #--------------------------------------------
+    print(paste("Global model has been created for", species))
+    rm(list = setdiff(ls(), c("p","wwf_eco","eu_climpreds.10", "split_df", "accuracyStats", "decimalplaces", "divide10", "findThresh", "predict_large_raster", "globalclimpreds_terra","bias_grid_paths", "i", "world", "projectname", "generate_pseudoabs", "create_folder")))
+   
   }
-})
 
+})
 
 #--------------------------------------------
 #---------- Clean R environment--------------
