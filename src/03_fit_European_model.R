@@ -114,8 +114,15 @@ accepted_taxonkeys<-taxa_info%>%
 #--------------------------------------------
 #----------- Start modelling loop  ----------
 #--------------------------------------------
-system.time({
-  for(key in accepted_taxonkeys){
+
+with_progress({
+    p <- progressor(along = 1:length(accepted_taxonkeys)) 
+  for(key in accepted_taxonkeys){ #Approx. 13 min per species
+    
+    #--------------------------------------------
+    #---------------Map progress  ---------------
+    #--------------------------------------------
+    p()
     
     #--------------------------------------------
     #--------Extract species-specific data  -----
@@ -531,18 +538,36 @@ system.time({
     #--------------------------------------------
     #- Save best model, european occurrences, and layers for Belgium -
     #--------------------------------------------
-
     eumodel <-list(species = species,
-                   taxonkey = taxonkey,
-                   euocc1 = euocc1,
-                   bestModel=bestModel,
-                   fullstack_be=terra::wrap(fullstack_be)
+                   taxonkey = taxonkey, 
+                   euocc1 = euocc1, #sf dataset with coordinates of presences (geometry format)
+                   bestModel=bestModel, #Best ensemble model
+                   occ.full.data.forCaret = occ.full.data.forCaret, #Data used to fit best model
+                   eu_presabs.coord = eu_presabs.coord, #XY coordinates of presences and pseudoabsences
+                   model_performance = model_performance, #Performance of best model
+                   model_correlation = Model.cor #Correlation between separate models underlying best ensemble model
     )
+   
+    #Save eumodel as .qs file
+    qsave(eumodel, paste0("./data/projects/",projectname,"/",first_two_words,"_",taxonkey,"/EU_model_",first_two_words,"_",taxonkey,".qs")) 
     
     qsave(eumodel, paste0("./data/projects/",projectname,"/",first_two_words,"_",taxonkey,"/EU_model_",first_two_words,"_",taxonkey,".qs"))
     
-    print(paste("European model has been created for", species))
+    #--------------------------------------------
+    #- ------ Save rasters-----------------------
+    #--------------------------------------------
+    #Define raster path
+    fullstack_be_file<- file.path(raster_folder,"Interim", paste0("Fullstack_be_",first_two_words,"_",taxonkey,".tif"))
     
+    #Save locally because if in .qs file parts of the metadata will be stored in a Temp file that will be erased over time
+    terra::writeRaster(fullstack_be, filename =fullstack_be_file, overwrite = TRUE)
+
+    
+    #--------------------------------------------
+    #-------- End of loop -----------------------
+    #--------------------------------------------
+    print(paste("European model has been created for", species))
+    rm(list = setdiff(ls(), c("p", "factorVars","accuracyStats", "findThresh", "projectname", "generate_pseudoabs", "create_folder", "country_name", "country_ext", "country_vector", "euboundary", "habitat_stack", "rmiclimpreds", "accepted_taxonkeys", "taxa_info", "key", "add.occ", "confidenceMaps", "classConformalPrediction","extractVals","GetLength","get.confidence", "exportPDF")))
   }
 })
 
