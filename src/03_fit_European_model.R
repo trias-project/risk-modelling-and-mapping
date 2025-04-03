@@ -210,6 +210,28 @@ with_progress({
     })
     
     
+    #-----------------------------------------------
+    #----- Create subset of European records -------
+    #-----------------------------------------------
+    #Check for occurrences that fall within Europe
+    eu_occ <- global.occ.sf[st_intersects(global.occ.sf, euboundary, sparse = FALSE), ] %>%
+      dplyr::select(decimalLatitude, decimalLongitude, species) %>%
+      dplyr::filter(!is.na(decimalLatitude))%>%
+      sf::st_transform(crs=st_crs(rmiclimpreds)) 
+    
+    # Convert to crs of rmiclimpreds
+    eu_occ<-eu_occ%>%
+      st_coordinates()%>%
+      cbind(., eu_occ)%>%
+      select(-c(decimalLatitude, decimalLongitude))
+    
+    #Only keep occurrences in pixels that have predictor data (not NA's)
+    extracted_value <- terra::extract(rmiclimpreds[[1]], vect(eu_occ))
+    eu_occ$extracted_value<-extracted_value[,2]
+    eu_occ <- eu_occ[!is.na(eu_occ$extracted_value), ]
+    
+    # Keep XY coordinates
+    euocc<-eu_occ%>%
       st_coordinates()
   
     
