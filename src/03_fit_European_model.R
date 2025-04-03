@@ -72,6 +72,13 @@ euboundary<-st_read(here("./data/external/GIS/Europe/EUROPE.shp"))
 
 
 #--------------------------------------------
+#-------- Load European habitat rasters -----
+#--------------------------------------------
+habitat<-list.files((here("./data/external/habitat")),pattern='tif',full.names = T)
+habitat_stack<-rast(habitat[c(1:5,7)]) #Distance to water (layer 6) has another extent and we're not sure if this layer is correct: leave it out
+
+
+#--------------------------------------------
 #-------- Load European climate rasters -----
 #--------------------------------------------
 rmiclimrasters <- list.files((here("./data/external/climate/rmi_corrected")),pattern='tif',full.names = T) 
