@@ -330,3 +330,17 @@ download_zenodo(doi="https://doi.org/10.5281/zenodo.7556851",
                            "reptiles_1deg_min5.tif"), 
                 quiet=FALSE)
 
+#-------------------------------------------------
+#----- Store the Belgium boundary shapefile  -----
+#-------------------------------------------------
+download_zenodo(doi="https://doi.org/10.5281/zenodo.15102496", 
+                path=Belgium_folder, 
+                files=list("belgium_boundary.shp", 
+                           "belgium_boundary.dbf",
+                           "belgium_boundary.shx",
+                           "belgium_boundary.prj",
+                           "belgium_boundary.sbn",
+                           "belgium_boundary.sbx",
+                           "belgium_boundary.shp.xml"), 
+                quiet=FALSE)
+
