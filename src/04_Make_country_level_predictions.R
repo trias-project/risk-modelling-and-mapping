@@ -512,6 +512,53 @@ for(key in accepted_taxonkeys){
  }
 
   
+  #--------------------------------------------------------------------
+  #-------------- Create and export "difference maps" ----------------
+  #--------------------------------------------------------------------
+  #These maps display the difference between future predictions and current (historical) predictions
+  diff_list <- lapply(pred_list[2:4], function(x) {
+    #Define scenario
+    scenario <- x$scenario  # scenario name
+    
+    #Subtract historical suitabilities from future suitabilities
+    pred_diff<-x$model - pred_list$historical$model
+    
+    #Reproject predictions if the global model was used
+    if( Final_model=="Global model"){
+      #Resample
+      pred_diff_to_export<-pred_diff%>%
+        project(crs(country))%>%
+        resample(resampling_raster, method="bilinear") #Make sure the climatic layers have the same resolution (1000 1000)and align with the habitat stack layer or the climatic layers used for the eu model (interpolation)
+      
+    }else{
+      pred_diff_to_export<-pred_diff
+    }
+    
+    #------------Export difference as raster and PDF -----------
+    #Export raster
+    raster_file<-paste(first_two_words, "_", taxonkey, "_", scenario, "_hist_diff_", country_name, ".tif", sep="")
+    
+    writeRaster(pred_diff_to_export,
+                filename=file.path(raster_country_folder, raster_file),
+                overwrite=TRUE)
+    
+    print(paste(raster_file, "has been created"))
+    
+    #export PDFs and store PNGs in plot_list
+    exportPDF(predictions=pred_diff_to_export,
+              taxonName=first_two_words,
+              nameExtension=rest_of_name,
+              taxonNameTitle=species_title,
+              taxonKey=taxonkey,
+              scenario=scenario,
+              regionName=country_name,
+              dataType = "Diff",
+              returnPredictions=TRUE,
+              returnPNG=TRUE)
+  }
+  )
+  
+  
   }else{
     predClass<-"bothClasses"
     
