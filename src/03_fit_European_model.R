@@ -84,6 +84,7 @@ habitat_stack<-rast(habitat[c(1:5,7)]) #Distance to water (layer 6) has another 
 rmiclimrasters <- list.files((here("./data/external/climate/rmi_corrected")),pattern='tif',full.names = T) 
 rmiclimrasters 
 rmiclimpreds<-rast(rmiclimrasters) 
+rmiclimpreds<-crop(rmiclimpreds, ext(habitat_stack))
 
 
 #--------------------------------------------
