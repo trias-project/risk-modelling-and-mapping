@@ -2,13 +2,14 @@
 #-----------To do: specify project-----------
 #--------------------------------------------
 #specify project name
-projectname<-"Test_Frédérique"
+projectname<-"Project_Frédérique"
 
 
 #--------------------------------------------
 #-----------  Load packages  ----------------
 #--------------------------------------------
-packages <- c("viridis", "dplyr", "grid", "here", "qs","terra", "sf", "ggplot2","RColorBrewer","magick","patchwork"
+packages <- c("viridis", "geoR","ape","dplyr", "grid", "here", "qs","terra", "sf", "purrr", "progressr", "caret",
+              "ggplot2","RColorBrewer","magick","patchwork","tidyterra", "gbm","kableExtra", "rnaturalearth"
 )
 
 for(package in packages) {
@@ -16,6 +17,19 @@ for(package in packages) {
   if( ! package %in% rownames(installed.packages()) ) { install.packages( package ) }
   library(package, character.only = TRUE)
 }
+
+
+#--------------------------------------------
+#-- Load or install moranfast from github  --
+#--------------------------------------------
+if (!"moranfast" %in% rownames(installed.packages())) {
+  if (!"devtools" %in% rownames(installed.packages())) {
+    install.packages("devtools")
+  }
+  library(devtools)  
+  install_github("mcooper/moranfast")  # Install moranfast from GitHub
+}
+library(moranfast)
 
 
 #--------------------------------------------
