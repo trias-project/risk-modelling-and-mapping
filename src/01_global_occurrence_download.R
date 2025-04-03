@@ -75,6 +75,12 @@ assertthat::assert_that(nrow(mapped_taxa)==length(species),
                                    ,species[!sapply(species, function(x) any(grepl(x,mapped_taxa$scientificName)))])
 )
 
+assertthat::assert_that(
+  nrow(mapped_taxa) == length(species),
+  msg = paste0("The following species could not be found in the GBIF backbone taxonomy: ",
+               paste(species[!sapply(species, function(x) any(grepl(x, mapped_taxa$scientificName)))], collapse = ", "))
+)
+
 not_accepted <- mapped_taxa %>%
   dplyr::filter(status !="ACCEPTED")
 
