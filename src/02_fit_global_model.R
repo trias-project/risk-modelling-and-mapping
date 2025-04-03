@@ -170,6 +170,14 @@ world<-ne_countries(scale=50)
 
 
 #--------------------------------------------
+#--------------Load ecoregions --------------
+#--------------------------------------------
+wwf_eco<-sf::st_read(here("./data/external/GIS/official/wwf_terr_ecos.shp"))
+wwf_eco<-sf::st_transform(wwf_eco, 4326) %>%
+  sf::st_make_valid()
+
+
+#--------------------------------------------
 #-------Load file paths to bias grids -------
 #--------------------------------------------
 bias_grid_paths <- list(
@@ -258,9 +266,6 @@ system.time({ # 5 species (43 min)
     #--------------------------------------------
     #- Select ecoregions containing occurrences -
     #--------------------------------------------
-    wwf_eco<-sf::st_read(here("./data/external/GIS/official/wwf_terr_ecos.shp"))
-    wwf_eco<-sf::st_transform(wwf_eco, 4326) %>%
-      sf::st_make_valid()
     occ_ecoIntersect <- sf::st_intersects(wwf_eco,global.occ.sf) 
     wwf_ecoSub1<-wwf_eco[lengths(occ_ecoIntersect) > 0,1]
     
