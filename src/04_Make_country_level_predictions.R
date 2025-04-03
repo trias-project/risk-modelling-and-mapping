@@ -335,21 +335,15 @@ for(key in accepted_taxonkeys){
   
   
   #-------------------------------------------------
-  #- Export country predictions as raster and PDF --
+  #- Prepare layers for fitting --
   #-------------------------------------------------
-  #---------Specify folder paths------------
-  raster_folder <- file.path("./data/projects", projectname, paste0(first_two_words, "_", taxonkey), "Rasters")
-  PDF_folder <- file.path("./data/projects", projectname, paste0(first_two_words, "_", taxonkey), "PDFs")
   
-  #---------------Export raster-------------
-  writeRaster(ens_pred_hab_be,
-              filename=file.path(raster_folder,paste(first_two_words,"_",taxonkey,"_hist_",country_name,".tif",sep="")),
-              overwrite=TRUE)
+  if(file.exists(eu_model_file)){
   
-  #---------------Export PDF----------------
-  #Define the file paths
-  plot_png_path <- file.path(PDF_folder,paste(first_two_words,"_",taxonkey,"_hist_",country_name,".png",sep=""))
-  plot_pdf_path <- file.path(PDF_folder,paste(first_two_words,"_",taxonkey,"_hist_",country_name,".pdf",sep=""))
+  #- Clip habitat raster stack to extent of country --
+  habitat_only_stack<-terra::crop(habitat_stack,country)
+  habitat_only_stack_be<-terra::mask(habitat_only_stack,country)
+  
   
   # Save each plot as a PDF file
   ggsave(filename = paste0(first_two_words,"_",taxonkey,"_hist_",country_name,".png"), plot = plot_final, 
