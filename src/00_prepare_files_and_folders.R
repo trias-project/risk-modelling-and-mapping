@@ -150,3 +150,61 @@ download_zenodo(doi="https://doi.org/10.5281/zenodo.15102496",
                 quiet=FALSE)
 
 
+#-------------------------------------------------------
+#- Store future climate layers of Belgium (EU model)  --
+#-------------------------------------------------------
+#RCP 2.6
+download_zenodo(doi="https://doi.org/10.5281/zenodo.15102496", 
+                path=rcp26_belgium_eumodel_folder, 
+                files=list("var10_30yrMeanAnnualCumulatedGDDAbove5degreesC_rcp26_2041_2070_Belgium.tif",
+                           "var11_AnnualMeanPotentialEvapotranspiration_rcp26_2041_2070_Belgium.tif",
+                           "var12_AnnualMeanSolarRadiation_rcp26_2041_2070_Belgium.tif",
+                           "var13_AnnualVariationSolarRadiation_rcp26_2041_2070_Belgium.tif",
+                           "var1_AnnualMeanTemperature_rcp26_2041_2070_Belgium.tif",
+                           "var2_AnnualAmountPrecipitation_rcp26_2041_2070_Belgium.tif",
+                           "var3_AnnualVariationPrecipitation_rcp26_2041_2070_Belgium.tif",
+                           "var4_AnnualVariationTemperature_rcp26_2041_2070_Belgium.tif",
+                           "var5_MaximumTemperatureWarmestMonth_rcp26_2041_2070_Belgium.tif",
+                           "var6_MinimumTemperatureColdestMonth_rcp26_2041_2070_Belgium.tif",
+                           "var7_TemperatureAnnualRange_rcp26_2041_2070_Belgium.tif",
+                           "var8_PrecipitationWettestMonth_rcp26_2041_2070_Belgium.tif",
+                           "var9_PrecipitationDriestMonth_rcp26_2041_2070_Belgium.tif"), 
+                quiet=FALSE)
+
+#RCP 4.5
+download_zenodo(doi="https://doi.org/10.5281/zenodo.15102496", 
+                path=rcp45_belgium_eumodel_folder, 
+                files=list("var10_30yrMeanAnnualCumulatedGDDAbove5degreesC_rcp45_2041_2070_Belgium.tif",
+                           "var11_AnnualMeanPotentialEvapotranspiration_rcp45_2041_2070_Belgium.tif",
+                           "var12_AnnualMeanSolarRadiation_rcp45_2041_2070_Belgium.tif",
+                           "var13_AnnualVariationSolarRadiation_rcp45_2041_2070_Belgium.tif",
+                           "var1_AnnualMeanTemperature_rcp45_2041_2070_Belgium.tif",
+                           "var2_AnnualAmountPrecipitation_rcp45_2041_2070_Belgium.tif",
+                           "var3_AnnualVariationPrecipitation_rcp45_2041_2070_Belgium.tif",
+                           "var4_AnnualVariationTemperature_rcp45_2041_2070_Belgium.tif",
+                           "var5_MaximumTemperatureWarmestMonth_rcp45_2041_2070_Belgium.tif",
+                           "var6_MinimumTemperatureColdestMonth_rcp45_2041_2070_Belgium.tif",
+                           "var7_TemperatureAnnualRange_rcp45_2041_2070_Belgium.tif",
+                           "var8_PrecipitationWettestMonth_rcp45_2041_2070_Belgium.tif",
+                           "var9_PrecipitationDriestMonth_rcp45_2041_2070_Belgium.tif"), 
+                quiet=FALSE)
+
+#RCP 8.5
+download_zenodo(doi="https://doi.org/10.5281/zenodo.15102496", 
+                path=rcp85_belgium_eumodel_folder, 
+                files=list("var10_30yrMeanAnnualCumulatedGDDAbove5degreesC_rcp85_2041_2070_Belgium.tif",
+                           "var11_AnnualMeanPotentialEvapotranspiration_rcp85_2041_2070_Belgium.tif",
+                           "var12_AnnualMeanSolarRadiation_rcp85_2041_2070_Belgium.tif",
+                           "var13_AnnualVariationSolarRadiation_rcp85_2041_2070_Belgium.tif",
+                           "var1_AnnualMeanTemperature_rcp85_2041_2070_Belgium.tif",
+                           "var2_AnnualAmountPrecipitation_rcp85_2041_2070_Belgium.tif",
+                           "var3_AnnualVariationPrecipitation_rcp85_2041_2070_Belgium.tif",
+                           "var4_AnnualVariationTemperature_rcp85_2041_2070_Belgium.tif",
+                           "var5_MaximumTemperatureWarmestMonth_rcp85_2041_2070_Belgium.tif",
+                           "var6_MinimumTemperatureColdestMonth_rcp85_2041_2070_Belgium.tif",
+                           "var7_TemperatureAnnualRange_rcp85_2041_2070_Belgium.tif",
+                           "var8_PrecipitationWettestMonth_rcp85_2041_2070_Belgium.tif",
+                           "var9_PrecipitationDriestMonth_rcp85_2041_2070_Belgium.tif"), 
+                quiet=FALSE)
+
+
