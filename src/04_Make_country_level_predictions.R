@@ -752,17 +752,12 @@ for(key in accepted_taxonkeys){
   model_info[model_info$speciesKey==key,]$correlation_rf_earth<-if(all(c("rf", "earth") %in% available_models)) model_correlation["rf", "earth"] else NA
   
 
+  #--------------------------------------------
+  #-------- End of loop -----------------------
+  #--------------------------------------------
+  print(paste("Country-level predictions were created for", species))
+  rm(list = setdiff(ls(), c("p","get.confidence","extractVals","GetLength","resampling_raster","classConformalPrediction","projectname", "stdres","exportPDF", "create_folder", "country","accuracyStats","country_name", "country_ext", "country_vector", "habitat_stack", "model_info", "accepted_taxonkeys", "taxa_info", "key", "findThresh", "confidenceMaps", "belgium_ext", "belgium_vector")))
 
-eu_eval<-function (ras,y){
-  indep.bil<-raster::extract(ras,y,method="bilinear")
-  indep.bil.df<-as.data.frame(indep.bil)
-  indep.bil.df<-indep.bil.df %>%
-    mutate(predicted= ifelse(indep.bil >= 0.5,"present","absent")) 
-  indep.bil.df$observed<-rep("present",nrow(indep.bil.df))
-  indep.bil.df$predicted<-as.factor(indep.bil.df$predicted)
-  indep.bil.df$observed<-as.factor(indep.bil.df$observed)
-  xtab<-table(indep.bil.df$predicted,indep.bil.df$observed)
-  return(xtab)
 }
 })
 write.csv(model_info,file = file.path("./data/projects",projectname,"Overview_model_performance.csv"))
@@ -828,10 +823,3 @@ write.csv(model_info,file = file.path("./data/projects",projectname,"Overview_mo
 #   dev.off()
 # }
 
-
-testeval.eu.bin.rast<-sapply(names(binary_eu_rasters), function(x) eu_eval(binary_eu_rasters[[x]],eval.data.occ.proj),simplify=FALSE)
-testeval.eu.bin.rast
-
-binary_be_rasters<-sapply(names(thresholds), function(x) raster::reclassify(ens_pred_hab_be[[x]],c(0,thresholds[[x]]$predicted,0, thresholds[[x]]$predicted,1,1)),simplify=FALSE)
-testeval.be.bin.rast<-sapply(names(binary_eu_rasters), function(x) eu_eval(binary_be_rasters[[x]],eval.data.occ.proj),simplify=FALSE)
-testeval.be.bin.rast
