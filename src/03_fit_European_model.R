@@ -506,6 +506,13 @@ with_progress({
       ens_pred_hab_eu1<-terra::predict(fullstack,lm_ens_hab[[bestmodelname]],type="prob", na.rm = TRUE)
     }) 
   
+    #-----------------------------------------------------------------------------
+    #---------- Create a confidence map of the best model at EU level ------------
+    #-----------------------------------------------------------------------------
+    set.seed(792)  
+    pvalsdf_hist_eu<-classConformalPrediction(bestModel,ens_pred_hab_eu1)
+    hist.conf.map.eu<-confidenceMaps(x=pvalsdf_hist_eu,original_raster=ens_pred_hab_eu1, taxonKey=taxonkey,taxonName=first_two_words,taxonNameTitle=species_title, nameExtension=rest_of_name, scenario="hist", regionName="Europe", folder=raster_EU_folder)
+    
     
     #--------------------------------------------
     #- Create sf df with occurrences for plotting -
