@@ -729,6 +729,28 @@ for(key in accepted_taxonkeys){
   Varimp_path<-file.path("./data/projects", projectname, paste0(first_two_words, "_", taxonkey), "PDFs")
   write.csv(variableImportance,file = file.path(VarImp_folder, paste0(taxonkey,"_varImp_EU_model.csv")))
   
+  
+  #-----------------------------------------------------------------------------
+  #-------------- Store model info  ---------------
+  #-----------------------------------------------------------------------------
+  model_info[model_info$speciesKey == key, ]$Final_model<-Final_model
+  model_info[model_info$speciesKey == key, ]$Threshold<-thresholds.df$threshold
+  model_info[model_info$speciesKey == key, ]$AUC<-thresholds.df$AUC
+  model_info[model_info$speciesKey == key, ]$PCC<-thresholds.df$PCC
+  model_info[model_info$speciesKey == key, ]$Sensitivity<-thresholds.df$sensitivity
+  model_info[model_info$speciesKey == key, ]$Specificity<-thresholds.df$specificity
+  model_info[model_info$speciesKey == key, ]$Kappa<-thresholds.df$Kappa
+  model_info[model_info$speciesKey==key,]$Morans_I_method<-MoransI_method
+  model_info[model_info$speciesKey==key,]$Morans_I<-observedmoransI
+  model_info[model_info$speciesKey==key,]$Pvalue_Morans_I<-pvalue_moransI
+  model_info[model_info$speciesKey==key,]$n_presences<-nrow(euocc)
+  model_info[model_info$speciesKey==key,]$correlation_glm_gbm<-if(all(c("glm", "gbm") %in% available_models)) model_correlation["glm", "gbm"] else NA
+  model_info[model_info$speciesKey==key,]$correlation_glm_rf<-if(all(c("glm", "rf") %in% available_models)) model_correlation["glm", "rf"] else NA
+  model_info[model_info$speciesKey==key,]$correlation_glm_earth<-if(all(c("glm", "earth") %in% available_models)) model_correlation["glm", "earth"] else NA
+  model_info[model_info$speciesKey==key,]$correlation_gbm_rf<-if(all(c("gbm", "rf") %in% available_models)) model_correlation["gbm", "rf"] else NA
+  model_info[model_info$speciesKey==key,]$correlation_gbm_earth<-if(all(c("gbm", "earth") %in% available_models)) model_correlation["gbm", "earth"] else NA
+  model_info[model_info$speciesKey==key,]$correlation_rf_earth<-if(all(c("rf", "earth") %in% available_models)) model_correlation["rf", "earth"] else NA
+  
 
 
 eu_eval<-function (ras,y){
