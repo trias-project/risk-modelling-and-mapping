@@ -2,9 +2,9 @@
 #----To do: specify project and species------
 #--------------------------------------------
 #specify project name
-project<-"Test_Frédérique"
+project<-"Project_Frédérique"
 
-# specify the scientific name of the species to be modelled
+# specify the scientific name of the species to be modelled; see an example below
 species<-c("Elodea densa","Koenigia polystachya", "Hydrocharis laevigata")
 
 
@@ -27,7 +27,7 @@ source("./src/helper_functions.R")
 
 
 #--------------------------------------------
-#--Create a project folder and a raw folder--
+#-------------Create folders-----------------
 #--------------------------------------------
 # Define the folder paths
 project_path <- file.path("./data/projects",project)
@@ -81,7 +81,7 @@ if (nrow(not_accepted)!=0) {
   paste0("All species are accepted taxa in the GBIF backbone 🎉")
 }
 
-#Extract taxonkeys of each species, for synonyms the acceptedUsageKey is stored
+ #Extract taxonkeys of each species, for synonyms the acceptedUsageKey is stored
 accepted_taxonkeys<-mapped_taxa %>%
   dplyr::filter(status =="ACCEPTED")%>%
   pull(usageKey)
@@ -141,8 +141,6 @@ occ_download_wait(gbif_download_key)#Check download status
 #--------------------------------------------
 #--------------Retrieve download-------------
 #--------------------------------------------
-#gbif_download_key<-"0076914-240626123714530"
-#gbif_download_key<-"0064066-240626123714530" #4 species
 occ_download_get(gbif_download_key, path = here("data","raw"), overwrite=TRUE)
 metadata <- occ_download_meta(key = gbif_download_key)
 gbif_download_key<-metadata$key
