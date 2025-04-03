@@ -360,3 +360,19 @@ download_zenodo(doi="https://doi.org/10.5281/zenodo.15102496",
                 quiet=FALSE)
 
 
+#-------------------------------------------------
+#-----------  Create CHELSA Eu clips  ------------
+#-------------------------------------------------
+# List CHELSA layers and layer used for masking
+CHELSA_layers<-list.files(here("data/external/climate/trias_CHELSA"),pattern="\\.tif$",full.names = T)
+mask_layer<-rast(here(chelsa_eu_folder,"CHELSA_precipSeasonality_15.tif"))
+
+#Crop and mask
+for (file in CHELSA_layers){
+  raster_layer<-rast(file)
+  r <- crop(raster_layer, ext(mask_layer))
+  r<-mask(r, mask_layer)
+  writeRaster(r, path=here(chelsa_eu_folder, gsub(".*[/]", "", file)) )
+}
+
+
