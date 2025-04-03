@@ -491,7 +491,14 @@ with_progress({
     
     bestModel<-lm_ens_hab[[bestmodelname]]
   
+    #Get performance of best model
+    model_performance<-thresholds.comb%>%
+      filter(rownames(.) == bestmodelname)
     
+    #Get correlation between separate models of best model
+    Model.cor<-Model.cor[[bestmodelname]]
+     
+     
     #--------------------------------------------
     #-Create European predictions using best model -
     #--------------------------------------------
