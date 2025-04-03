@@ -609,295 +609,60 @@ for(key in accepted_taxonkeys){
     MoransI_method<-"C++ alternative (moranfast)"
   }
   
+  #-----------------------------------------------------------------------------
+  #--Quantify confidence of predicted values using class conformal prediction --
+  #-----------------------------------------------------------------------------
+  
+  # quantify confidence for country-level predictions based on historical climate and under RCP scenarios of climate change
+  set.seed(1609)
+  pvalsdf_hist<-classConformalPrediction(bestModel,pred_list$historical$model)
+  set.seed(447)
+  pvalsdf_rcp26<-classConformalPrediction(bestModel,pred_list$rcp26$model)
+  set.seed(568)
+  pvalsdf_rcp45<-classConformalPrediction(bestModel,pred_list$rcp45$model)
+  set.seed(988)
+  pvalsdf_rcp85<-classConformalPrediction(bestModel,pred_list$rcp85$model)
+  
+  # option to export confidence and pvals as csv 
+  # write.csv(pvalsdf_hist,file=paste(genOutput,"confidence_",taxonkey, "_hist.csv",sep=""))
+  
+  
+  #-----------------------------------------------------------------------------
+  #--------------- Create and export confidence maps --------------------------
+  #-----------------------------------------------------------------------------
+  if(Final_model!="Global model"){
+  hist.conf.map<-confidenceMaps(x=pvalsdf_hist,original_raster=pred_list$historical$model, taxonKey=taxonkey,taxonName=first_two_words,taxonNameTitle=species_title, nameExtension=rest_of_name, scenario="hist", regionName=country_name, folder=raster_country_folder)
+  rcp26.conf.map<-confidenceMaps(x=pvalsdf_rcp26,original_raster=pred_list$rcp26$model, taxonKey=taxonkey,taxonName=first_two_words,taxonNameTitle=species_title, nameExtension=rest_of_name, scenario="rcp26", regionName=country_name, folder=raster_country_folder)
+  rcp45.conf.map<-confidenceMaps(x=pvalsdf_rcp45,original_raster=pred_list$rcp45$model, taxonKey=taxonkey,taxonName=first_two_words,taxonNameTitle=species_title, nameExtension=rest_of_name, scenario="rcp45", regionName=country_name, folder=raster_country_folder)
+  rcp85.conf.map<-confidenceMaps(x=pvalsdf_rcp85,original_raster=pred_list$rcp85$model, taxonKey=taxonkey,taxonName=first_two_words,taxonNameTitle=species_title, nameExtension=rest_of_name, scenario="rcp85", regionName=country_name, folder=raster_country_folder)
+  }else{
+    hist.conf.map<-confidenceMaps(x=pvalsdf_hist,original_raster=pred_list$historical$model, taxonKey=taxonkey,taxonName=first_two_words,taxonNameTitle=species_title, nameExtension=rest_of_name, scenario="hist", regionName=country_name, folder=raster_country_folder, GlobalModel=TRUE, resampling_rast=resampling_raster, country_sf=country)
+    rcp26.conf.map<-confidenceMaps(x=pvalsdf_rcp26,original_raster=pred_list$rcp26$model, taxonKey=taxonkey,taxonName=first_two_words,taxonNameTitle=species_title, nameExtension=rest_of_name, scenario="rcp26", regionName=country_name, folder=raster_country_folder,GlobalModel=TRUE, resampling_rast=resampling_raster, country_sf=country)
+    rcp45.conf.map<-confidenceMaps(x=pvalsdf_rcp45,original_raster=pred_list$rcp45$model, taxonKey=taxonkey,taxonName=first_two_words,taxonNameTitle=species_title, nameExtension=rest_of_name, scenario="rcp45", regionName=country_name, folder=raster_country_folder,GlobalModel=TRUE, resampling_rast=resampling_raster, country_sf=country)
+    rcp85.conf.map<-confidenceMaps(x=pvalsdf_rcp85,original_raster=pred_list$rcp85$model, taxonKey=taxonkey,taxonName=first_two_words,taxonNameTitle=species_title, nameExtension=rest_of_name, scenario="rcp85", regionName=country_name, folder=raster_country_folder, GlobalModel=TRUE,resampling_rast=resampling_raster, country_sf=country) 
     
-    return(predClass)
-  }}
-
-
-#function to calculate confidence of each prediction
-
-get.confidence<-function(pvalA,pvalB){
-  secondHighest<-ifelse(pvalA>pvalB,pvalB,pvalA)
-  conf<-(1-secondHighest)
-  return(conf)
-}
-
-forcedCp<-function(pvalA,pvalB){
-  ifelse(pvalA>pvalB,"presence","absence")
-}
-
-extractVals<-function(predras){
-  library(raster)
-  vals <-  raster::values(predras)
-  coord <-  raster::xyFromCell(predras,1:ncell(predras))
-  raster_fitted <- cbind(coord,vals)
-  raster_fitted.df<-as.data.frame(raster_fitted)
-  raster_fitted.df1<-na.omit(raster_fitted.df)
-  raster_fitted.df1$presence<-raster_fitted.df1$vals
-  raster_fitted.df1$absence<- (1-raster_fitted.df1$presence)
-  return(raster_fitted.df1)
-}
-
-
-classConformalPrediction<-function(x,y){
-  ens_results<- get("x")
-  ens_calib<-ens_results$ens_model$pred
-  calibPresence<-ens_calib %>%
-    filter(obs=='present')%>%
-    select(present)
-  calibPresence<-unname(unlist(calibPresence[c("present")]))
-  calibAbsence<-ens_calib %>%
-    filter(obs=='absent')%>%
-    select(absent)
-  calibAbsence<-unname(unlist(calibAbsence[c("absent")]))
-  predicted.values<-extractVals(y)
+  }
+  
+  #-----------------------------------------------------------------------------
+  #-------------- Mask areas below a set confidence level ----------------------
+  #-----------------------------------------------------------------------------
+  
+  # Cutoff for "high" confidence can be modified below. Cutoff should be a value between 0 and 1. Values that are less than the cutoff are shown in gray.
+  cutoff<-0.70
+  
+  m1<-hist.conf.map < cutoff
+  hist_masked<-mask(pred_list$historical$model,m1,maskvalue=TRUE)
+  
+  m2<-rcp26.conf.map < cutoff
+  rcp26_masked<-mask(pred_list$rcp26$model,m2,maskvalue=TRUE)
+  
+  m3<-rcp45.conf.map < cutoff
+  rcp45_masked<-mask(pred_list$rcp45$model,m3,maskvalue=TRUE)
+  
+  m4<-rcp85.conf.map < cutoff
+  rcp85_masked<-mask(pred_list$rcp85$model,m4,maskvalue=TRUE)
   
   
-  testPresence<-predicted.values$presence
-  testAbsence<-predicted.values$absence
-  
-  #derive p.Values for class A
-  smallrA<-lapply(testPresence,function(x) GetLength(calibPresence,x))
-  smallrA_1<- unlist (smallrA)+1
-  nCalibSet<-length(calibPresence)+1
-  pvalA<-smallrA_1+1/nCalibSet
-  
-  # derive p.Values for Class B
-  smallrB<-lapply(testAbsence,function(x) GetLength(calibAbsence,x))
-  smallrB_1<- unlist (smallrB)+1
-  nCalibSetB<-length(calibAbsence)
-  pvalB<-smallrB_1/nCalibSetB
-  
-  pvalsdf<-as.data.frame(cbind(pvalA,pvalB,0.20))
-  #raster_cp_20<-mapply(CPconf,pvalsdf$pvalA,pvalsdf$pvalB,pvalsdf[3])
-  #table(raster_cp_20)
-  
-  pvalsdf$conf<-get.confidence(pvalsdf$pvalA,pvalsdf$pvalB)
-  pvalsdf_1<-cbind(pvalsdf,predicted.values)
-}
-
-
-### Quantify confidence of predicted values using class conformal prediction
-
-
-# quantify confidence for country level predictions based on historical climate and under RCP scenarios of climate change
-
-set.seed(1609)
-pvalsdf_hist<-classConformalPrediction(bestModel,ens_pred_hist)
-set.seed(447)
-pvalsdf_rcp26<-classConformalPrediction(bestModel,ens_pred_hab26)
-set.seed(568)
-pvalsdf_rcp45<-classConformalPrediction(bestModel,ens_pred_hab45)
-set.seed(988)
-pvalsdf_rcp85<-classConformalPrediction(bestModel,ens_pred_hab85)
-
-# option to export confidence and pvals as csv 
-# write.csv(pvalsdf_hist,file=paste(genOutput,"confidence_",taxonkey, "_hist.csv",sep=""))
-
-
-### Create confidence maps
-brks <- seq(0, 1, by=0.1) 
-nb <- length(brks)-1 
-pal <- colorRampPalette(rev(brewer.pal(4, 'Spectral')))
-cols<-pal(nb)
-
-
-confidenceMaps<-function(x,taxonkey,taxonName,maptype){
-  pvals_dataframe<-get("x")
-  data.xyz <- pvals_dataframe[c("x","y","conf")]
-  rst <- rasterFromXYZ(data.xyz)
-  crs(rst)<-CRS("+proj=laea +lat_0=52 +lon_0=10 +x_0=4321000 +y_0=3210000 +ellps=GRS80 +units=m +no_defs") 
-  plot(rst,breaks=brks, col=cols,lab.breaks=brks)
-  writeRaster(rst, filename=file.path(rasterOutput,paste("be_",taxonkey, "_",maptype,".tif",sep="")), format="GTiff",overwrite=TRUE)
-  exportPDF(rst,taxonkey,taxonName=taxonName,nameextension= paste(maptype,".pdf",sep=""))
-  return(rst)
-}
-
-par(mfrow=c(2,2), mar= c(2,3,0.8,0.8))
-hist.conf.map<-confidenceMaps(pvalsdf_hist,taxonkey,taxonName,maptype="hist_conf")
-rcp26.conf.map<-confidenceMaps(pvalsdf_rcp26,taxonkey,taxonName,maptype="rcp26_conf")
-rcp45.conf.map<-confidenceMaps(pvalsdf_rcp45,taxonkey,taxonName,maptype="rcp45_conf")
-rcp85.conf.map<-confidenceMaps(pvalsdf_rcp85,taxonkey,taxonName,maptype="rcp85_conf")
-
-
-
-### Mask areas of below a set confidence level  
-
-# Cutoff for "high" confidence can be modified below. Cutoff should be a value between 0 and 1. Values that are less than the cutoff are shown in gray.
-cutoff<-0.70
-
-conf.brks <- seq(0,1, by=0.1) 
-nb <- length(conf.brks) 
-pal <- colorRampPalette(rev(brewer.pal(4, 'Spectral')))
-cols<-pal(nb)
-
-par(mfrow=c(2,2), mar= c(2,3,0.9,0.8))
-m1<-hist.conf.map < cutoff
-hist_masked<-mask(ens_pred_hist,m1,maskvalue=TRUE)
-plot(hist_masked,breaks=conf.brks, col=cols,lab.breaks=conf.brks)
-plot(country,add=TRUE,border="dark gray")
-
-m2<-rcp26.conf.map < cutoff
-rcp26_masked<-mask(ens_pred_hab26,m2,maskvalue=TRUE)
-plot(rcp26_masked,breaks=conf.brks, col=cols,lab.breaks=conf.brks)
-plot(country,add=TRUE,border="dark gray")
-
-m3<-rcp45.conf.map < cutoff
-rcp45_masked<-mask(ens_pred_hab45,m3,maskvalue=TRUE)
-plot(rcp45_masked,breaks=conf.brks, col=cols,lab.breaks=conf.brks)
-plot(country,add=TRUE,border="dark gray")
-
-m4<-rcp85.conf.map < cutoff
-rcp85_masked<-mask(ens_pred_hab85,m4,maskvalue=TRUE)
-plot(rcp85_masked,breaks=conf.brks, col=cols,lab.breaks=conf.brks)
-plot(country,add=TRUE,border="dark gray")
-
-### confidence map of best model at EU level
-brks <- seq(0, 1, by=0.1) 
-nb <- length(brks)-1 
-pal <- colorRampPalette(rev(brewer.pal(4, 'Spectral')))
-set.seed(792)  
-pvalsdf_hist_eu<-classConformalPrediction(bestModel,ens_pred_hab_eu1$X6)
-hist.conf.map.eu<-confidenceMaps(pvalsdf_hist_eu,taxonkey,taxonName,maptype="hist_conf_eu")
-
-
-### Get variable importance of best european model
-
-variableImportance<-varImp(bestModel)
-kable(variableImportance,digits=2,caption="Variable Importance") %>%
-  kable_styling(bootstrap_options = c("striped"))
-write.csv(variableImportance,file = paste0(genOutput,taxonkey,"_varImp_EU_model.csv"))
-
-
-### Generate and export response curves in order of variable importance
-topPreds <- variableImportance[with(variableImportance,order(-overall)),]
-varNames<-rownames(topPreds)
-## combine predictions from each model for each variable
-## train data needs to be the training data used in the individual models used to build the ensemble model. This info can be extracted from the best ensemble model (ie. bestModel)
-bestModel.train<-bestModel$models[[1]]$trainingData
-
-partial_gbm<-function(x){
-  m.gbm<-pdp::partial(bestModel$models$gbm$finalModel,pred.var=paste(x),train = bestModel.train,type="classification",
-                      prob=TRUE,n.trees= bestModel$models$gbm$finalModel$n.trees, which.class = 1,grid.resolution=nrow(bestModel.train))
-}
-
-
-
-gbm.partial.list<-lapply(varNames,partial_gbm)
-
-partial_glm<-function(x){
-  m.glm<-pdp::partial(bestModel$models$glm$finalModel,pred.var=paste(x),train = bestModel.train,type="classification",
-                      prob=TRUE,which.class = 1,grid.resolution=nrow(bestModel.train))
-}
-
-glm.partial.list<-lapply(varNames,partial_glm)
-
-partial_rf<-function(x){
-  pdp::partial(bestModel$models$rf$finalModel,pred.var=paste(x),train = bestModel.train,type="classification",
-               prob=TRUE,which.class = 1,grid.resolution=nrow(bestModel.train))
-}
-
-rf.partial.list<-lapply(varNames,partial_rf)
-
-
-partial_mars<-function(x){
-  m.mars<-pdp::partial(bestModel$models$earth$finalModel,pred.var=paste(x),train = bestModel.train,type="classification",
-                       prob=TRUE,which.class = 2,grid.resolution=nrow(bestModel.train)) # class=2 because in earth pkg, absense is the first class
-}
-
-mars.partial.list<-lapply(varNames,partial_mars)
-
-
-names(glm.partial.list)<-varNames
-names(gbm.partial.list)<-varNames
-names(rf.partial.list)<-varNames
-names(mars.partial.list)<-varNames
-
-glm.partial.df<-as.data.frame(glm.partial.list)
-gbm.partial.df<-as.data.frame(gbm.partial.list)
-rf.partial.df<-as.data.frame(rf.partial.list)
-mars.partial.df<-as.data.frame(mars.partial.list)
-
-predx<-data.frame()
-predy<-data.frame()
-
-for (i in varNames){
-  predx <- rbind(predx, as.data.frame(paste(i,i,sep=".")))
-  predy<- rbind(predy,as.data.frame(paste(i,"yhat",sep=".")))
-}
-names(predx)<-""
-names(predy)<-""
-
-predx1<-t(predx)
-predy1<-t(predy)
-
-
-glm.partial.df$data<-'GLM'
-gbm.partial.df$data<-'GBM'
-rf.partial.df$data<-'RF'
-mars.partial.df$data<-'MARS'
-
-all_dfs<-rbind.data.frame(glm.partial.df,gbm.partial.df,rf.partial.df,mars.partial.df)
-
-
-responseCurves<-function(x,y) {
-  colors <- c("GLM" = "gray", "GBM"="red","RF"="blueviolet","MARS"= "hotpink") 
-  ggplot(all_dfs,(aes(x=.data[[x]],y=.data[[y]]))) +
-    geom_line(aes(color = data), size =1.2, position=position_dodge(width=0.2))+
-    theme_bw()+
-    labs(y="Partial probability", x= gsub("//..*","",x),color="Legend") +
-    scale_color_manual(values = colors)
-}  
-
-allplots<-map2(predx1,predy1, ~responseCurves(.x,.y))
-
-#export plots as PNGs
-for(i in seq_along(allplots)){
-  png(paste0(genOutput,taxonkey,"_",i,".png"),width = 5, height = 5, units = "in",res=300)
-  print(allplots[[i]])
-  dev.off()
-}
-
-
-
-### Plot response curves
-
-par(mfrow=c(3,4))
-for(i in seq_along(allplots)){
-  print(allplots[[i]])
-}
-
-
-###  Evaluate the performance of each the EU level ensemble models using independent data set from the future 
-#####################################################################
-
-# read in and prepare independent data
-#2011-2021
-eval.data<-read.csv("C:/Users/amyjs/Documents/projects/xps15/xps15/wiSDM/data/external/0001753-230828120925497/0001753-230828120925497.csv",header=TRUE,sep ="\t",quote="")
-
-#enter value for max coordinate uncertainty in meters.
-
-eval.data.occ<-eval.data %>%
-  filter(is.na(coordinateUncertaintyInMeters)| coordinateUncertaintyInMeters< 1000) 
-
-eval.data.occ$lon_dplaces<-sapply(na.omit(eval.data.occ$decimalLongitude), function(x) decimalplaces(x))
-eval.data.occ$lat_dplaces<-sapply(eval.data.occ$decimalLatitude, function(x) decimalplaces(x))
-eval.data.occ[eval.data.occ$lon_dplaces < 4& eval.data.occ$lat_dplaces < 4 , ]<-NA
-eval.data.occ<-eval.data.occ[ which(!is.na(eval.data.occ$lon_dplaces)),]
-eval.data.occ<-within(eval.data.occ,rm("lon_dplaces","lat_dplaces"))
-
-eval.data.occ<-eval.data.occ[c("decimalLongitude", "decimalLatitude")]
-coordinates(eval.data.occ)<- c("decimalLongitude", "decimalLatitude")
-proj4string(eval.data.occ)<-CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")#specify here the existing coord.sys of the data
-eval.data.occ.proj<-spTransform(eval.data.occ,rmiproj)
-
-########################################################################
-#Convert predicted probabilities of EU level risk maps into binary risk maps (present/absence) using thresholds from earlier step
-
-# Eu level
-binary_eu_rasters<-sapply(names(thresholds), function(x) raster::reclassify(ens_pred_hab_eu1[[x]],c(0,thresholds[[x]]$predicted,0, thresholds[[x]]$predicted,1,1)),simplify=FALSE)
-
-
 
 
 eu_eval<-function (ras,y){
