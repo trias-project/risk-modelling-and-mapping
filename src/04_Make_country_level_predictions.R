@@ -150,7 +150,7 @@ for(key in accepted_taxonkeys){
   #-------  Extract species data   ------------
   #--------------------------------------------
   species<-taxa_info%>%
-    filter(accepted_taxonkeys==key)%>%
+    filter(speciesKey==key)%>%
     pull(acceptedScientificName)%>%
     unique()
   
@@ -158,7 +158,10 @@ for(key in accepted_taxonkeys){
   first_two_words <- sub("^(\\w+)\\s+(\\w+).*", "\\1_\\2", species)
   
   #Extract rest of species name
-  rest_of_name <- sub("^\\w+\\s+\\w+\\s+(.*)", "\\1", species)
+  rest_of_name <- if (grepl("^\\S+\\s+\\S+$", species)) "" else sub("^\\S+\\s+\\S+\\s+", "", species)
+  
+  #Specify species for plot title
+  species_title <- gsub("_", " ", first_two_words)
   
   #Define taxonkey
   taxonkey<- key
