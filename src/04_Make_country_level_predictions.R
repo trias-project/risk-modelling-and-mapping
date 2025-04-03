@@ -730,6 +730,69 @@ eu_eval<-function (ras,y){
   xtab<-table(indep.bil.df$predicted,indep.bil.df$observed)
   return(xtab)
 }
+})
+write.csv(model_info,file = file.path("./data/projects",projectname,"Overview_model_performance.csv"))
+
+
+
+
+
+# #-----------------------------------------------------------------------------
+# #------Generate and export response curves in order of variable importance ---
+# #-----------------------------------------------------------------------------
+# topPreds <- variableImportance[with(variableImportance,order(-overall)),]
+# varNames<-rownames(topPreds)
+# 
+# 
+# ## combine predictions from each model for each variable
+# ## train data needs to be the training data used in the individual models used to build the ensemble model. This info can be extracted from the best ensemble model (ie. bestModel)
+# bestModel.train<-bestModel$models[[1]]$trainingData
+# 
+# 
+# gbm.partial.list<-lapply(varNames,partial_gbm)
+# glm.partial.list<-lapply(varNames,partial_glm)
+# rf.partial.list<-lapply(varNames,partial_rf)
+# mars.partial.list<-lapply(varNames,partial_mars)
+# 
+# names(glm.partial.list)<-varNames
+# names(gbm.partial.list)<-varNames
+# names(rf.partial.list)<-varNames
+# names(mars.partial.list)<-varNames
+# 
+# glm.partial.df<-as.data.frame(glm.partial.list)
+# gbm.partial.df<-as.data.frame(gbm.partial.list)
+# rf.partial.df<-as.data.frame(rf.partial.list)
+# mars.partial.df<-as.data.frame(mars.partial.list)
+# 
+# predx<-data.frame()
+# predy<-data.frame()
+# 
+# for (i in varNames){
+#   predx <- rbind(predx, as.data.frame(paste(i,i,sep=".")))
+#   predy<- rbind(predy,as.data.frame(paste(i,"yhat",sep=".")))
+# }
+# names(predx)<-""
+# names(predy)<-""
+# 
+# predx1<-t(predx)
+# predy1<-t(predy)
+# 
+# 
+# glm.partial.df$data<-'GLM'
+# gbm.partial.df$data<-'GBM'
+# rf.partial.df$data<-'RF'
+# mars.partial.df$data<-'MARS'
+# 
+# all_dfs<-rbind.data.frame(glm.partial.df,gbm.partial.df,rf.partial.df,mars.partial.df)
+# 
+# allplots<-map2(predx1,predy1, ~responseCurves(.x,.y))
+# 
+# #export plots as PNGs
+# for(i in seq_along(allplots)){
+#   png(file.path(folder_paths[[2]]$path,paste0(taxonkey,"_",i,".png")),width = 5, height = 5, units = "in",res=300)
+#   print(allplots[[i]])
+#   dev.off()
+# }
 
 
 testeval.eu.bin.rast<-sapply(names(binary_eu_rasters), function(x) eu_eval(binary_eu_rasters[[x]],eval.data.occ.proj),simplify=FALSE)
