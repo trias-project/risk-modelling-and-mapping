@@ -87,11 +87,19 @@ rmiclimpreds<-rast(rmiclimrasters)
 rmiclimpreds<-crop(rmiclimpreds, ext(habitat_stack))
 
 
-#--------------------------------------------
-#-------- Load European habitat rasters -----
-#--------------------------------------------
-habitat<-list.files((here("./data/external/habitat")),pattern='tif',full.names = T)
-habitat_stack<-rast(habitat[c(1:5,7)]) #Distance to water (layer 6) has another extent
+#---------------------------------------------
+#----- Remove NA pixels from predictors ------
+#---------------------------------------------
+#This is to avoid that some layers have NA while others have values in certain pixels
+#First mask pixels in the rasterstack where at least one layer has NA
+na_mask_rmiclimpreds <- app(rmiclimpreds, function(x) any(is.na(x)))
+na_mask_habitat_stack<- app(habitat_stack, function(x) any(is.na(x)))
+rmiclimpreds<- mask(rmiclimpreds, na_mask_rmiclimpreds, maskvalue=1)
+habitat_stack<- mask(habitat_stack, na_mask_habitat_stack, maskvalue=1)
+
+#Second mask rmiclimpreds with habitat_stack and vice versa
+rmiclimpreds<-mask(rmiclimpreds, habitat_stack[[1]])
+habitat_stack<-mask(habitat_stack, rmiclimpreds[[1]])
 
 
 #--------------------------------------------
