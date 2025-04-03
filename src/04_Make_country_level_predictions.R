@@ -203,16 +203,73 @@ for(key in accepted_taxonkeys){
   })
   
   
-### Subset Belgium occurrences 
-#occ.eu is in WGS84, convert to same projection as country level shapefile (which is the same proj used for model outputs)
-suppressWarnings(
-  occ.country <- euocc%>%
-  st_transform(crs=st_crs(country))%>%
-    st_intersection(country)%>%
-    select(geometry)%>%
-    mutate(decimalLongitude = sf::st_coordinates(.)[,1],
-           decimalLatitude = sf::st_coordinates(.)[,2])
-)
+  #--------------------------------------------
+  #--------- Read in model data   -------------
+  #--------------------------------------------
+  #Use European model if it could be fitted, otherwise use the global model
+  if(file.exists(eu_model_file)){
+    
+    #-------Read in eu model object that was stored as part of  script 03_fit_European_model and load data-------
+    eumodel<-qread(eu_model_file)
+    euocc<-eumodel$euocc1
+    bestModel<-unwrap(eumodel$bestModel)
+    eu_presabs.coord<-eumodel$eu_presabs.coord
+    occ.full.data.forCaret<-eumodel$occ.full.data.forCaret
+    model_correlation<-eumodel$model_correlation
+    available_models <- rownames(model_correlation)
+    Final_model<-"EU model"
+    
+    #---------Load raster with EU predictions using the best model------------
+    #Define file paths
+    EU_predictions_file<-file.path(raster_folder,"Europe",paste(first_two_words,"_",taxonkey,"_hist_EU.tif",sep=""))
+    fullstack_be_file<- file.path(raster_folder,"Interim", paste0("Fullstack_be_",first_two_words,"_",taxonkey,".tif"))
+    
+    #Load files
+    fullstack_be<-rast(fullstack_be_file)
+    ens_pred_hab_eu1<-rast(EU_predictions_file)
+    
+    #-----------Print statement----------
+    print(paste("Using EU model for species",first_two_words))
+    
+  }else if(file.exists(global_model_file)){
+    #Print warning
+    warning(paste0("Using global model for ", species, " because no EU model could be fitted"))
+    
+    #---------Read in global model object that was stored as part of  script 02_fit_global_model and load data----------
+    globalmodels<-qread(global_model_file)
+    euocc<-globalmodels$occurrences
+    bestModel<-globalmodels$global_ensemble_model
+    eu_presabs.coord<-globalmodels$global_presabs
+    occ.full.data.forCaret<-globalmodels$global_data_df_uncor
+    model_accuracy<-globalmodels$model_accuracy
+    model_correlation<-globalmodels$model_correlation
+    available_models <- rownames(model_correlation)
+    Final_model<-"Global model"
+    
+    #----------Load rasterlayers--------------
+    #Define file path
+    global_predictions<-file.path(raster_folder,"Global",paste("Global_model_",first_two_words,"_",taxonkey,".tif",sep=""))
+    eu_climpreds10_file <-file.path("./data/projects",projectname,paste0(first_two_words,"_",taxonkey),"Rasters","Interim",paste0("EU_climpreds10_",first_two_words,"_",taxonkey,".tif"))
+    
+    #Load and process rasters (no need to add habitat stack as these were not used in global model)
+    #I decided to not project the data to the crs of country as the model has been fitted on WGS84 and reprojecting can create tiny changes in the pixel values
+    ens_pred_hab_eu1<-rast(global_predictions)
+    
+    fullstack_be<-rast(eu_climpreds10_file)%>%
+      #project(crs(country))%>%
+      #resample( habitat_stack, method="bilinear")%>% #Make sure the climatic layers have the same resolution (1000 1000)and align with the habitat stack layer or the climatic layers used for the eu model (interpolation)
+      crop(belgium_ext)%>%
+      mask(belgium_vector)
+    
+    #---------------Print statement-----------
+    print(paste("Using global model for species",first_two_words))
+    
+  }else{
+    warning(paste0("Skipping species ", species, " because no EU model or global model could be fitted"))
+    model_info[model_info$speciesKey == key, ]$Final_model<-"None fitted"
+    next  # Skip the rest of the loop and move to the next iteration
+    
+  }
   
 #--------------------------------------------
 #-------- Plot country occurrences ---------
