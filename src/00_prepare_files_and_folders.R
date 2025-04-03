@@ -422,3 +422,7 @@ for (folder in folders){
         
         print(paste("Renamed", filename, "to", new_filename))
         break  # Stop checking other prefixes once a match is found
+      }
+    }
+  }
+}
