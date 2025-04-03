@@ -139,14 +139,14 @@ cleaned<-global.occ.LL%>%
 #--------------------------------------------
 #--------Load global climate rasters --------
 #--------------------------------------------
-globalclimrasters <- list.files((here("./data/external/climate/trias_CHELSA")),pattern='tif',full.names = T) #import CHELSA data
+globalclimrasters <- list.files((here("data/external/climate/trias_CHELSA")),pattern="\\.tif$",full.names = T) #import CHELSA data
 globalclimpreds_terra <- terra::rast(globalclimrasters)
 
 
 #--------------------------------------------
 #--------Load European climate rasters-------
 #--------------------------------------------
-euclimrasters <- list.files((here("./data/external/climate/chelsa_eu_clips")),pattern='tif',full.names = T)
+euclimrasters <- list.files((here("data/external/climate/chelsa_eu_clips")),pattern="\\.tif$",full.names = T)
 eu_climpreds<-rast(euclimrasters)
 eu_climpreds.10<-divide10(eu_climpreds)  # correct for integer format of Chelsa preds
 
