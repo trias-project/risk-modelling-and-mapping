@@ -317,3 +317,16 @@ for (i in 1:nlyr(fullstack85)) {
 }
 
 
+#-------------------------------------------------
+#---------------- Store biasgrids  ---------------
+#-------------------------------------------------
+download_zenodo(doi="https://doi.org/10.5281/zenodo.7556851", 
+                path=biasgrids_folder, 
+                files=list("amphib_1deg_min5.tif",
+                           "birds_1deg_min5.tif",
+                           "mammals_1deg_min5.tif",
+                           "molluscs_1deg_min5.tif",
+                           "plants_1deg_min5.tif",
+                           "reptiles_1deg_min5.tif"), 
+                quiet=FALSE)
+
