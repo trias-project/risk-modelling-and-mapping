@@ -423,27 +423,19 @@ with_progress({
     #--------------------------------------------
     #- Run models with climate and habitat data -
     #--------------------------------------------
-    # method = LOOCV (aka "jacknife" ) should be used when occurrences are smaller than n=10 for each predictor in the model)
-    if(nrow(presence)<10){
-      control<-trainControl(method="LOOCV",
-                            savePredictions="final", 
-                            preProc=c("center","scale"),
-                            classProbs=TRUE) 
-    }else{
-      control <- trainControl(method="cv",
+    control <- trainControl(method="cv",
                               number=4,
                               savePredictions="final", 
                               preProc=c("center","scale"),
                               classProbs=TRUE)
-    }
-    
+   
     mylist<-list(
       glm =caretModelSpec(method = "glm",maxit=100),
       gbm= caretModelSpec(method = "gbm"),
       rf = caretModelSpec(method = "rf", importance = TRUE),
       earth= caretModelSpec(method = "earth"))
     
-    # set.seed(167)
+    set.seed(167)
     eu_models<-sapply(names(occ.full.data.forCaret), function(x) model_train_habitat <- caretList(
       occ~., 
       data= occ.full.data.forCaret[[x]],
@@ -465,13 +457,14 @@ with_progress({
     #--------------------------------------------
     #---------- Create ensemble model -----------
     #--------------------------------------------
+    #9 folds (e.g., 90 records) will be used for training, and 1 fold (e.g., 10 records) will be used for validation.
+    control <- trainControl(method="cv",
+                              number=10,
+                              savePredictions="final", 
+                              classProbs=TRUE)
+    
     set.seed(458)
-    lm_ens_hab<-sapply(names(eu_models), function (x) caretEnsemble(eu_models[[x]], 
-                                                                    trControl=trainControl(method="cv", 
-                                                                                           number=10,
-                                                                                           savePredictions= "final",
-                                                                                           classProbs = TRUE)),
-                       simplify=FALSE)
+    lm_ens_hab<-sapply(names(eu_models), function (x) caretEnsemble(eu_models[[x]],trControl= control), simplify=FALSE)
     
     
     #--------------------------------------------
