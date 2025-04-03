@@ -376,3 +376,49 @@ for (file in CHELSA_layers){
 }
 
 
+#-------------------------------------------------
+#--  Rename climate layers for European model  --
+#-------------------------------------------------
+
+folders<- list(rcp26_belgium_eumodel_folder,
+               rcp45_belgium_eumodel_folder,
+               rcp85_belgium_eumodel_folder,
+               eu_climate_folder)
+
+file_mapping <- list(
+  "var1_AnnualMeanTemperature" = "anntemp_eea.tif"  ,
+  "var10_30yrMeanAnnualCumulatedGDDAbove5degreesC" = "anngdd100.tif",
+  "var2_AnnualAmountPrecipitation" = "annprecip_eea.tif",
+  "var3_AnnualVariationPrecipitation" = "annpvarrecip_eea.tif",
+  "var9_PrecipitationDriestMonth" = "dristprec.tif",
+  "var5_MaximumTemperatureWarmestMonth" = "maxtemp.tif",
+  "var6_MinimumTemperatureColdestMonth" = "mintemp.tif",
+  "var11_AnnualMeanPotentialEvapotranspiration" = "pet100.tif",
+  "var12_AnnualMeanSolarRadiation" = "SolRad100.tif",
+  "var7_TemperatureAnnualRange" = "temprang.tif",
+  "var4_AnnualVariationTemperature" = "tempseas.tif",
+  "var13_AnnualVariationSolarRadiation" = "varSolRad100.tif",
+  "var8_PrecipitationWettestMonth" = "wettprec.tif")
+
+for (folder in folders){
+  
+  files<-list.files (folder, pattern = "\\.tif$", full.names = TRUE)
+  
+  # Rename files 
+  for (file in files) {
+    filename <- basename(file)
+    
+    for (prefix in names(file_mapping)) {
+      if (startsWith(filename, prefix)) {
+        
+        # Define new filename
+        new_filename <- file_mapping[[prefix]]
+        
+        # Define full new file path
+        new_filepath <- file.path(folder, new_filename)
+        
+        # Rename the file
+        file.rename(file, new_filepath)
+        
+        print(paste("Renamed", filename, "to", new_filename))
+        break  # Stop checking other prefixes once a match is found
