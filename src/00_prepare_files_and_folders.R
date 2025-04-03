@@ -19,23 +19,23 @@ source("./src/helper_functions.R")
 #--------------------------------------------
 #------------ Define folder paths -----------
 #--------------------------------------------
-habitat_folder <- file.path("./data/external/habitat")
-Belgium_folder <- file.path("./data/external/GIS/Belgium")
-Europe_folder <- file.path("./data/external/GIS/Europe")
-Ecoregions_folder <- file.path("./data/external/GIS")
-rcp26_belgium_eumodel_folder <- file.path("./data/external/climate/byEEA_finalRCP/belgium_rcps/rcp26")
-rcp45_belgium_eumodel_folder <- file.path("./data/external/climate/byEEA_finalRCP/belgium_rcps/rcp45")
-rcp85_belgium_eumodel_folder <- file.path("./data/external/climate/byEEA_finalRCP/belgium_rcps/rcp85")
-chelsa_eu_folder <- file.path("./data/external/climate/chelsa_eu_clips")
-rcp26_belgium_globalmodel_folder <- file.path("./data/external/climate/Global_finalRCP/belgium_rcps/rcp26")
-rcp45_belgium_globalmodel_folder <- file.path("./data/external/climate/Global_finalRCP/belgium_rcps/rcp45")
-rcp85_belgium_globalmodel_folder <- file.path("./data/external/climate/Global_finalRCP/belgium_rcps/rcp85")
-rcp26_globalmodel_folder <- file.path("./data/external/climate/Global_finalRCP/rcp26")
-rcp45_globalmodel_folder <- file.path("./data/external/climate/Global_finalRCP/rcp45")
-rcp85_globalmodel_folder <- file.path("./data/external/climate/Global_finalRCP/rcp85")
-eu_climate_folder <- file.path("./data/external/climate/rmi_corrected")
-global_climate_folder <- file.path("./data/external/climate/trias_CHELSA")
-biasgrids_folder <- file.path("./data/external/bias_grids/final/trias")
+habitat_folder <- here("data","external","habitat")
+Belgium_folder <- here("data","external","GIS","Belgium")
+Europe_folder <- here("data","external","GIS","Europe")
+Ecoregions_folder <- here("data","external","GIS")
+rcp26_belgium_eumodel_folder <- here("data","external","climate","byEEA_finalRCP","belgium_rcps","rcp26")
+rcp45_belgium_eumodel_folder <- here("data","external","climate","byEEA_finalRCP","belgium_rcps","rcp45")
+rcp85_belgium_eumodel_folder <- here("data","external","climate","byEEA_finalRCP","belgium_rcps","rcp85")
+chelsa_eu_folder <- here("data","external","climate","chelsa_eu_clips")
+rcp26_belgium_globalmodel_folder <- here("data","external","climate","Global_finalRCP","belgium_rcps","rcp26")
+rcp45_belgium_globalmodel_folder <- here("data","external","climate","Global_finalRCP","belgium_rcps","rcp45")
+rcp85_belgium_globalmodel_folder <- here("data","external","climate","Global_finalRCP","belgium_rcps","rcp85")
+rcp26_globalmodel_folder <- here("data","external","climate","Global_finalRCP","rcp26")
+rcp45_globalmodel_folder <- here("data","external","climate","Global_finalRCP","rcp45")
+rcp85_globalmodel_folder <- here("data","external","climate","Global_finalRCP","rcp85")
+eu_climate_folder <- here("data","external","climate","rmi_corrected")
+global_climate_folder <- here("data","external","climate","trias_CHELSA")
+biasgrids_folder <- here("data","external","bias_grids","final","trias")
 
 
 #-------------------------------------------------
@@ -49,7 +49,7 @@ folder_paths<-list(list("path"= habitat_folder,
                    list("path"= Europe_folder,
                         "name"= "Europe"),
                    list("path"= Ecoregions_folder,
-                        "name"= "official"),
+                        "name"= "GIS"),
                    list("path"= rcp26_belgium_eumodel_folder,
                         "name"= "rcp26"),
                    list("path"= rcp45_belgium_eumodel_folder,
@@ -87,8 +87,8 @@ lapply(folder_paths, function(folder){
 #------ Store WWF ecoregions file   --------------
 #-------------------------------------------------
 curl::curl_download("http://assets.worldwildlife.org/publications/15/files/original/official_teow.zip?1349272619", destfile = paste0(Ecoregions_folder,"/official.zip"))
-unzip(paste0(Ecoregions_folder,"/official.zip"), exdir = paste0(Ecoregions_folder,"/official"))
-unlink(paste0(Ecoregions_folder,"/official.zip"))
+unzip(here(Ecoregions_folder,"official.zip"), exdir = here(Ecoregions_folder))
+unlink(here(Ecoregions_folder,"official.zip"))
 
 
 #-------------------------------------------------
@@ -113,10 +113,10 @@ for(i in c("01", "04", "05", "06","07", "12","13","14","15")){
   if(grepl("windows", Sys.getenv("OS"), ignore.case = TRUE)) {
     download.file(url = paste0("https://os.zhdk.cloud.switch.ch/chelsav1/climatologies/bio/CHELSA_bio10_",i,".tif"),
                   mode = "wb",
-                  destfile = file.path(global_climate_folder,paste0("CHELSA_",layer_name,"_",i,".tif")))
+                  destfile = here(global_climate_folder,paste0("CHELSA_",layer_name,"_",i,".tif")))
   }else{
     download.file(url = paste0("https://os.zhdk.cloud.switch.ch/chelsav1/climatologies/bio/CHELSA_bio10_",i,".tif"),
-                  destfile = file.path(global_climate_folder,paste0("CHELSA_",layer_name,"_",i,".tif")))
+                  destfile = here(global_climate_folder,paste0("CHELSA_",layer_name,"_",i,".tif")))
   }
 }
 
@@ -234,35 +234,35 @@ for(i in c("01", "04", "05", "06","07", "12","13","14","15")){
   if(grepl("windows", Sys.getenv("OS"), ignore.case = TRUE)) {
     download.file(url = paste0("https://os.zhdk.cloud.switch.ch/chelsav1/cmip5/2041-2060/bio/CHELSA_bio_mon_MPI-ESM-LR_rcp26_r1i1p1_g025.nc_",i_download,"_2041-2060_V1.2.tif"),
                   mode = "wb",
-                  destfile = file.path(rcp26_globalmodel_folder,paste0("CHELSA_",layer_name,"_",i,".tif")))
+                  destfile = here(rcp26_globalmodel_folder,paste0("CHELSA_",layer_name,"_",i,".tif")))
   }else{
     download.file(url = paste0("https://os.zhdk.cloud.switch.ch/chelsav1/cmip5/2041-2060/bio/CHELSA_bio_mon_MPI-ESM-LR_rcp26_r1i1p1_g025.nc_",i_download,"_2041-2060_V1.2.tif"),
-                  destfile = file.path(rcp26_globalmodel_folder,paste0("CHELSA_",layer_name,"_",i,".tif")))
+                  destfile = here(rcp26_globalmodel_folder,paste0("CHELSA_",layer_name,"_",i,".tif")))
   }
   
   if(grepl("windows", Sys.getenv("OS"), ignore.case = TRUE)) {
     download.file(url = paste0("https://os.zhdk.cloud.switch.ch/chelsav1/cmip5/2041-2060/bio/CHELSA_bio_mon_MPI-ESM-LR_rcp45_r1i1p1_g025.nc_",i_download,"_2041-2060_V1.2.tif"),
                   mode = "wb",
-                  destfile = file.path(rcp45_globalmodel_folder,paste0("CHELSA_",layer_name,"_",i,".tif")))
+                  destfile = here(rcp45_globalmodel_folder,paste0("CHELSA_",layer_name,"_",i,".tif")))
   }else{
     download.file(url = paste0("https://os.zhdk.cloud.switch.ch/chelsav1/cmip5/2041-2060/bio/CHELSA_bio_mon_MPI-ESM-LR_rcp45_r1i1p1_g025.nc_",i_download,"_2041-2060_V1.2.tif"),
-                  destfile = file.path(rcp45_globalmodel_folder,paste0("CHELSA_",layer_name,"_",i,".tif")))
+                  destfile = here(rcp45_globalmodel_folder,paste0("CHELSA_",layer_name,"_",i,".tif")))
   }
   
   if(grepl("windows", Sys.getenv("OS"), ignore.case = TRUE)) {
     download.file(url = paste0("https://os.zhdk.cloud.switch.ch/chelsav1/cmip5/2041-2060/bio/CHELSA_bio_mon_MPI-ESM-LR_rcp85_r1i1p1_g025.nc_",i_download,"_2041-2060_V1.2.tif"),
                   mode = "wb",
-                  destfile = file.path(rcp85_globalmodel_folder,paste0("CHELSA_",layer_name,"_",i,".tif")))
+                  destfile = here(rcp85_globalmodel_folder,paste0("CHELSA_",layer_name,"_",i,".tif")))
   }else{
     download.file(url = paste0("https://os.zhdk.cloud.switch.ch/chelsav1/cmip5/2041-2060/bio/CHELSA_bio_mon_MPI-ESM-LR_rcp85_r1i1p1_g025.nc_",i_download,"_2041-2060_V1.2.tif"),
-                  destfile = file.path(rcp85_globalmodel_folder,paste0("CHELSA_",layer_name,"_",i,".tif")))
+                  destfile = here(rcp85_globalmodel_folder,paste0("CHELSA_",layer_name,"_",i,".tif")))
   }
 }
 
 
-#---------------------------------------------------------
-#------Create future climate layers for Belgium  ---------
-#---------------------------------------------------------
+#------------------------------------------------------------------------
+#------Create future climate layers for Belgium (global model)  ---------
+#------------------------------------------------------------------------
 #Crop and mask layers to Belgium, this may take some time!
 #If you'd like to predict for another country, change the country name
 belgium<-rnaturalearth::ne_countries(country="Belgium", scale=10)[1]
@@ -270,9 +270,9 @@ belgium_ext<-terra::ext(belgium)
 belgium_vector <- terra::vect(belgium) #Convert to a SpatVector, used for masking
 
 #List files
-be26 <- list.files(here("./data/external/climate/Global_finalRCP/rcp26"), pattern = 'tif', full.names = TRUE)
-be45 <- list.files(here("./data/external/climate/Global_finalRCP/rcp45"), pattern = 'tif', full.names = TRUE)
-be85 <- list.files(here("./data/external/climate/Global_finalRCP/rcp85"), pattern = 'tif', full.names = TRUE)
+be26 <- list.files(here("data/external/climate/Global_finalRCP/rcp26"), pattern = 'tif', full.names = TRUE)
+be45 <- list.files(here("data/external/climate/Global_finalRCP/rcp45"), pattern = 'tif', full.names = TRUE)
+be85 <- list.files(here("data/external/climate/Global_finalRCP/rcp85"), pattern = 'tif', full.names = TRUE)
 
 # List scenarios to iterate through
 set.seed(123)
@@ -313,7 +313,7 @@ for (i in 1:nlyr(fullstack45)) {
 
 #RCP 8.5
 for (i in 1:nlyr(fullstack85)) {
-  writeRaster(fullstack85[[i]], filename = here(("./data/external/climate/Global_finalRCP/belgium_rcps/rcp85"), paste0(names(fullstack85[[i]]), ".tif")), overwrite=TRUE)
+  writeRaster(fullstack85[[i]], filename = here(rcp85_belgium_globalmodel_folder, paste0(names(fullstack85[[i]]), ".tif")), overwrite=TRUE)
 }
 
 
@@ -372,7 +372,8 @@ for (file in CHELSA_layers){
   raster_layer<-rast(file)
   r <- crop(raster_layer, ext(mask_layer))
   r<-mask(r, mask_layer)
-  writeRaster(r, path=here(chelsa_eu_folder, gsub(".*[/]", "", file)) )
+  writeRaster(r, filename=here(chelsa_eu_folder, basename(file)), overwrite=TRUE )
+  print(paste0("Created rasterlayer ", basename(file)," in ", chelsa_eu_folder))
 }
 
 
@@ -415,7 +416,7 @@ for (folder in folders){
         new_filename <- file_mapping[[prefix]]
         
         # Define full new file path
-        new_filepath <- file.path(folder, new_filename)
+        new_filepath <- here(folder, new_filename)
         
         # Rename the file
         file.rename(file, new_filepath)
