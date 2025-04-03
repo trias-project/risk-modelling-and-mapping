@@ -73,6 +73,15 @@ country_vector <- terra::vect(country) #Convert to a SpatVector, used for maskin
 
 
 #--------------------------------------------
+#------------ Load country shape ------------
+#--------------------------------------------
+#Only used when no EU model could be fitted
+belgium<-rnaturalearth::ne_countries(country="Belgium", scale=10)[1]
+belgium_ext<-terra::ext(belgium) 
+belgium_vector <- terra::vect(belgium) #Convert to a SpatVector, used for masking
+
+
+#--------------------------------------------
 #----------- Load taxa info  ----------------
 #--------------------------------------------
 taxa_info<-read.csv2(paste0("./data/projects/",projectname,"/",projectname,"_taxa_info.csv"))
