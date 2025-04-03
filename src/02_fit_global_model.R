@@ -412,6 +412,10 @@ with_progress({
                                      '1' = "present")) %>%  # Later steps require non numeric dependent variable
       mutate(species = relevel(species, ref = "present")) 
     
+    #Remove them from climate stack
+    eu_climpreds.10_selection<-eu_climpreds.10%>%
+      subset(!names(eu_climpreds.10) %in% highlyCorrelated)
+      
     
     #--------------------------------------------
     #--Correct climate data from integer format--
