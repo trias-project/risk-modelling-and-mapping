@@ -141,8 +141,14 @@ model_info<-taxa_info%>%
 #--------------------------------------------
 #-----------  Start loop   ------------------
 #--------------------------------------------
+with_progress({
+  p <- progressor(along = 1:length(accepted_taxonkeys)) 
 for(key in accepted_taxonkeys){
-  #Extract species name
+  
+  p()
+  #--------------------------------------------
+  #-------  Extract species data   ------------
+  #--------------------------------------------
   species<-taxa_info%>%
     filter(accepted_taxonkeys==key)%>%
     pull(acceptedScientificName)%>%
