@@ -101,11 +101,12 @@ habitat_stack<-rast(habitat[c(1:5,7)]) #Distance to water (layer 6) has another 
 #habitat_stack1<-crop(habitat_stack1, ext(habitat_stack2))
 #habitat_stack<-c(habitat_stack1, habitat_stack2)
 
-#--------------------------------------------
-#--------- Specify folder paths -------------
-#--------------------------------------------
-raster_folder <- file.path("./data/projects", projectname, paste0(first_two_words, "_", taxonkey), "Rasters")
-PDF_folder <- file.path("./data/projects", projectname, paste0(first_two_words, "_", taxonkey), "PDFs")
+
+#-------------------------------------------------
+#---------- Define resampling raster -------------
+#-------------------------------------------------
+#Used as a template when global model predictions need to be in same raster format as those for the EU model
+resampling_raster<-rast(here("./data/external/climate/byEEA_finalRCP/belgium_rcps/rcp26/anngdd100.tif"))
 
 
 #--------------------------------------------
