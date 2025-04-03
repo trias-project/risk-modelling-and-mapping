@@ -233,6 +233,26 @@ with_progress({
     # Keep XY coordinates
     euocc<-eu_occ%>%
       st_coordinates()
+    
+    
+    #------------------------------------------------
+    #----- Check if at least 20 European records ----
+    #------------------------------------------------
+    if (nrow(euocc) < 20) {
+      warning(paste(nrow(euocc)," occurrences in Europe for species:", species, 
+                    "\n- European model cannot be constructed, skipping to the next species."))
+      next  # Skip to the next species in the loop
+    }
+  
+    
+    #--------------------------------------------
+    #-------- Plot European occurrences ---------
+    #--------------------------------------------
+    #ggplot()+ 
+     # geom_sf(data = euboundary,  colour = "black", fill = NA)+
+      #geom_point(data=eu_occ, aes(x=decimalLongitude, y= decimalLatitude),  fill="green", shape = 22, colour = "black", size=3)+
+      #labs(x="Longitude", y="Latitude")+
+      #theme_bw()
   
     
     #--------------------------------------------
