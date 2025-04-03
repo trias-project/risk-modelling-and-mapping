@@ -502,9 +502,8 @@ with_progress({
     #--------------------------------------------
     #-Create European predictions using best model -
     #--------------------------------------------
-    system.time({
-      ens_pred_hab_eu1<-terra::predict(fullstack,lm_ens_hab[[bestmodelname]],type="prob", na.rm = TRUE)
-    }) 
+    ens_pred_hab_eu1<-terra::predict(fullstack,lm_ens_hab[[bestmodelname]],type="prob", na.rm = TRUE)
+    
   
     #-----------------------------------------------------------------------------
     #---------- Create a confidence map of the best model at EU level ------------
