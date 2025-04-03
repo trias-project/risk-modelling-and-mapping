@@ -2,7 +2,7 @@
 #-----------To do: specify project ----------
 #--------------------------------------------
 #specify project name
-projectname<-"Test_Frédérique"
+projectname<-"Project_Frédérique"
 
 
 #--------------------------------------------
@@ -10,7 +10,7 @@ projectname<-"Test_Frédérique"
 #--------------------------------------------
 options("rgdal_show_exportToProj4_warnings"="none")
 
-packages <- c( "dplyr", "here", "qs","terra", "sf", "ggplot2","RColorBrewer","magick","patchwork","grid", "randomForest")
+packages <- c( "viridis","dplyr", "here", "qs","terra", "tidyterra","sf", "ggplot2","RColorBrewer","magick","patchwork","grid", "randomForest", "progressr", "raster", "dismo", "caret", "caretEnsemble", "kableExtra")
 
 for(package in packages) {
   print(package)
@@ -47,6 +47,7 @@ if ("caretEnsemble" %in% rownames(installed.packages())) {
   library(caretEnsemble)
   rm(current_version, desired_version)
 }
+
 
 #--------------------------------------------
 #----------  To do: specify country  --------
