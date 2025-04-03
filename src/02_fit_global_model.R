@@ -405,7 +405,7 @@ with_progress({
     
     # Remove highly correlated predictors from dataframe 
     global.data.df.subset<- global.data.df %>%
-      select (-all_of(highlyCorrelated), -rID) %>% 
+      dplyr::select (-all_of(highlyCorrelated), -rID) %>% 
       mutate(species = as.factor(species)) %>%
       mutate(species = recode_factor(species, 
                                      '0' = "absent",
@@ -420,6 +420,7 @@ with_progress({
     #--------------------------------------------
     #--Correct climate data from integer format--
     #--------------------------------------------
+    #Divide all climate data by 10
     global.data.df.uncor<-cbind("species"=  global.data.df.subset$species,divide10(global.data.df.subset[,-c(1)]))
     
     
@@ -444,7 +445,8 @@ with_progress({
     #--------------------------------------------
     #--Return accurracy, kappa and correlation --
     #--------------------------------------------
-    GlobalModelResults<-resamples(global_train) #Returns the results for each model 
+    #Return the results for each model
+    GlobalModelResults<-resamples(global_train)  
     
     # Display accuracy of each model
     Global.Mod.Accuracy<-summary(GlobalModelResults)
@@ -488,9 +490,7 @@ with_progress({
     #--------------------------------------------
     #-------- Make predictions for Europe--------
     #--------------------------------------------
-    system.time({
-      global_model <- predict(eu_climpreds.10,global_stack,type="prob", na.rm = TRUE) #235.05
-    })
+    global_model <- predict(eu_climpreds.10_selection,global_stack,type="prob", na.rm = TRUE) 
     
     
     #--------------------------------------------
