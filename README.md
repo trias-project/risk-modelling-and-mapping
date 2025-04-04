@@ -1,6 +1,7 @@
 # Alien species risk modelling and mapping
 
 This repository contains the framework and R code for predicting the distribution of alien species throughout Belgium and greater Europe at 1 km<sup>2</sup> resolution as part of the TrIAS project. 
+<br>
 
 ## Repo structure
 
