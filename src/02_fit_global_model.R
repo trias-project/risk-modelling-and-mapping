@@ -33,14 +33,16 @@ if ("caretEnsemble" %in% rownames(installed.packages())) {
     remove.packages("caretEnsemble")
     devtools::install_github("zachmayer/caretEnsemble@2.0.3")
     library(caretEnsemble)
+    rm(current_version, desired_version)
   } else {
     library(caretEnsemble)
+    rm(current_version, desired_version)
   }
   
 } else {
   devtools::install_github("zachmayer/caretEnsemble@2.0.3")
   library(caretEnsemble)
-  rm(current_version, desired_version)
+  rm(desired_version)
 }
 
 
