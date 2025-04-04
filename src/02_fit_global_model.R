@@ -316,6 +316,10 @@ with_progress({
     #--------------------------------------------
     if (speciesgroup %in% names(bias_grid_paths)) {
       biasgrid <- terra::rast(bias_grid_paths[[speciesgroup]])
+      if(speciesgroup %in% c("Amphibians", "Molluscs", "Mammals", "Reptiles")){
+        # Resample biasgrid to match the resolution of globalclimpreds_terra
+        biasgrid<- terra::resample(biasgrid, globalclimpreds_terra[[1]], method="bilinear")
+      }
     } else {
       stop("No bias grid available for this species. Species has to be one of the following: Plants, Amphibians, Birds, Mammals, Molluscs, or Reptiles.")
     }
