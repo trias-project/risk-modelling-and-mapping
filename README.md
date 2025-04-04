@@ -32,9 +32,9 @@ To execute this workflow, run the following scripts (stored in the `src` folder)
 
 0. **Script 00_prepare_files_and_folders**: Sets up the folder structure and downloads the files (climate rasters, habitat predictors, spatial boundaries,...) necessary to run the workflow.
 1. **Script 01_global_occurrence_download.R**: After specifying the name of your project and your species of interest, this script creates a project folder on your local computer and retrieves occurrence data for the respective species from the Global Biodiversity Information Facility (GBIF). To allow this data download, a pop-up will appear, requesting you to enter your GBIF username, password, and email address.
-2. **02_fit_global_model.R**: Builds a global-scale climate-only species distribution model (SDM) for each species specified in script 01. Ensure you use the same project name as in the former script.
-3. **03_fit_European_model.R**: Generates European-level SDMs for the specified species. Again, use the same project name as in script 01.
-4. **04_Make_country_level_predictions.R**: Predicts species distributions and generates confidence maps under different climate change scenarios (RCP 2.6, RCP 4.5, and RCP 8.5) for a country or region of interest. At the moment, the workflow is only operational for Belgium, but this will be adjusted soon to incorporate more countries.
+2. **Script 02_fit_global_model.R**: Builds a global-scale climate-only species distribution model (SDM) for each species specified in script 01. Ensure you use the same project name as in the former script.
+3. **Script 03_fit_European_model.R**: Generates European-level SDMs for the specified species. Again, use the same project name as in script 01.
+4. **Script 04_Make_country_level_predictions.R**: Predicts species distributions and generates confidence maps under different climate change scenarios (RCP 2.6, RCP 4.5, and RCP 8.5) for a country or region of interest. At the moment, the workflow is only operational for Belgium, but this will be adjusted soon to incorporate more countries.
 <br>
  
 ## What does the Trias modeling workflow do?
