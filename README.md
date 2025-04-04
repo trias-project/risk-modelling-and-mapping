@@ -1,6 +1,7 @@
 # Alien species risk modelling and mapping
 
-This repository contains the framework and R code in development for risk modelling and mapping of alien species throughout Belgium and greater Europe at 1 km<sup>2</sup> resolution as part of the TrIAS project. Please go to https://github.com/amyjsdavis/wiSDM for the latest code used  in Davis et al., 2024 (https://doi.org/10.3389/fevo.2024.1148895)
+This repository contains the framework and R code for predicting the distribution of alien species throughout Belgium and greater Europe at 1 km<sup>2</sup> resolution as part of the TrIAS project. 
+<br>
 
 ## Repo structure
 
@@ -11,65 +12,46 @@ This repository contains the framework and R code in development for risk modell
 ├── .gitignore             : Files and directories to be ignored by git
 │
 ├── data
-│   ├── external          : external files (e.g. climate rasters, occurrence data, GIS files) required to run the   model. Will be available for download via Zenodo.
-│   └── results           : Risk maps for Belgium GENERATED
+│   ├── external          : external files required to run the model. The majority of these files will be downloaded and stored in the right folders by running script 00_prepare_files_and_folders.R.
+│   
 │
 └── src                    : R Code
 ```
 
-Although theoretically possible, this workflow is not applied to all species listed in the published [unified checklist](https://doi.org/10.15468/xoidmd) and whose occurrences are found.  We limit our analysis to a list of species labelled as **emerging**. The emerging status is object of another work package and it is a semi-automated process described in repository [indicators](https://github.com/trias-project/indicators): see [webpage](https://trias-project.github.io/indicators/).
 
-## What you need to do run this workflow (see below for more details):
-1) GBIF taxon key and species name in a. csv file (see pra_mammals.csv) for format
-2) Climate and habitat raster data files downloaded from Zenodo (links will be provided when data is available)
-3) R studio installed in your computer.
-4) After cloning this repository, add folders to the existing folder structure shown above as shown below. This will allow you to use the relative path structure in the trias_sdm.R file.
+## Requirements to run this workflow
+1.  **RStudio** installed on your local computer.
+2.   Have an active **GBIF account**. In script 01, you will need to enter your GBIF username, password, and email address to enable the species occurrence data download.
+3. **Clone this repository** to your local computer.
+4. Provide a **project name** and the **name(s) of the study species** in the respective scripts. 
+<br>
 
-```
-├── data
-    ├── external
-          ├── bias_grids (Global taxonomic occurrence grids, downloaded from Zenodo here )
-          ├── climate (put climate rasters downloaded from Zenodo here)
-          ├── data cube (European level occurrence cube) 
-          ├── GIS (GIS data downloaded from Zenodo)
-          ├── habitat (put habitat rasters downloaded from Zenodo here)
-          ├── PRA (priority risk assessment species lists)
-```          
-
-## Workflow  
+## Executing the workflow
  
-The automated workflow can be divided in three sections:
+To execute this workflow, run the following scripts (stored in the `src` folder) in the designated order:
 
-1. Develop global scale climate-only species distribution models (SDMs)
-2. Generate European level SDMs
-3. Forecast species distributions under climate change scenarios
+0. **Script 00_prepare_files_and_folders**: Sets up the folder structure and downloads the files (climate rasters, habitat predictors, spatial boundaries,...) necessary to run the workflow.
+1. **Script 01_global_occurrence_download.R**: After specifying the name of your project and your species of interest, this script creates a project folder on your local computer and retrieves occurrence data for the respective species from the Global Biodiversity Information Facility (GBIF). To allow this data download, a pop-up will appear, requesting you to enter your GBIF username, password, and email address.
+2. **Script 02_fit_global_model.R**: Builds a global-scale climate-only species distribution model (SDM) for each species specified in script 01. Ensure you use the same project name as in the former script.
+3. **Script 03_fit_European_model.R**: Generates European-level SDMs for the specified species. Again, use the same project name as in script 01.
+4. **Script 04_Make_country_level_predictions.R**: Predicts species distributions and generates confidence maps under different climate change scenarios (RCP 2.6, RCP 4.5, and RCP 8.5) for a country or region of interest. At the moment, the workflow is only operational for Belgium, but this will be adjusted soon to incorporate more countries.
+<br>
  
 ## What does the Trias modeling workflow do?
-1.	Automatically generates IAS risk maps using machine learning. 
-Our workflow requires only a species name and generates an ensemble of machine learning algorithms stacked together as a meta-model to produce the final risk map at 1 km2 resolution. Risk maps are generated automatically for standard IPCC greenhouse gas emission scenarios (RCP).  
-2.	Automatically generates confidence maps for each IAS risk map. These illustrate confidence of each individual prediction across your study extent.
+1.	Automatically generates habitat suitability maps using machine learning. 
+Our workflow requires only a species name and generates an ensemble of machine learning algorithms stacked together as a meta-model to produce the final habitat suitability map at 1 km<sup>2</sup> resolution. Maps are generated automatically for standard IPCC greenhouse gas emission scenarios (RCP's 2.6, 4.5, and 8.5).  
+2.	Automatically generates confidence maps for each habitat suitability map. These illustrate confidence of each individual prediction across your study extent.
 3.	Addresses geographic sampling bias
-4.	Incorporates best practices for the placement of pseudo-absences: pseudo absences are placed in the same ecoregions where presences occur. We use the global model to restrict pseudo absences to areas of low predicted suitability. We use the taxonomic occurrence grid (aka bias grid) to not place pseudoabsences in areas of low sampling effort. The taxonomic occurrence grid summarize the sampling effort of the higher taxon ,the modelled species belongs to.
+4.	Incorporates best practices for the placement of pseudo-absences: pseudo absences are placed in the same ecoregions where presences occur. We use the global model to restrict pseudo-absences to areas of low predicted suitability. We use the taxonomic occurrence grid (aka bias grid) to not place pseudoabsences in areas of low sampling effort. The taxonomic occurrence grid summarizes the sampling effort of the higher taxon the modelled species belongs to.
 5.	Detects and removes highly correlated predictors. Highly correlated predictors can have undesirable effects and confuse the interpretation of variable importance
-6.	Integrates multiple machine learning algorithms to predict risk. It has been consistently demonstrated that the choice of algorithm has the largest impact on predicted risk and area of predicted risk.
-7.	Assesses spatial autocorrelation in the residuals to assess the impacts of clustering. If high, thinning can be employed.
-
-
-Inputs required run the workflow:
-1.	Species name or list of species with name and the GBIF taxon Key (as in pra_mammals.csv) 
-2.	Can use the list to retrieve global occurrences for each species using the global_download.Rmd
-3.	Europe level Occurrence Cube -The same list used in "1." can also be used to run the occurrence cube script.
-a.	Only European level cube is needed for workflow, but can generate Belgium only cube to determine if species occurrence meeting modeling criteria
-b.	Can also determine if there is a  minimum number of occurrences; about 100
-4.	Also need species name and GBIF key to input directly into the R script to run risk modeling code. I recommend copying and pasting from this list into R. 
-5.	Predictor data (will be downloadable from Zenodo)
-
-
+6.	Integrates multiple machine learning algorithms to predict habitat suitabilities. It has been consistently demonstrated that the choice of algorithm has the largest impact on predicted suitability.
+7.	Assesses spatial autocorrelation in the residuals to assess the impacts of clustering. If high, we recommend the employment of thinning.
+<br>
 
 ## Contributors
 
 [List of contributors](https://github.com/trias-project/risk-modelling-and-mapping/contributors)
-
+<br>
 ## License
 
 [MIT License](https://github.com/trias-project/risk-modelling-and-mapping/blob/master/LICENSE)
