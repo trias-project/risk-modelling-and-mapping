@@ -1,13 +1,26 @@
 #--------------------------------------------
 #-----------  Load packages  ----------------
 #--------------------------------------------
-packages <- c("curl", "zen4R", "here", "sf", "terra", "rnaturalearth")
+packages <- c("curl", "zen4R", "here", "sf", "terra", "rnaturalearth", "devtools")
 
 for(package in packages) {
   print(package)
   if( ! package %in% rownames(installed.packages()) ) { install.packages( package ) }
   library(package, character.only = TRUE)
 }
+
+
+#--------------------------------------------
+#---  Install and load rnaturalearthhires  --
+#--------------------------------------------
+
+if ("rnaturalearthhires" %in% rownames(installed.packages())) {
+    library(rnaturalearthhires)
+  } else {
+    devtools::install_github("ropensci/rnaturalearthhires")
+    library(rnaturalearthhires)
+  }
+  
 
 
 #--------------------------------------------
