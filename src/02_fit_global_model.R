@@ -455,7 +455,7 @@ with_progress({
     GlobalModelResults<-caret::resamples(global_train)  
     
     # Display accuracy of each model
-    Global.Mod.Accuracy<-caret::summary(GlobalModelResults)
+    Global.Mod.Accuracy<-summary(GlobalModelResults)
     
     #Display correlation among models.
     #Weakly correlated algorithms are persuasive for stacking them in ensemble.

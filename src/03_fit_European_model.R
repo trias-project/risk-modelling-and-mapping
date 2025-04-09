@@ -443,7 +443,7 @@ with_progress({
     #---- Display model evaluation statistics----
     #--------------------------------------------
     EU_ModelResults1<-sapply(names(eu_models), function(x) caret::resamples(eu_models[[x]]),simplify=FALSE)
-    Results.summary<-sapply(names(EU_ModelResults1), function(x) caret::summary(EU_ModelResults1[[x]]),simplify=FALSE)
+    Results.summary<-sapply(names(EU_ModelResults1), function(x) summary(EU_ModelResults1[[x]]),simplify=FALSE)
   
     #show_euModel_correlation
     Model.cor<-sapply(names(eu_models), function(x) caret::modelCor(resamples(eu_models[[x]])),simplify=FALSE)
