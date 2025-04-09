@@ -106,7 +106,7 @@ habitat_stack<-terra::rast(habitat[c(1:5,7)]) #Distance to water (layer 6) has a
 #---------- Define resampling raster -------------
 #-------------------------------------------------
 #Used as a template when global model predictions need to be in same raster format as those for the EU model
-resampling_raster<-rast(here("./data/external/climate/byEEA_finalRCP/belgium_rcps/rcp26/anngdd100.tif"))
+resampling_raster<-terra::rast(here::here("data","external","climate","byEEA_finalRCP","belgium_rcps","rcp26","anngdd100.tif"))
 
 
 #--------------------------------------------
