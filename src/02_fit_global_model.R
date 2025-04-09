@@ -55,11 +55,11 @@ source("./src/helper_functions.R")
 #--------------------------------------------
 #--- Load global occurrences and taxa info---
 #--------------------------------------------
-global<-qread( paste0("./data/projects/",projectname,"/",projectname,"_occurrences.qs"))
+global<-qs::qread( paste0("./data/projects/",projectname,"/",projectname,"_occurrences.qs"))
 taxa_info<-read.csv2(paste0("./data/projects/",projectname,"/",projectname,"_taxa_info.csv"))
 accepted_taxonkeys<-taxa_info%>%
-  pull(speciesKey)%>%
-  unique()
+  dplyr::pull(speciesKey)%>%
+  dplyr::unique()
 
 
 #--------------------------------------------
@@ -132,11 +132,11 @@ rm(global.occ, global)
 
 # Clean coordinates based on their proximity to country centroids, capitals, biodiversity institutions, GBIF headquarters, and the 0/0 point
 cleaned<-global.occ.LL%>%
-  cc_cen(buffer=100) %>% # remove points within a buffer of 100m around country centroids, default 1km
-  cc_cap(buffer=100) %>% # remove capitals centroids (buffer 100m), default 10km
-  cc_inst(buffer=100) %>% # remove zoo and herbaria records buffer of 100 m around biodiversity institutes, default 100m
-  cc_gbif(buffer=100)%>% #remove around GBIF headquarters in Copenhagen (buffer 100m), default 100m
-  cc_zero() #Remove around the 0/0 point (buffer 0.5 degrees)
+  CoordinateCleaner::cc_cen(buffer=100) %>% # remove points within a buffer of 100m around country centroids, default 1km
+  CoordinateCleaner::cc_cap(buffer=100) %>% # remove capitals centroids (buffer 100m), default 10km
+  CoordinateCleaner::cc_inst(buffer=100) %>% # remove zoo and herbaria records buffer of 100 m around biodiversity institutes, default 100m
+  CoordinateCleaner::cc_gbif(buffer=100)%>% #remove around GBIF headquarters in Copenhagen (buffer 100m), default 100m
+  CoordinateCleaner::cc_zero() #Remove around the 0/0 point (buffer 0.5 degrees)
 
 
 #--------------------------------------------
@@ -150,7 +150,7 @@ globalclimpreds_terra <- terra::rast(globalclimrasters)
 #--------Load European climate rasters-------
 #--------------------------------------------
 euclimrasters <- list.files((here("data/external/climate/chelsa_eu_clips")),pattern="\\.tif$",full.names = T)
-eu_climpreds<-rast(euclimrasters)
+eu_climpreds<-terra::rast(euclimrasters)
 eu_climpreds.10<-divide10(eu_climpreds)  # correct for integer format of Chelsa preds
 
 
@@ -161,14 +161,14 @@ eu_climpreds.10<-divide10(eu_climpreds)  # correct for integer format of Chelsa 
 #Mask pixels in the rasterstack where at least one layer has NA
 na_mask_globalclimpreds_terra<- app(globalclimpreds_terra, function(x) any(is.na(x)))
 na_mask_eu_climpreds.10<- app(eu_climpreds.10, function(x) any(is.na(x)))
-globalclimpreds_terra<- mask(globalclimpreds_terra, na_mask_globalclimpreds_terra, maskvalue=1)
-eu_climpreds.10<- mask(eu_climpreds.10, na_mask_eu_climpreds.10, maskvalue=1)
+globalclimpreds_terra<- terra::mask(globalclimpreds_terra, na_mask_globalclimpreds_terra, maskvalue=1)
+eu_climpreds.10<- terra::mask(eu_climpreds.10, na_mask_eu_climpreds.10, maskvalue=1)
 
 
 #--------------------------------------------
 #--------- Load shape of the world ----------
 #--------------------------------------------
-world<-ne_countries(scale=50)
+world<-rnaturalearth::ne_countries(scale=50)
 
 
 #--------------------------------------------
@@ -210,7 +210,7 @@ gc()
 #-------Start loop for SDM modelling --------
 #--------------------------------------------
 with_progress({
-  p <- progressor(along = 1:length(split_df)) 
+  p <- progressr::progressor(along = 1:length(split_df)) 
   for(i in seq_along (split_df)){ 
     
     #--------------------------------------------
@@ -265,7 +265,7 @@ with_progress({
     
     #Convert to sf dataframe
     global.occ.LL.cleaned$species<- rep(1,length(global.occ.LL.cleaned$decimalLongitude)) #adds columns indicating species presence (1) needed for modeling
-    global.occ.sf<-st_as_sf(global.occ.LL.cleaned, coords=c("decimalLongitude", "decimalLatitude"), crs=4326, remove= FALSE)
+    global.occ.sf<-sf::st_as_sf(global.occ.LL.cleaned, coords=c("decimalLongitude", "decimalLatitude"), crs=4326, remove= FALSE)
     
     
     #--------------------------------------------
@@ -337,7 +337,7 @@ with_progress({
     climategrid_rast<-terra::crop(globalclimpreds_terra[[1]], wwf_ecoSub1_ext)
     biasgrid_sub<-terra::mask(biasgrid_sub, climategrid_rast) 
     
-    biasgrid_sub_raster <- raster(biasgrid_sub) #Convert SpatRaster back to normal raster object
+    biasgrid_sub_raster <- raster::raster(biasgrid_sub) #Convert SpatRaster back to normal raster object, needed in function generate_pseudoabs(which is based on dismo::randomPoints)
     
     
     #--------------------------------------------
@@ -360,11 +360,11 @@ with_progress({
     
     #Create alternative raster consisting of only ecoregions without biasgrid mask, used only when not enough pseudoabsence points can be generated using biasgrid_sub as mask layer
     ecoregions_crop<-terra::crop(globalclimpreds_terra[[1]], wwf_ecoSub1_ext) #Crop one of the climate rasters to extent ecoregions
-    ecoregions_raster<-mask(ecoregions_crop,wwf_ecoSub1_vector) #Mask with ecoregions vector
+    ecoregions_raster<-terra::mask(ecoregions_crop,wwf_ecoSub1_vector) #Mask with ecoregions vector
     
     #Generate pseudoabsences
     set.seed(728)
-    global_points <- generate_pseudoabs( mask = biasgrid_sub_raster, alternative_mask = raster(ecoregions_raster) , n = numb.global.pseudoabs, p =  st_drop_geometry(global.occ.sf))
+    global_points <- generate_pseudoabs( mask = biasgrid_sub_raster, alternative_mask = raster::raster(ecoregions_raster) , n = numb.global.pseudoabs, p =  sf::st_drop_geometry(global.occ.sf))
     
     
     #--------------------------------------------
@@ -372,8 +372,8 @@ with_progress({
     #--------------------------------------------
     global_pseudoAbs<-global_points %>%
       as.data.frame()%>%
-      mutate(species = rep(0,length(x)))%>%
-      st_as_sf(coords=c("x", "y"), crs=4326, remove=FALSE)%>%
+      dplyr::mutate(species = rep(0,length(x)))%>%
+      sf::st_as_sf(coords=c("x", "y"), crs=4326, remove=FALSE)%>%
       dplyr::rename(decimalLongitude=x,
                     decimalLatitude=y)
     
@@ -406,17 +406,17 @@ with_progress({
     #--------------------------------------------
     # Identify highly correlated predictors
     correlationMatrix<-cor(global.data.df[,-c(1,2)]) #Calculate pearson correlation among environmental values
-    highlyCorrelated <- findCorrelation(correlationMatrix, cutoff=0.7,exact=TRUE,names=TRUE)#Returns names of environmental variables to be removed because they are correlated more than 0.7 with other variables.  If two variables have a high correlation, the function removes the variable with the largest mean absolute correlation.
+    highlyCorrelated <- caret::findCorrelation(correlationMatrix, cutoff=0.7,exact=TRUE,names=TRUE)#Returns names of environmental variables to be removed because they are correlated more than 0.7 with other variables.  If two variables have a high correlation, the function removes the variable with the largest mean absolute correlation.
     preds<-as.data.frame(highlyCorrelated)
     
     # Remove highly correlated predictors from dataframe 
     global.data.df.subset<- global.data.df %>%
       dplyr::select (-all_of(highlyCorrelated), -rID) %>% 
-      mutate(species = as.factor(species)) %>%
-      mutate(species = recode_factor(species, 
+      dplyr::mutate(species = as.factor(species)) %>%
+      dplyr::mutate(species = recode_factor(species, 
                                      '0' = "absent",
                                      '1' = "present")) %>%  # Later steps require non numeric dependent variable
-      mutate(species = relevel(species, ref = "present")) 
+      dplyr::mutate(species = relevel(species, ref = "present")) 
     
     #Remove them from climate stack
     eu_climpreds.10_selection<-eu_climpreds.10%>%
@@ -452,14 +452,14 @@ with_progress({
     #--Return accurracy, kappa and correlation --
     #--------------------------------------------
     #Return the results for each model
-    GlobalModelResults<-resamples(global_train)  
+    GlobalModelResults<-caret::resamples(global_train)  
     
     # Display accuracy of each model
-    Global.Mod.Accuracy<-summary(GlobalModelResults)
+    Global.Mod.Accuracy<-caret::summary(GlobalModelResults)
     
     #Display correlation among models.
     #Weakly correlated algorithms are persuasive for stacking them in ensemble.
-    Global.Mod.Cor<-modelCor(resamples(global_train))
+    Global.Mod.Cor<-caret::modelCor(resamples(global_train))
    
     
     #--------------------------------------------
@@ -490,13 +490,13 @@ with_progress({
     #--------------------------------------------
     #-- Get variable importance of global model--
     #--------------------------------------------
-    variableImportance_global<-varImp(global_stack)
+    variableImportance_global<-caret::varImp(global_stack)
     
     
     #--------------------------------------------
     #-------- Make predictions for Europe--------
     #--------------------------------------------
-    global_model <- predict(eu_climpreds.10_selection,global_stack,type="prob", na.rm = TRUE) 
+    global_model <- terra::predict(eu_climpreds.10_selection,global_stack,type="prob", na.rm = TRUE) 
     
     
     #--------------------------------------------
@@ -522,7 +522,7 @@ with_progress({
     #Decimallon and decimalLat are converted to x and y, geometry is dropped
     global_presabs<-global_presabs%>%
       dplyr::select(decimalLongitude, decimalLatitude)%>%
-      rename("x"= decimalLongitude,
+      dplyr::rename("x"= decimalLongitude,
              "y"= decimalLatitude)%>%
       sf::st_drop_geometry()
     
@@ -541,7 +541,7 @@ with_progress({
                         model_correlation = Global.Mod.Cor #Correlation between the separate models
     )
     
-    qsave(globalmodels, paste0("./data/projects/",projectname,"/",first_two_words,"_",taxonkey,"/Global_model_",first_two_words,"_",taxonkey,".qs"))
+    qs::qsave(globalmodels, paste0("./data/projects/",projectname,"/",first_two_words,"_",taxonkey,"/Global_model_",first_two_words,"_",taxonkey,".qs"))
     
     
     #--------------------------------------------

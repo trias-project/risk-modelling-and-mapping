@@ -94,12 +94,12 @@ if (nrow(not_accepted)!=0) {
  #Extract taxonkeys of each species, for synonyms the acceptedUsageKey is stored
 accepted_taxonkeys<-mapped_taxa %>%
   dplyr::filter(status =="ACCEPTED")%>%
-  pull(usageKey)
+  dplyr::pull(usageKey)
 
 if(nrow(not_accepted!=0)){
   synonym_taxonkeys<-mapped_taxa %>%
     dplyr::filter(status !="ACCEPTED")%>%
-    pull(acceptedUsageKey)
+    dplyr::pull(acceptedUsageKey)
   
   accepted_taxonkeys<-c(accepted_taxonkeys, synonym_taxonkeys)
 }
@@ -134,7 +134,7 @@ hasCoordinate <- TRUE
 #---------------Perform download-------------
 #--------------------------------------------
 #Note that GBIF credentials are required
-gbif_download_key <- occ_download(
+gbif_download_key <- rgbif::occ_download(
   pred_in("taxonKey", accepted_taxonkeys),
   pred_in("basisOfRecord", basis_of_record),
   pred_gte("year", year_begin),
@@ -145,21 +145,21 @@ gbif_download_key <- occ_download(
   email = rstudioapi::askForPassword("Email address for notification")
 )
 
-occ_download_wait(gbif_download_key)#Check download status
+rgbif::occ_download_wait(gbif_download_key)#Check download status
 
 
 #--------------------------------------------
 #--------------Retrieve download-------------
 #--------------------------------------------
-occ_download_get(gbif_download_key, path = here("data","raw"), overwrite=TRUE)
-metadata <- occ_download_meta(key = gbif_download_key)
+rgbif::occ_download_get(gbif_download_key, path = here::here("data","raw"), overwrite=TRUE)
+metadata <- rgbif::occ_download_meta(key = gbif_download_key)
 gbif_download_key<-metadata$key
 
 #extract_GBIF_occurrence
-raw.path<- here("data", "raw", gbif_download_key)
+raw.path<- here::here("data", "raw", gbif_download_key)
 unzip(paste0(raw.path,".zip"),exdir=raw.path, overwrite=TRUE)
 global<-as.data.frame(data.table::fread(paste0(raw.path,"/occurrence.txt"),header=TRUE))
-global<-select(global, c(speciesKey,species, decimalLatitude, decimalLongitude, kingdom, phylum, class, genus, coordinateUncertaintyInMeters, identificationVerificationStatus))
+global<-dplyr::select(global, c(speciesKey,species, decimalLatitude, decimalLongitude, kingdom, phylum, class, genus, coordinateUncertaintyInMeters, identificationVerificationStatus))
 
 
 #--------------------------------------------
@@ -175,7 +175,7 @@ taxa_info<-data.frame(speciesKey=unique(global$speciesKey),
                       project = project)
 
 #Save occurrence data as .qs file and taxa info as .csv
-qsave(global, paste0("./data/projects/",project,"/",project,"_occurrences.qs"))
+qs::qsave(global, paste0("./data/projects/",project,"/",project,"_occurrences.qs"))
 write.csv2(taxa_info, paste0("./data/projects/",project,"/",project,"_taxa_info.csv"), row.names=FALSE)
 
 

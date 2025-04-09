@@ -63,14 +63,14 @@ source("./src/helper_functions.R")
 #--------------------------------------------
 #---------   Load shape of Europe   ---------
 #--------------------------------------------
-euboundary<-st_read(here("./data/external/GIS/Europe/EUROPE.shp")) 
+euboundary<-sf::st_read(here("./data/external/GIS/Europe/EUROPE.shp")) 
 
 
 #--------------------------------------------
 #-------- Load European habitat rasters -----
 #--------------------------------------------
 habitat<-list.files((here("./data/external/habitat")),pattern='tif',full.names = T)
-habitat_stack<-rast(habitat[c(1:5,7)]) #Distance to water (layer 6) has another extent and we're not sure if this layer is correct: leave it out
+habitat_stack<-terra::rast(habitat[c(1:5,7)]) #Distance to water (layer 6) has another extent and we're not sure if this layer is correct: leave it out
 
 
 #--------------------------------------------
@@ -78,8 +78,8 @@ habitat_stack<-rast(habitat[c(1:5,7)]) #Distance to water (layer 6) has another 
 #--------------------------------------------
 rmiclimrasters <- list.files((here("./data/external/climate/rmi_corrected")),pattern='tif',full.names = T) 
 rmiclimrasters 
-rmiclimpreds<-rast(rmiclimrasters) 
-rmiclimpreds<-crop(rmiclimpreds, ext(habitat_stack))
+rmiclimpreds<-terra::rast(rmiclimrasters) 
+rmiclimpreds<-terra::crop(rmiclimpreds, ext(habitat_stack))
 
 
 #---------------------------------------------
@@ -89,12 +89,12 @@ rmiclimpreds<-crop(rmiclimpreds, ext(habitat_stack))
 #First mask pixels in the rasterstack where at least one layer has NA
 na_mask_rmiclimpreds <- app(rmiclimpreds, function(x) any(is.na(x)))
 na_mask_habitat_stack<- app(habitat_stack, function(x) any(is.na(x)))
-rmiclimpreds<- mask(rmiclimpreds, na_mask_rmiclimpreds, maskvalue=1)
-habitat_stack<- mask(habitat_stack, na_mask_habitat_stack, maskvalue=1)
+rmiclimpreds<- terra::mask(rmiclimpreds, na_mask_rmiclimpreds, maskvalue=1)
+habitat_stack<- terra::mask(habitat_stack, na_mask_habitat_stack, maskvalue=1)
 
 #Second mask rmiclimpreds with habitat_stack and vice versa
-rmiclimpreds<-mask(rmiclimpreds, habitat_stack[[1]])
-habitat_stack<-mask(habitat_stack, rmiclimpreds[[1]])
+rmiclimpreds<-terra::mask(rmiclimpreds, habitat_stack[[1]])
+habitat_stack<-terra::mask(habitat_stack, rmiclimpreds[[1]])
 
 
 #--------------------------------------------
@@ -102,7 +102,7 @@ habitat_stack<-mask(habitat_stack, rmiclimpreds[[1]])
 #--------------------------------------------
 taxa_info<-read.csv2(paste0("./data/projects/",projectname,"/",projectname,"_taxa_info.csv"))
 accepted_taxonkeys<-taxa_info%>%
-  pull(speciesKey)%>%
+  dplyr::pull(speciesKey)%>%
   unique()
 
 
@@ -111,7 +111,7 @@ accepted_taxonkeys<-taxa_info%>%
 #--------------------------------------------
 
 with_progress({
-    p <- progressor(along = 1:length(accepted_taxonkeys)) 
+    p <- progressr::progressor(along = 1:length(accepted_taxonkeys)) 
   for(key in accepted_taxonkeys){ #Approx. 13 min per species
     
     #--------------------------------------------
@@ -124,8 +124,8 @@ with_progress({
     #--------------------------------------------
     #Extract species name
     species<-taxa_info%>%
-      filter(speciesKey==key)%>%
-      pull(acceptedScientificName)%>%
+      dplyr::filter(speciesKey==key)%>%
+      dplyr::pull(acceptedScientificName)%>%
       unique()
     
     #Extract first two words of species name
@@ -153,7 +153,7 @@ with_progress({
     if(file.exists(global_model_file)){
       
       #This was stored as part of  script 02_fit_global_model
-      globalmodels<-qread( paste0("./data/projects/",projectname,"/",first_two_words,"_",taxonkey,"/Global_model_",first_two_words,"_",taxonkey,".qs"))
+      globalmodels<-qs::qread( paste0("./data/projects/",projectname,"/",first_two_words,"_",taxonkey,"/Global_model_",first_two_words,"_",taxonkey,".qs"))
       
       #Extract different data objects stored in globalmodels
       global.occ.sf<-globalmodels$occurrences
@@ -209,16 +209,16 @@ with_progress({
     #----- Create subset of European records -------
     #-----------------------------------------------
     #Check for occurrences that fall within Europe
-    eu_occ <- global.occ.sf[st_intersects(global.occ.sf, euboundary, sparse = FALSE), ] %>%
+    eu_occ <- global.occ.sf[sf::st_intersects(global.occ.sf, euboundary, sparse = FALSE), ] %>%
       dplyr::select(decimalLatitude, decimalLongitude, species) %>%
       dplyr::filter(!is.na(decimalLatitude))%>%
       sf::st_transform(crs=st_crs(rmiclimpreds)) 
     
     # Convert to crs of rmiclimpreds
     eu_occ<-eu_occ%>%
-      st_coordinates()%>%
+      sf::st_coordinates()%>%
       cbind(., eu_occ)%>%
-      select(-c(decimalLatitude, decimalLongitude))
+      dplyr::select(-c(decimalLatitude, decimalLongitude))
     
     #Only keep occurrences in pixels that have predictor data (not NA's)
     extracted_value <- terra::extract(rmiclimpreds[[1]], vect(eu_occ))
@@ -227,7 +227,7 @@ with_progress({
     
     # Keep XY coordinates
     euocc<-eu_occ%>%
-      st_coordinates()
+      sf::st_coordinates()
     
     
     #------------------------------------------------
@@ -254,7 +254,7 @@ with_progress({
     #----- Clip biasgrid to European extent -----
     #--------------------------------------------
     ecoregions_eu<-terra::crop(biasgrid_sub, euboundary)
-    biasgrid_eu <- project(ecoregions_eu, rmiclimpreds) #reproject the ecoregions raster to match the spatial properties of rmi climpreds
+    biasgrid_eu <- terra::project(ecoregions_eu, rmiclimpreds) #reproject the ecoregions raster to match the spatial properties of rmi climpreds
     
     
     #--------------------------------------------
@@ -275,8 +275,8 @@ with_progress({
     m<- global_model >= model_accuracy$threshold
     
     #Mask the global_model layer with this occurrence layer (i.e., only keep pixels where absences are predicted, rest becomes NA)
-    global_mask<-mask(global_model,m,maskvalue=TRUE)
-    global_masked_proj<-project(global_mask,biasgrid_eu)
+    global_mask<-terra::mask(global_model,m,maskvalue=TRUE)
+    global_masked_proj<-terra::project(global_mask,biasgrid_eu)
     
     #New: mask with one of the environmental layers to make sure no pseudoabsences are generated outside the environmental layers
     global_masked_proj<-terra::mask(global_masked_proj, rmiclimpreds[[1]]) 
@@ -286,7 +286,7 @@ with_progress({
     #--Create sampling area for pseudoabsences --
     #--------------------------------------------
     # Combine areas of low predicted habitat suitability with bias grid to exclude pixels with no sampling effort or falling outside ecoregions with global occurrences! (NA in biasgrid_eu)
-    pseudoSamplingArea<-mask(global_masked_proj,biasgrid_eu)
+    pseudoSamplingArea<-terra::mask(global_masked_proj,biasgrid_eu)
     
     
     #--------------------------------------------
@@ -349,7 +349,7 @@ with_progress({
     
     #Calculate the mean correlation over the 10 datsets and identify highly correlated variables
     mean_correlation_matrix <- Reduce("+", highlyCorrelated_climate) / length(highlyCorrelated_climate)
-    drop_climate<-findCorrelation(as.matrix(mean_correlation_matrix), cutoff=0.7,exact=TRUE,names=TRUE)
+    drop_climate<-caret::findCorrelation(as.matrix(mean_correlation_matrix), cutoff=0.7,exact=TRUE,names=TRUE)
     
     #Only keep layers that are not highly correlated
     rmiclimpreds_uncor <- subset(rmiclimpreds, !(names(rmiclimpreds) %in% drop_climate))
@@ -365,14 +365,14 @@ with_progress({
     #-----------------------------------------------------------
     #- Extract predictor values for presences and pseudoabsences
     #-----------------------------------------------------------
-    occ.full.data <-lapply(eu_presabs.coord, function(x) extract(fullstack,x, ID=FALSE))
+    occ.full.data <-lapply(eu_presabs.coord, function(x) terra::extract(fullstack,x, ID=FALSE))
 
     
     #--------------------------------------------
     #--- Remove highly correlated predictors ----
     #--------------------------------------------
     # find attributes that are highly correlated in at least one of the models and remove them from all
-    highlyCorrelated_full <-lapply(names(occ.full.data),function(x) findCorrelation(cor(occ.full.data[[x]],use = 'complete.obs'), cutoff=0.7,exact=TRUE,names=TRUE))
+    highlyCorrelated_full <-lapply(names(occ.full.data),function(x) caret::findCorrelation(cor(occ.full.data[[x]],use = 'complete.obs'), cutoff=0.7,exact=TRUE,names=TRUE))
     highlyCorrelated_vec<-unique(unlist(highlyCorrelated_full))
     
     #highlyCorrelated_full <-lapply(occ.full.data, function(df) as.data.frame(cor(df, use = "complete.obs")))
@@ -418,20 +418,20 @@ with_progress({
     #--------------------------------------------
     #- Run models with climate and habitat data -
     #--------------------------------------------
-    control <- trainControl(method="cv",
+    control <- caret::trainControl(method="cv",
                               number=4,
                               savePredictions="final", 
                               preProc=c("center","scale"),
                               classProbs=TRUE)
    
     mylist<-list(
-      glm =caretModelSpec(method = "glm",maxit=100),
-      gbm= caretModelSpec(method = "gbm"),
-      rf = caretModelSpec(method = "rf", importance = TRUE),
-      earth= caretModelSpec(method = "earth"))
+      glm =caretEnsemble::caretModelSpec(method = "glm",maxit=100),
+      gbm= caretEnsemble::caretModelSpec(method = "gbm"),
+      rf = caretEnsemble::caretModelSpec(method = "rf", importance = TRUE),
+      earth= caretEnsemble::caretModelSpec(method = "earth"))
     
     set.seed(167)
-    eu_models<-sapply(names(occ.full.data.forCaret), function(x) model_train_habitat <- caretList(
+    eu_models<-sapply(names(occ.full.data.forCaret), function(x) model_train_habitat <- caretEnsemble::caretList(
       occ~., 
       data= occ.full.data.forCaret[[x]],
       trControl=control,
@@ -442,24 +442,24 @@ with_progress({
     #--------------------------------------------
     #---- Display model evaluation statistics----
     #--------------------------------------------
-    EU_ModelResults1<-sapply(names(eu_models), function(x) resamples(eu_models[[x]]),simplify=FALSE)
-    Results.summary<-sapply(names(EU_ModelResults1), function(x) summary(EU_ModelResults1[[x]]),simplify=FALSE)
+    EU_ModelResults1<-sapply(names(eu_models), function(x) caret::resamples(eu_models[[x]]),simplify=FALSE)
+    Results.summary<-sapply(names(EU_ModelResults1), function(x) caret::summary(EU_ModelResults1[[x]]),simplify=FALSE)
   
     #show_euModel_correlation
-    Model.cor<-sapply(names(eu_models), function(x) modelCor(resamples(eu_models[[x]])),simplify=FALSE)
+    Model.cor<-sapply(names(eu_models), function(x) caret::modelCor(resamples(eu_models[[x]])),simplify=FALSE)
  
     
     #--------------------------------------------
     #---------- Create ensemble model -----------
     #--------------------------------------------
     #9 folds (e.g., 90 records) will be used for training, and 1 fold (e.g., 10 records) will be used for validation.
-    control <- trainControl(method="cv",
+    control <- caret::trainControl(method="cv",
                               number=10,
                               savePredictions="final", 
                               classProbs=TRUE)
     
     set.seed(458)
-    lm_ens_hab<-sapply(names(eu_models), function (x) caretEnsemble(eu_models[[x]],trControl= control), simplify=FALSE)
+    lm_ens_hab<-sapply(names(eu_models), function (x) caretEnsemble::caretEnsemble(eu_models[[x]],trControl= control), simplify=FALSE)
     
     
     #--------------------------------------------
@@ -480,15 +480,15 @@ with_progress({
     #--------------------------------------------
     # select best model based on highest PCC, and, in case there are multiple rows with the same PCC, the highest AUC
     bestmodelname <- thresholds.comb %>%
-      filter(PCC == max(PCC)) %>%      
-      slice_max(AUC, n = 1)%>%
+      dplyr::filter(PCC == max(PCC)) %>%      
+      dplyr::slice_max(AUC, n = 1)%>%
       rownames()
     
     bestModel<-lm_ens_hab[[bestmodelname]]
   
     #Get performance of best model
     model_performance<-thresholds.comb%>%
-      filter(rownames(.) == bestmodelname)
+      dplyr::filter(rownames(.) == bestmodelname)
     
     #Get correlation between separate models of best model
     Model.cor<-Model.cor[[bestmodelname]]
@@ -511,14 +511,14 @@ with_progress({
     #--------------------------------------------
     #- Create sf df with occurrences for plotting -
     #--------------------------------------------
-    euocc1<-st_as_sf(as.data.frame(euocc), coords=c("X","Y"),crs=st_crs(rmiclimpreds))
+    euocc1<-sf::st_as_sf(as.data.frame(euocc), coords=c("X","Y"),crs=st_crs(rmiclimpreds))
   
     
     #--------------------------------------------
     #- Export Eu predictions as raster and PDF --
     #-------------------------------------------
     #---------------Export raster-------------
-    writeRaster(ens_pred_hab_eu1,
+    terra::writeRaster(ens_pred_hab_eu1,
                 filename=file.path(raster_EU_folder,paste(first_two_words,"_",taxonkey,"_hist_EU.tif",sep="")),
                 overwrite=TRUE)
     
@@ -546,8 +546,8 @@ with_progress({
     #- Store layers used to create best model for country
     #--------------------------------------------
     # create a rasterstack for Belgium in this case
-    fullstack_crop<-crop(fullstack,country_ext)
-    fullstack_be<-mask(fullstack_crop,country_vector)
+    fullstack_crop<-terra::crop(fullstack,country_ext)
+    fullstack_be<-terra::mask(fullstack_crop,country_vector)
     
     
     #--------------------------------------------
@@ -564,7 +564,7 @@ with_progress({
     )
    
     #Save eumodel as .qs file
-    qsave(eumodel, paste0("./data/projects/",projectname,"/",first_two_words,"_",taxonkey,"/EU_model_",first_two_words,"_",taxonkey,".qs")) 
+    qs::qsave(eumodel, paste0("./data/projects/",projectname,"/",first_two_words,"_",taxonkey,"/EU_model_",first_two_words,"_",taxonkey,".qs")) 
     
     
     #--------------------------------------------

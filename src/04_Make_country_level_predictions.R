@@ -86,7 +86,7 @@ belgium_vector <- terra::vect(belgium) #Convert to a SpatVector, used for maskin
 #--------------------------------------------
 taxa_info<-read.csv2(paste0("./data/projects/",projectname,"/",projectname,"_taxa_info.csv"))
 accepted_taxonkeys<-taxa_info%>%
-  pull(speciesKey)%>%
+  dplyr::pull(speciesKey)%>%
   unique()
 
 
@@ -95,7 +95,7 @@ accepted_taxonkeys<-taxa_info%>%
 #-------------------------------------------------
 #ONE LAYER HAS A SLIGHTLY DIFFERENT EXTENT: CUT ALL OTHERS TO THIS EXTENT
 habitat<-list.files((here("./data/external/habitat")),pattern='tif',full.names = T)
-habitat_stack<-rast(habitat[c(1:5,7)]) #Distance to water (layer 6) has another extent and we're not sure whether it is correct: leave it out!
+habitat_stack<-terra::rast(habitat[c(1:5,7)]) #Distance to water (layer 6) has another extent and we're not sure whether it is correct: leave it out!
 #habitat_stack2<-rast(habitat[6])
 
 #habitat_stack1<-crop(habitat_stack1, ext(habitat_stack2))
@@ -119,8 +119,8 @@ source("./src/helper_functions.R")
 #------ Create start df for model info-------
 #--------------------------------------------
 model_info<-taxa_info%>%
-  select(speciesKey, acceptedScientificName)%>%
-  mutate(Final_model=NA,
+  dplyr::select(speciesKey, acceptedScientificName)%>%
+  dplyr::mutate(Final_model=NA,
          n_presences = NA,
          Threshold= NA,
          Specificity=NA,
@@ -142,7 +142,7 @@ model_info<-taxa_info%>%
 #-----------  Start loop   ------------------
 #--------------------------------------------
 with_progress({
-  p <- progressor(along = 1:length(accepted_taxonkeys)) 
+  p <- progressr::progressor(along = 1:length(accepted_taxonkeys)) 
 for(key in accepted_taxonkeys){
   
   p()
@@ -150,8 +150,8 @@ for(key in accepted_taxonkeys){
   #-------  Extract species data   ------------
   #--------------------------------------------
   species<-taxa_info%>%
-    filter(speciesKey==key)%>%
-    pull(acceptedScientificName)%>%
+    dplyr::filter(speciesKey==key)%>%
+    dplyr::pull(acceptedScientificName)%>%
     unique()
   
   #Extract first two words of species name 
@@ -210,9 +210,9 @@ for(key in accepted_taxonkeys){
   if(file.exists(eu_model_file)){
     
     #-------Read in eu model object that was stored as part of  script 03_fit_European_model and load data-------
-    eumodel<-qread(eu_model_file)
+    eumodel<-qs::qread(eu_model_file)
     euocc<-eumodel$euocc1
-    bestModel<-unwrap(eumodel$bestModel)
+    bestModel<-terra::unwrap(eumodel$bestModel)
     eu_presabs.coord<-eumodel$eu_presabs.coord
     occ.full.data.forCaret<-eumodel$occ.full.data.forCaret
     model_correlation<-eumodel$model_correlation
@@ -225,8 +225,8 @@ for(key in accepted_taxonkeys){
     fullstack_be_file<- file.path(raster_folder,"Interim", paste0("Fullstack_be_",first_two_words,"_",taxonkey,".tif"))
     
     #Load files
-    fullstack_be<-rast(fullstack_be_file)
-    ens_pred_hab_eu1<-rast(EU_predictions_file)
+    fullstack_be<-terra::rast(fullstack_be_file)
+    ens_pred_hab_eu1<-terra::rast(EU_predictions_file)
     
     #-----------Print statement----------
     print(paste("Using EU model for species",first_two_words))
@@ -236,7 +236,7 @@ for(key in accepted_taxonkeys){
     warning(paste0("Using global model for ", species, " because no EU model could be fitted"))
     
     #---------Read in global model object that was stored as part of  script 02_fit_global_model and load data----------
-    globalmodels<-qread(global_model_file)
+    globalmodels<-qs::qread(global_model_file)
     euocc<-globalmodels$occurrences
     bestModel<-globalmodels$global_ensemble_model
     eu_presabs.coord<-globalmodels$global_presabs
@@ -253,13 +253,13 @@ for(key in accepted_taxonkeys){
     
     #Load and process rasters (no need to add habitat stack as these were not used in global model)
     #I decided to not project the data to the crs of country as the model has been fitted on WGS84 and reprojecting can create tiny changes in the pixel values
-    ens_pred_hab_eu1<-rast(global_predictions)
+    ens_pred_hab_eu1<-terra::rast(global_predictions)
     
-    fullstack_be<-rast(eu_climpreds10_file)%>%
+    fullstack_be<-terra::rast(eu_climpreds10_file)%>%
       #project(crs(country))%>%
       #resample( habitat_stack, method="bilinear")%>% #Make sure the climatic layers have the same resolution (1000 1000)and align with the habitat stack layer or the climatic layers used for the eu model (interpolation)
-      crop(belgium_ext)%>%
-      mask(belgium_vector)
+      terra::crop(belgium_ext)%>%
+      terra::mask(belgium_vector)
     
     #---------------Print statement-----------
     print(paste("Using global model for species",first_two_words))
@@ -346,38 +346,38 @@ for(key in accepted_taxonkeys){
   
   
   #-Create individual RCP climate raster stacks for country --
-  be26 <- list.files((here("./data/external/climate/byEEA_finalRCP/belgium_rcps/rcp26")),pattern='tif',full.names = T)
-  belgium_stack26 <- rast(be26)
+  be26 <- list.files((here::here("./data/external/climate/byEEA_finalRCP/belgium_rcps/rcp26")),pattern='tif',full.names = T)
+  belgium_stack26 <- terra::rast(be26)
   
-  be45 <- list.files((here("./data/external/climate/byEEA_finalRCP/belgium_rcps/rcp45")),pattern='tif',full.names = T)
-  belgium_stack45 <- rast(be45)
+  be45 <- list.files((here::here("./data/external/climate/byEEA_finalRCP/belgium_rcps/rcp45")),pattern='tif',full.names = T)
+  belgium_stack45 <- terra::rast(be45)
   
-  be85 <- list.files((here("./data/external/climate/byEEA_finalRCP/belgium_rcps/rcp85")),pattern='tif',full.names = T)
-  belgium_stack85 <- rast(be85)
+  be85 <- list.files((here::here("./data/external/climate/byEEA_finalRCP/belgium_rcps/rcp85")),pattern='tif',full.names = T)
+  belgium_stack85 <- terra::rast(be85)
   
   
   #-Combine habitat stacks with climate stacks for each RCP scenario --
   fullstack26_list <- list(belgium_stack26,habitat_only_stack_be)
-  fullstack26 <- rast(fullstack26_list) 
+  fullstack26 <- terra::rast(fullstack26_list) 
   
   fullstack45_list <- list(belgium_stack45,habitat_only_stack_be)
-  fullstack45 <- rast(fullstack45_list) 
+  fullstack45 <- terra::rast(fullstack45_list) 
   
   fullstack85_list <- list(belgium_stack85,habitat_only_stack_be)
-  fullstack85 <- rast(fullstack85_list) 
+  fullstack85 <- terra::rast(fullstack85_list) 
   
   
   }else if(file.exists(global_model_file)){
     
     #-Only use future climate layers--
     be26 <- list.files((here("./data/external/climate/Global_finalRCP/belgium_rcps/rcp26")),pattern='tif',full.names = T)
-    fullstack26 <- rast(be26)
+    fullstack26 <- terra::rast(be26)
     
     be45 <- list.files((here("./data/external/climate/Global_finalRCP/belgium_rcps/rcp45")),pattern='tif',full.names = T)
-    fullstack45 <- rast(be45)
+    fullstack45 <- terra::rast(be45)
     
     be85 <- list.files((here("./data/external/climate/Global_finalRCP/belgium_rcps/rcp85")),pattern='tif',full.names = T)
-    fullstack85 <- rast(be85)
+    fullstack85 <- terra::rast(be85)
     
   }
   
@@ -424,8 +424,8 @@ for(key in accepted_taxonkeys){
       
       #Resample
       predictions_to_export<-predictions%>%
-        project(crs(country))%>%
-        resample(resampling_raster, method="bilinear") #Make sure the climatic layers have the same resolution (1000 1000)and align with the habitat stack layer or the climatic layers used for the eu model (interpolation)
+        terra::project(crs(country))%>%
+        terra::resample(resampling_raster, method="bilinear") #Make sure the climatic layers have the same resolution (1000 1000)and align with the habitat stack layer or the climatic layers used for the eu model (interpolation)
       
     }else{
       predictions_to_export<-predictions
@@ -527,8 +527,8 @@ for(key in accepted_taxonkeys){
     if( Final_model=="Global model"){
       #Resample
       pred_diff_to_export<-pred_diff%>%
-        project(crs(country))%>%
-        resample(resampling_raster, method="bilinear") #Make sure the climatic layers have the same resolution (1000 1000)and align with the habitat stack layer or the climatic layers used for the eu model (interpolation)
+        terra::project(crs(country))%>%
+        terra::resample(resampling_raster, method="bilinear") #Make sure the climatic layers have the same resolution (1000 1000)and align with the habitat stack layer or the climatic layers used for the eu model (interpolation)
       
     }else{
       pred_diff_to_export<-pred_diff
@@ -538,7 +538,7 @@ for(key in accepted_taxonkeys){
     #Export raster
     raster_file<-paste(first_two_words, "_", taxonkey, "_", scenario, "_hist_diff_", country_name, ".tif", sep="")
     
-    writeRaster(pred_diff_to_export,
+    terra::writeRaster(pred_diff_to_export,
                 filename=file.path(raster_country_folder, raster_file),
                 overwrite=TRUE)
     
@@ -595,7 +595,7 @@ for(key in accepted_taxonkeys){
     occ.dists <- as.matrix(dist(res.best.df[1:2]))
     occ.dists.inv <- 1/occ.dists
     diag(occ.dists.inv) <- 0
-    autocor_result<-Moran.I(res.best.df$hab.res,occ.dists.inv,scaled=TRUE,alternative="greater") #‘greater’ evaluates whether the data exhibit more spatial autocorrelation than expected
+    autocor_result<-ape::Moran.I(res.best.df$hab.res,occ.dists.inv,scaled=TRUE,alternative="greater") #‘greater’ evaluates whether the data exhibit more spatial autocorrelation than expected
     MoransI_method<-"Original (ape)"
     observedmoransI<-autocor_result$observed #Observed Moran's I
     pvalue_moransI<-autocor_result$p.value # p-value
@@ -603,7 +603,7 @@ for(key in accepted_taxonkeys){
   }else{
     ##ALTERNATIVE CODE from: https://github.com/mcooper/moranfast
     #Note that it calculates it a bit differently from the code in ape
-    autocor_result<-moranfast(res.best.df$hab.res, res.best.df$x, res.best.df$y, alternative="greater")
+    autocor_result<-moranfast::moranfast(res.best.df$hab.res, res.best.df$x, res.best.df$y, alternative="greater")
     observedmoransI<-autocor_result$observed #Observed Moran's I
     pvalue_moransI<-autocor_result$p.value # p-value
     MoransI_method<-"C++ alternative (moranfast)"
@@ -651,16 +651,16 @@ for(key in accepted_taxonkeys){
   cutoff<-0.70
   
   m1<-hist.conf.map < cutoff
-  hist_masked<-mask(pred_list$historical$model,m1,maskvalue=TRUE)
+  hist_masked<-terra::mask(pred_list$historical$model,m1,maskvalue=TRUE)
   
   m2<-rcp26.conf.map < cutoff
-  rcp26_masked<-mask(pred_list$rcp26$model,m2,maskvalue=TRUE)
+  rcp26_masked<-terra::mask(pred_list$rcp26$model,m2,maskvalue=TRUE)
   
   m3<-rcp45.conf.map < cutoff
-  rcp45_masked<-mask(pred_list$rcp45$model,m3,maskvalue=TRUE)
+  rcp45_masked<-terra::mask(pred_list$rcp45$model,m3,maskvalue=TRUE)
   
   m4<-rcp85.conf.map < cutoff
-  rcp85_masked<-mask(pred_list$rcp85$model,m4,maskvalue=TRUE)
+  rcp85_masked<-terra::mask(pred_list$rcp85$model,m4,maskvalue=TRUE)
   
   
   #-----------------------------------------------------------------------------
@@ -689,14 +689,14 @@ for(key in accepted_taxonkeys){
     #Reproject predictions if the global model was used
     if( Final_model=="Global model"){
       masked_confidencemap<- masked_confidencemap%>%
-        project(crs(country))%>%
-        resample(resampling_raster, method="bilinear") #Make sure the climatic layers have the same resolution (1000 1000)and align with the habitat stack layer or the climatic layers used for the eu model (interpolation)
+        terra::project(terra::crs(country))%>%
+        terra::resample(resampling_raster, method="bilinear") #Make sure the climatic layers have the same resolution (1000 1000)and align with the habitat stack layer or the climatic layers used for the eu model (interpolation)
       
     }
     
     #export raster
     raster_file<-paste(first_two_words, "_", taxonkey, "_", scenario, "_",cutoff,"_masked_predictions_", country_name, ".tif", sep="")
-    writeRaster(masked_confidencemap,
+    terra::writeRaster(masked_confidencemap,
                 filename=file.path(raster_country_folder, raster_file),
                 overwrite=TRUE)
     

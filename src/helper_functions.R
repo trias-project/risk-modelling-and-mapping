@@ -34,13 +34,14 @@ add.occ<-function(x,y){
   cbind(x,occ)
 }
 
+
 #-----------------------------------------------------------------------------------
 #Function to return threshold where sens=spec from caret results 
 #-----------------------------------------------------------------------------------
 findThresh<-function(df){
   df<-df[c("rowIndex","obs","present")]
   df<-df %>%
-    mutate(observed= ifelse(obs == "present",1,0)) %>%
+    dplyr::mutate(observed= ifelse(obs == "present",1,0)) %>%
     dplyr::select(rowIndex,observed,predicted=present)
   result<-PresenceAbsence::optimal.thresholds(df,opt.methods = 2)
   return(result)
@@ -53,7 +54,7 @@ findThresh<-function(df){
 accuracyStats<-function(df,y){
   df<-df[c("rowIndex","obs","present")]
   df<-df %>%
-    mutate(observed= ifelse(obs == "present",1,0)) %>%
+    dplyr::mutate(observed= ifelse(obs == "present",1,0)) %>%
     dplyr::select(rowIndex,observed,predicted=present)
   result<-PresenceAbsence::presence.absence.accuracy(df,threshold = y,st.dev=FALSE)
   return(result)
@@ -77,7 +78,7 @@ predict_large_raster<-function(rasterstack, model, type) {
   ncores<-min(4, availableCores()-2)  #Set up number of cores
   
   if(class(rasterstack)!="SpatRaster"){
-    raster_terra<-rast(rasterstack)  #Convert raster to terra raster format if not already
+    raster_terra<-terra::rast(rasterstack)  #Convert raster to terra raster format if not already
   }else{
     raster_terra<-rasterstack
   }
@@ -90,7 +91,7 @@ predict_large_raster<-function(rasterstack, model, type) {
   # Extract raster chunks and put raster chunks in list
   r_list<- vector(mode = "list", length = ncores)
   for (core in 1:ncores) {
-    r_list[[core]]<- wrap(raster_terra[min(chunk_indices[[core]]):max(chunk_indices[[core]]), ,drop=FALSE])
+    r_list[[core]]<- terra::wrap(raster_terra[min(chunk_indices[[core]]):max(chunk_indices[[core]]), ,drop=FALSE])
   } #SpatRasters need to be wrapped before sending out to different cores
   
   # Save model to disk if it’s large
@@ -100,17 +101,17 @@ predict_large_raster<-function(rasterstack, model, type) {
   
   out_list <- future_lapply(r_list,  function(chunk) {
     model <- readRDS("model.rds")  # Load model from disk
-    unwrapped_raster <- unwrap(chunk)  # Unwrap raster for processing
-    predicted_raster <- predict(unwrapped_raster, model, type = type, na.rm = TRUE)
+    unwrapped_raster <- terra::unwrap(chunk)  # Unwrap raster for processing
+    predicted_raster <- terra::predict(unwrapped_raster, model, type = type, na.rm = TRUE)
     rm(unwrapped_raster)
-    wrap(predicted_raster)  # Wrap the raster again
+    terra::wrap(predicted_raster)  # Wrap the raster again
   }, future.seed = TRUE)
   
   
   plan(strategy = "sequential")   #Close parallel processing
   file.remove("model.rds")
   rm(r_list) #Remove large objects we don't need anymore
-  out_list<- lapply(out_list, unwrap) #unwrap chunks
+  out_list<- lapply(out_list, terra::unwrap) #unwrap chunks
   gc() # Clean up memory after processing
   model_parallel<- do.call(terra::merge, out_list)  # Merge the chunks 
   rm(out_list) #Remove large objects we don't need anymore
@@ -129,7 +130,7 @@ exportPNG<-function(rst,taxonkey,taxonName,nameextension,is.diff="FALSE"){
   par(bty="n")#to turn off box around plot
   ifelse(is.diff=="TRUE", brks<-seq(-1, 1, by=0.25), brks <- seq(0, 1, by=0.1)) 
   nb <- length(brks)-1 
-  pal <- colorRampPalette(rev(brewer.pal(11, 'Spectral')))
+  pal <- grDevices::colorRampPalette(rev(brewer.pal(11, 'Spectral')))
   cols<-pal(nb)
   maintitle<-paste(taxonName,taxonkey,"_",nameextension, sep= " ")
   plot(rst, breaks=brks, col=cols,main=maintitle, lab.breaks=brks,axes=FALSE)
@@ -148,7 +149,7 @@ generate_pseudoabs <- function(index = NULL,mask, alternative_mask, n, p) {
   for (tryf in tryf_values) {
     # Generate random points
     suppressWarnings(pseudoabs <- as.data.frame(
-      randomPoints(
+      dismo::randomPoints(
         current_raster, 
         n, 
         p, 
@@ -180,7 +181,7 @@ generate_pseudoabs <- function(index = NULL,mask, alternative_mask, n, p) {
   
   for (tryf in tryf_values) {
     pseudoabs <- as.data.frame(
-      randomPoints(
+      dismo::randomPoints(
         current_raster, 
         n, 
         p, 
@@ -291,12 +292,12 @@ exportPDF <- function(predictions=NULL,taxonName, nameExtension,taxonNameTitle, 
   if(!providePNG){
   
   #Get extent
-  exten<-as.vector(ext(predictions))
+  exten<-as.vector(terra::ext(predictions))
     
   #Settings for plot
   ifelse(dataType=="Diff", brks<-seq(-1, 1, by=0.25), brks <- seq(0, 1, by=0.1))
   nb <- length(brks) - 1
-  viridis_palette <- viridis(nb)
+  viridis_palette <- viridis::viridis(nb)
   
   #Create plot
   country_plot<-ggplot() + 
@@ -349,18 +350,18 @@ exportPDF <- function(predictions=NULL,taxonName, nameExtension,taxonNameTitle, 
   plot_final<-country_plot /empty_plot 
   
   # Save plot as a PNG file
-  ggsave(filename = PNG_file, plot = plot_final, 
+  ggplot2::ggsave(filename = PNG_file, plot = plot_final, 
          device = "png", width =8.27 , height = 11.69, path= PNG_folder_path)
   
    }else{
      plot_final=PNGprovided
      # Save plot as a PDF file
-     ggsave(filename = PNG_file, plot = plot_final, 
+     ggplot2::ggsave(filename = PNG_file, plot = plot_final, 
             device = "png", width =8.27 , height = 11.69, path= PNG_folder_path)
    }
   
   # Read the PNG image back in
-  img <- image_read(plot_png_path)
+  img <- magick::image_read(plot_png_path)
   
   # Start a PDF device for output
   pdf(plot_pdf_path, width = 8.27, height = 11.69)
@@ -375,7 +376,7 @@ exportPDF <- function(predictions=NULL,taxonName, nameExtension,taxonNameTitle, 
   )
   
   # Add the PNG image below the title
-    grid.raster(img, width = unit(0.9, "npc"), height = unit(0.9, "npc"), y = 0.47)
+    grid::grid.raster(img, width = unit(0.9, "npc"), height = unit(0.9, "npc"), y = 0.47)
 
   # Close the PDF device
   while (dev.cur() > 1) dev.off()
@@ -496,13 +497,13 @@ classConformalPrediction<-function(x,y){
   
   # Filter and extract calibration data for presence and absence
   calibPresence<-ens_calib %>%
-    filter(obs=='present')%>%
-    select(present)
+    dplyr::filter(obs=='present')%>%
+    dplyr::select(present)
   calibPresence<-unname(unlist(calibPresence[c("present")]))
   
   calibAbsence<-ens_calib %>%
-    filter(obs=='absent')%>%
-    select(absent)
+    dplyr::filter(obs=='absent')%>%
+    dplyr::select(absent)
   calibAbsence<-unname(unlist(calibAbsence[c("absent")]))
   
   #Extract predicted values
@@ -539,16 +540,16 @@ classConformalPrediction<-function(x,y){
 confidenceMaps<-function(x,original_raster,taxonName, taxonNameTitle, nameExtension, taxonKey ,scenario, regionName, scenarioTitle, dataType, folder, GlobalModel=FALSE, resampling_rast=NULL, country_sf=NULL){
   # Create a SpatVector from the data.xyz
   data.xyz <- x[c("x","y","conf")]
-  points <- vect(data.xyz, geom = c("x", "y"), crs = crs(original_raster))
+  points <- terra::vect(data.xyz, geom = c("x", "y"), crs = terra::crs(original_raster))
   
   # Rasterize the points using the original SpatRaster as a template
-  rst <- rasterize(points, original_raster, field = "conf")
+  rst <- terra::rasterize(points, original_raster, field = "conf")
   
   #If global model is used, resample map
   if(GlobalModel){
    rst_to_export<- rst%>%
-     project(crs(country_sf))%>%
-     resample(resampling_rast, method="bilinear") 
+     terra::project(terra::crs(country_sf))%>%
+     terra::resample(resampling_rast, method="bilinear") 
   }else{
     
     rst_to_export<-rst
@@ -556,7 +557,7 @@ confidenceMaps<-function(x,original_raster,taxonName, taxonNameTitle, nameExtens
   
   #Export raster
   raster_file<-paste(taxonName, "_", taxonKey, "_", scenario, "_confidence_", regionName, ".tif", sep="")
-  writeRaster(rst_to_export,
+  terra::writeRaster(rst_to_export,
               filename=file.path(folder, raster_file),
               overwrite=TRUE)
   #Print
@@ -616,11 +617,14 @@ responseCurves<-function(x,y) {
 
 
 
+#----------------------------------------------------------
+#------------- Evaluate model predictions------------------
+#----------------------------------------------------------
 eu_eval<-function (ras,y){
-  indep.bil<-raster::extract(ras,y,method="bilinear")
+  indep.bil<-terra::extract(ras,y,method="bilinear")
   indep.bil.df<-as.data.frame(indep.bil)
   indep.bil.df<-indep.bil.df %>%
-    mutate(predicted= ifelse(indep.bil >= 0.5,"present","absent")) 
+    dplyr::mutate(predicted= ifelse(indep.bil >= 0.5,"present","absent")) 
   indep.bil.df$observed<-rep("present",nrow(indep.bil.df))
   indep.bil.df$predicted<-as.factor(indep.bil.df$predicted)
   indep.bil.df$observed<-as.factor(indep.bil.df$observed)
