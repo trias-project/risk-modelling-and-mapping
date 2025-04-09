@@ -521,10 +521,10 @@ with_progress({
     #--------------------------------------------  
     #Decimallon and decimalLat are converted to x and y, geometry is dropped
     global_presabs<-global_presabs%>%
-      select(decimalLongitude, decimalLatitude)%>%
+      dplyr::select(decimalLongitude, decimalLatitude)%>%
       rename("x"= decimalLongitude,
              "y"= decimalLatitude)%>%
-      st_drop_geometry()
+      sf::st_drop_geometry()
     
     
     #--------------------------------------------
