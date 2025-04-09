@@ -493,7 +493,13 @@ with_progress({
     #Get correlation between separate models of best model
     Model.cor<-Model.cor[[bestmodelname]]
      
-     
+   
+    #--------------------------------------------
+    #--Store variable importance of best model --
+    #--------------------------------------------
+    variableImportance_bestmodel<-caret::varImp(bestModel)
+    
+    
     #--------------------------------------------
     #-Create European predictions using best model -
     #--------------------------------------------
@@ -557,6 +563,7 @@ with_progress({
                    taxonkey = taxonkey, 
                    euocc1 = euocc1, #sf dataset with coordinates of presences (geometry format)
                    bestModel=bestModel, #Best ensemble model
+                   variable_importance = variableImportance_bestmodel, #Variable importance in each separate model and overall
                    occ.full.data.forCaret = occ.full.data.forCaret, #Data used to fit best model
                    eu_presabs.coord = eu_presabs.coord, #XY coordinates of presences and pseudoabsences
                    model_performance = model_performance, #Performance of best model

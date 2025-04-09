@@ -1,3 +1,6 @@
+#TO ask DIederik: How to deal with correlation between models in ensemble model. Thinning after Moran's I is high? Limit on occurrences to fit models (set to 20 but check with Diederik)? Correlated variables erasing in Eu model?
+
+
 #--------------------------------------------
 #-----------To do: specify project-----------
 #--------------------------------------------
@@ -212,7 +215,7 @@ for(key in accepted_taxonkeys){
     #-------Read in eu model object that was stored as part of  script 03_fit_European_model and load data-------
     eumodel<-qs::qread(eu_model_file)
     euocc<-eumodel$euocc1
-    bestModel<-terra::unwrap(eumodel$bestModel)
+    bestModel<-eumodel$bestModel
     eu_presabs.coord<-eumodel$eu_presabs.coord
     occ.full.data.forCaret<-eumodel$occ.full.data.forCaret
     model_correlation<-eumodel$model_correlation
