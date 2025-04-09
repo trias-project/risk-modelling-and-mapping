@@ -59,7 +59,7 @@ global<-qs::qread( paste0("./data/projects/",projectname,"/",projectname,"_occur
 taxa_info<-read.csv2(paste0("./data/projects/",projectname,"/",projectname,"_taxa_info.csv"))
 accepted_taxonkeys<-taxa_info%>%
   dplyr::pull(speciesKey)%>%
-  dplyr::unique()
+  unique()
 
 
 #--------------------------------------------
