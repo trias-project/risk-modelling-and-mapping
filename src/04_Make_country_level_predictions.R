@@ -1,6 +1,3 @@
-#TO ask DIederik: How to deal with correlation between models in ensemble model. Thinning after Moran's I is high? Limit on occurrences to fit models (set to 20 but check with Diederik)? Correlated variables erasing in Eu model?
-
-
 #--------------------------------------------
 #-----------To do: specify project-----------
 #--------------------------------------------
