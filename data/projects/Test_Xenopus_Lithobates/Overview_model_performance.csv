@@ -1,0 +1,3 @@
+"","speciesKey","acceptedScientificName","Final_model","n_presences","Threshold","Specificity","Sensitivity","AUC","PCC","Kappa","Morans_I_method","Morans_I","Pvalue_Morans_I","correlation_glm_gbm","correlation_glm_rf","correlation_glm_earth","correlation_gbm_rf","correlation_gbm_earth","correlation_rf_earth"
+"1",2427091,"Lithobates catesbeianus","EU model",106,0.35,0.933962264150943,0.933962264150943,0.975080099679601,0.933962264150943,0.867924528301887,"Original (ape)",-0.015404903108224,0.796928755225929,0.818577649537066,0.634360889481767,0.816496831517626,0.0752443530644137,0.583495536412642,0.632174627941634
+"2",5217334,"Xenopus laevis",NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA
