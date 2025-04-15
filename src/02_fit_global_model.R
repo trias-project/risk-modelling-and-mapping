@@ -75,13 +75,14 @@ identificationVerificationStatus_to_discard <- c( "unverified",
                                                   "1",
                                                   "uncertain",
                                                   "unconfirmed",
-                                                  "Douteux",
-                                                  "Invalide",
-                                                  "Non r\u00E9alisable",
+                                                  "douteux",
+                                                  "invalide",
+                                                  "non r\u00E9alisable",
                                                   "verification needed" ,
-                                                  "Probable",
+                                                  "probable",
                                                   "unconfirmed - not reviewed",
-                                                  "validation requested")
+                                                  "validation requested",
+                                                "unconfirmed - plausible")
 
 #enter value for max coordinate uncertainty in meters, default = 1000
 global.occ<-global %>%
