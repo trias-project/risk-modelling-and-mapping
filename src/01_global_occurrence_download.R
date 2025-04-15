@@ -70,11 +70,6 @@ mapped_taxa<-mapped_taxa %>%
   dplyr::filter(rank =="SPECIES")
 
 #Make sure that all species were mapped to the GBIF backbone, if not an error will appear indicating which species are missing
-assertthat::assert_that(nrow(mapped_taxa)==length(species),
-                        msg=paste0("The following species could not be found in the GBIF backbone taxonomy: "
-                                   ,species[!sapply(species, function(x) any(grepl(x,mapped_taxa$scientificName)))])
-)
-
 assertthat::assert_that(
   nrow(mapped_taxa) == length(species),
   msg = paste0("The following species could not be found in the GBIF backbone taxonomy: ",
