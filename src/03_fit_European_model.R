@@ -273,6 +273,7 @@ with_progress({
     #----------------------------------------------
     #Create a mask of the global_model rasterlayer, containing only areas that are predicted to contain occurrences
     m<- global_model >= model_accuracy$threshold
+    m[] <- FALSE
     
     #Mask the global_model layer with this occurrence layer (i.e., only keep pixels where absences are predicted, rest becomes NA)
     global_mask<-terra::mask(global_model,m,maskvalue=TRUE)
