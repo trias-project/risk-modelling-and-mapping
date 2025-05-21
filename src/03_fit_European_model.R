@@ -315,7 +315,7 @@ with_progress({
     # Generate pseudoabsences 10 times, store in a list with 10 datasets and names them X1-X10
     setlist<-seq(1,10,1)
     set.seed(120)
-    pseudoabs_pts <- lapply(setlist, generate_pseudoabs, mask = raster(pseudoSamplingArea), alternative_mask = raster(global_masked_proj), n = numb.eu.pseudoabs, p = euocc)
+    pseudoabs_pts <- lapply(setlist, generate_pseudoabs, mask = (1/raster(pseudoSamplingArea)), alternative_mask = (1/raster(global_masked_proj)), n = numb.eu.pseudoabs, p = euocc)
     names(pseudoabs_pts) <- paste0("X", setlist)
     
     
