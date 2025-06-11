@@ -280,7 +280,7 @@ with_progress({
     #--------------------------------------------
     #--Create sampling area for pseudoabsences --
     #--------------------------------------------
-    # Combine areas of low predicted habitat suitability with bias grid to exclude pixels with no sampling effort or falling outside ecoregions with global occurrences! (NA in biasgrid_eu)
+    # Combine pseudosampling area with bias grid to exclude pixels with no sampling effort or falling outside ecoregions with global occurrences! (NA in biasgrid_eu)
     pseudoSamplingArea<-terra::mask(global_masked_proj,biasgrid_eu)
     
     
