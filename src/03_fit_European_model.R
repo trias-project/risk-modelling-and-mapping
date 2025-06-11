@@ -269,14 +269,9 @@ with_progress({
     
     
     #----------------------------------------------
-    #------- Mask areas of high suitability -------
+    #------- Mask with environmental layers -------
     #----------------------------------------------
-    #Create a mask of the global_model rasterlayer, containing only areas that are predicted to contain occurrences
-    m<- global_model >= model_accuracy$threshold
-    
-    #Mask the global_model layer with this occurrence layer (i.e., only keep pixels where absences are predicted, rest becomes NA)
-    global_mask<-terra::mask(global_model,m,maskvalue=TRUE)
-    global_masked_proj<-terra::project(global_mask,biasgrid_eu)
+    global_masked_proj<-terra::project(global_model,biasgrid_eu)
     
     #New: mask with one of the environmental layers to make sure no pseudoabsences are generated outside the environmental layers
     global_masked_proj<-terra::mask(global_masked_proj, rmiclimpreds[[1]]) 
@@ -285,7 +280,7 @@ with_progress({
     #--------------------------------------------
     #--Create sampling area for pseudoabsences --
     #--------------------------------------------
-    # Combine areas of low predicted habitat suitability with bias grid to exclude pixels with no sampling effort or falling outside ecoregions with global occurrences! (NA in biasgrid_eu)
+    # Combine pseudosampling area with bias grid to exclude pixels with no sampling effort or falling outside ecoregions with global occurrences! (NA in biasgrid_eu)
     pseudoSamplingArea<-terra::mask(global_masked_proj,biasgrid_eu)
     
     
@@ -314,7 +309,7 @@ with_progress({
     # Generate pseudoabsences 10 times, store in a list with 10 datasets and names them X1-X10
     setlist<-seq(1,10,1)
     set.seed(120)
-    pseudoabs_pts <- lapply(setlist, generate_pseudoabs, mask = raster(pseudoSamplingArea), alternative_mask = raster(global_masked_proj), n = numb.eu.pseudoabs, p = euocc)
+    pseudoabs_pts <- lapply(setlist, generate_pseudoabs, mask = (1/raster(pseudoSamplingArea)), alternative_mask = (1/raster(global_masked_proj)), n = numb.eu.pseudoabs, p = euocc)
     names(pseudoabs_pts) <- paste0("X", setlist)
     
     
