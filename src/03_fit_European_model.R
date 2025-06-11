@@ -269,15 +269,9 @@ with_progress({
     
     
     #----------------------------------------------
-    #------- Mask areas of high suitability -------
+    #------- Mask with environmental layers -------
     #----------------------------------------------
-    #Create a mask of the global_model rasterlayer, containing only areas that are predicted to contain occurrences
-    m<- global_model >= model_accuracy$threshold
-    m[] <- FALSE
-    
-    #Mask the global_model layer with this occurrence layer (i.e., only keep pixels where absences are predicted, rest becomes NA)
-    global_mask<-terra::mask(global_model,m,maskvalue=TRUE)
-    global_masked_proj<-terra::project(global_mask,biasgrid_eu)
+    global_masked_proj<-terra::project(global_model,biasgrid_eu)
     
     #New: mask with one of the environmental layers to make sure no pseudoabsences are generated outside the environmental layers
     global_masked_proj<-terra::mask(global_masked_proj, rmiclimpreds[[1]]) 
