@@ -160,16 +160,29 @@ cleaned<-global.occ.LL%>%
 #--------------------------------------------
 #--------Load global climate rasters --------
 #--------------------------------------------
-globalclimrasters <- list.files((here("data/external/climate/trias_CHELSA")),pattern="\\.tif$",full.names = T) #import CHELSA data
-globalclimpreds_terra <- terra::rast(globalclimrasters)
+# Only include files that start with "scaled_layer_" and end with .tif: TODO: NEED TO CREATE THEM FIRST!
+scaled_files <- list.files(
+  here::here("data/external/climate/scaled_layers"),
+  pattern = "^scaled_layer_\\d+\\.tif$",
+  full.names = TRUE)
+
+# Load and stack
+globalclimpreds_terra <- terra::rast(scaled_files)
+
+# Optional: check
+print(globalclimpreds_terra)
 
 
 #--------------------------------------------
 #--------Load European climate rasters-------
 #--------------------------------------------
-euclimrasters <- list.files((here("data/external/climate/chelsa_eu_clips")),pattern="\\.tif$",full.names = T)
-eu_climpreds<-terra::rast(euclimrasters)
-eu_climpreds.10<-divide10(eu_climpreds)  # correct for integer format of Chelsa preds
+euboundary<-sf::st_read(here("./data/external/GIS/Europe/EUROPE.shp")) 
+# Convert sf boundary to SpatVector
+euboundary_vect <- terra::vect(euboundary)
+
+# Crop and mask scaled_stack
+scaled_stack_europe <- terra::crop(globalclimpreds_terra, euboundary_vect)
+eu_climpreds.10 <- terra::mask(scaled_stack_europe, euboundary_vect)
 
 
 #---------------------------------------------
