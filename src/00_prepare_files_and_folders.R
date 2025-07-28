@@ -97,14 +97,6 @@ lapply(folder_paths, function(folder){
 
 
 #-------------------------------------------------
-#------ Store WWF ecoregions file   --------------
-#-------------------------------------------------
-curl::curl_download("http://assets.worldwildlife.org/publications/15/files/original/official_teow.zip?1349272619", destfile = paste0(Ecoregions_folder,"/official.zip"))
-unzip(here::here(Ecoregions_folder,"official.zip"), exdir = here::here(Ecoregions_folder))
-unlink(here::here(Ecoregions_folder,"official.zip"))
-
-
-#-------------------------------------------------
 #------ Store the CHELSA layers  --------------
 #-------------------------------------------------
 options(timeout = 600) #set time-out to 10 min 
