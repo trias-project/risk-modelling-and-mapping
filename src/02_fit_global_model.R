@@ -102,17 +102,33 @@ global.occ<-within(global.occ,rm("lon_dplaces","lat_dplaces")) # n= 1758
 #--------------------------------------------
 #------------ Define species group-----------
 #--------------------------------------------
-global.occ <- global.occ%>%
-  dplyr::mutate(Group = case_when(kingdom == "Plantae" ~ "Plants",
-                                  class == "Aves" ~ "Birds",
-                                  phylum == "Mollusca" ~ "Molluscs",
-                                  class == "Amphibia" ~ "Amphibians",
-                                  class == "Mammalia" ~ "Mammals",
-                                  class == "Crocodylia" ~ "Reptiles",
-                                  class == "Testudines" ~ "Reptiles",
-                                  class == "Sphenodontia" ~ "Reptiles",
-                                  class == "Squamata" ~ "Reptiles",
-                                  TRUE ~ NA_character_))
+fish_orders <- c(
+  "Acipenseriformes", "Albuliformes", "Amiiformes", "Anguilliformes", "Atheriniformes",
+  "Batrachoidiformes", "Beloniformes", "Beryciformes", "Blenniiformes", "Carangiformes",
+  "Characiformes", "Chimaeriformes", "Clupeiformes", "Cypriniformes", "Cyprinodontiformes",
+  "Elopiformes", "Esociformes", "Gadiformes", "Gasterosteiformes", "Gonorynchiformes",
+  "Gymnotiformes", "Holocentriformes", "Istiophoriformes", "Lampriformes", "Lophiiformes",
+  "Mugiliformes", "Myliobatiformes", "Myxiniformes", "Notacanthiformes", "Ophidiiformes",
+  "Osmeriformes", "Osteoglossiformes", "Perciformes", "Percopsiformes", "Petromyzontiformes",
+  "Pleuronectiformes", "Polypteriformes", "Pristiformes", "Rajiformes", "Salmoniformes",
+  "Scorpaeniformes", "Siluriformes", "Squaliformes", "Stomiiformes", "Syngnathiformes",
+  "Tetraodontiformes", "Torpediniformes", "Trachiniformes", "Zeiformes"
+)
+
+global.occ <- global.occ %>%
+  dplyr::mutate(Group = case_when(
+    kingdom == "Plantae" ~ "Plants",
+    class == "Aves" ~ "Birds",
+    phylum == "Mollusca" ~ "Molluscs",
+    class == "Amphibia" ~ "Amphibians",
+    class == "Mammalia" ~ "Mammals",
+    class %in% c("Crocodylia", "Testudines", "Sphenodontia", "Squamata") ~ "Reptiles",
+    class == "Malacostraca" ~ "Malacostraca",
+    class == "Insecta" ~ "Insects",
+    order %in% fish_orders ~ "Fish",
+    TRUE ~ NA_character_
+  ))
+
 
 
 #--------------------------------------------
