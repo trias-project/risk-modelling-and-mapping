@@ -142,7 +142,7 @@ basis_of_record <- c(
 
 #Time period
 year_begin <- 1971
-year_end <-2010
+year_end <-2024
 
 #Only georeferenced points
 hasCoordinate <- TRUE
