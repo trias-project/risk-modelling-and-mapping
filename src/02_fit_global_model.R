@@ -61,6 +61,7 @@ accepted_taxonkeys<-taxa_info%>%
   dplyr::pull(speciesKey)%>%
   unique()
 
+
 #--------------------------------------------
 #-------- Filter global occurrences----------
 #--------------------------------------------
@@ -82,11 +83,12 @@ identificationVerificationStatus_to_discard <- c( "unverified",
                                                   "unconfirmed - not reviewed",
                                                   "validation requested",
                                                   "unconfirmed - plausible")
-###ALLOW FOR 5 KM
-#enter value for max coordinate uncertainty in meters, default = 1000
+
+#enter value for max coordinate uncertainty in meters, default = 5000
+#Reasoning: several invasive species that have datasets from designs with default uncertainty of 5km
 global.occ<-global %>%
   dplyr::filter(speciesKey%in%accepted_taxonkeys) %>%   
-  dplyr::filter(is.na(coordinateUncertaintyInMeters)| coordinateUncertaintyInMeters<= 5000) %>%
+  dplyr::filter(is.na(coordinateUncertaintyInMeters)| coordinateUncertaintyInMeters<= 5000) %>% 
   dplyr::filter(!str_to_lower(identificationVerificationStatus) %in% identificationVerificationStatus_to_discard)
 
 #Remove coordinates that for both lon and lat values, have less than 4 decimal places
@@ -117,7 +119,7 @@ global.occ <- global.occ%>%
 #-------Prepare occurrence dataset-----------
 #--------------------------------------------
 global.occ.LL<-global.occ%>%
-  dplyr::select(decimalLongitude, decimalLatitude, species, speciesKey, Group) #decimalLon, decimalLat, species, acceptedtaxonkey, Group, n= 1758
+  dplyr::select(decimalLongitude, decimalLatitude, species, speciesKey, Group) 
 rm(global.occ, global)
 
 
@@ -178,18 +180,28 @@ wwf_eco<-sf::st_read(here("./data/external/GIS/official/wwf_terr_ecos.shp"))
 wwf_eco<-sf::st_transform(wwf_eco, 4326) %>%
   sf::st_make_valid()
 
+# Dissolve by BIOME
+#wwf_eco_biome <- wwf_eco %>%
+#  group_by(BIOME) %>%
+#  summarise(geometry = sf::st_union(geometry), .groups = "drop") %>%
+#  sf::st_as_sf()
+
+# Optionally, make geometry valid
+#wwf_eco_biome <- sf::st_make_valid(wwf_eco)
 
 #--------------------------------------------
 #-------Load file paths to bias grids -------
 #--------------------------------------------
 bias_grid_paths <- list(
-  Plants = here("./data/external/bias_grids/final/trias/plants_1deg_min5.tif"),
-  Amphibians = here("./data/external/bias_grids/final/trias/amphib_1deg_min5.tif"),
-  Birds = here("./data/external/bias_grids/final/trias/birds_1deg_min5.tif"),
-  Mammals = here("./data/external/bias_grids/final/trias/mammals_1deg_min5.tif"),
-  Molluscs = here("./data/external/bias_grids/final/trias/molluscs_1deg_min5.tif"),
-  Reptiles = here("./data/external/bias_grids/final/trias/reptiles_1deg_min5.tif")
-)
+  Plants = here::here("./data/external/bias_grids/final/trias/plants_10km_bias_layer_log.tif"),
+  Amphibians = here::here("./data/external/bias_grids/final/trias/amphibians_10km_bias_layer_log.tif"),
+  Birds = here::here("./data/external/bias_grids/final/trias/birds_1deg_min5.tif"),
+  Mammals = here::here("./data/external/bias_grids/final/trias/mammals_10km_bias_layer_log.tif"),
+  Molluscs = here::here("./data/external/bias_grids/final/trias/mollusca_10km_bias_layer_log.tif"),
+  Reptiles = here::here("./data/external/bias_grids/final/trias/reptiles_10km_bias_layer_log.tif"),
+  Fish = here::here("./data/external/bias_grids/final/trias/fish_10km_bias_layer_log.tif"),
+  Malacostraca = here::here("./data/external/bias_grids/final/trias/malacostraca_10km_bias_layer_log.tif"),
+  Insects = here::here("./data/external/bias_grids/final/trias/insects_10km_bias_layer_log.tif"))
 
 
 #--------------------------------------------
@@ -214,7 +226,7 @@ with_progress({
   for(i in seq_along (split_df)){ 
     
     #--------------------------------------------
-    #------------- Trach progress ---------------
+    #------------- Track progress ---------------
     #--------------------------------------------
     p()
     
@@ -222,6 +234,7 @@ with_progress({
     #----------Load species data ----------------
     #--------------------------------------------
     species<-names(split_df)[i]
+    print(species)
     first_two_words <- sub("^(\\w+)\\s+(\\w+).*", "\\1_\\2", species)  # Extract first two words of species name
     global.occ.LL.cleaned<-split_df[[i]]
     taxonkey<-unique(global.occ.LL.cleaned$speciesKey)
@@ -273,14 +286,14 @@ with_progress({
     #--------------------------------------------
     numb.global.pseudoabs <-length(global.occ.sf$decimalLongitude) #sets the number of pseudoabsences equal to number of unique presences
     rm(global.occ.LL.cleaned)
-
+    
     
     #-------------------------------------------------------
     #-Don't fit model if less than 20 global presences -----
     #-------------------------------------------------------   
     if(numb.global.pseudoabs<20){
-        warning(paste0("Skipping species ", species, " because the number of occurrences is less than 20 (n =",numb.global.pseudoabs,")"))
-        next  # Skip the rest of the loop and move to the next iteration
+      warning(paste0("Skipping species ", species, " because the number of occurrences is less than 20 (n =",numb.global.pseudoabs,")"))
+      next  # Skip the rest of the loop and move to the next iteration
     }
     
     
@@ -288,10 +301,10 @@ with_progress({
     #------ Plot distribution of occurrences ----
     #--------------------------------------------
     #ggplot()+ 
-      #geom_sf(data = world,  colour = "black", fill = NA)+
-      #geom_point(data=global.occ.sf, aes(x=decimalLongitude, y= decimalLatitude),  fill="green", shape = 22, colour = "black", size=3)+
-      #labs(x="Longitude", y="Latitude")+
-      #theme_bw()
+    #geom_sf(data = world,  colour = "black", fill = NA)+
+    #geom_point(data=global.occ.sf, aes(x=decimalLongitude, y= decimalLatitude),  fill="green", shape = 22, colour = "black", size=3)+
+    #labs(x="Longitude", y="Latitude")+
+    #theme_bw()
     
     
     #--------------------------------------------
@@ -305,10 +318,10 @@ with_progress({
     #------------- Plot ecoregions --------------
     #--------------------------------------------
     #ggplot()+ 
-      #geom_sf(data = world,  colour = "black", fill = NA)+
-      #geom_sf(data=wwf_ecoSub1, fill="#f7786f")+
-      #labs(x="Longitude", y="Latitude")+
-      #theme_bw()
+    #geom_sf(data = world,  colour = "black", fill = NA)+
+    #geom_sf(data=wwf_ecoSub1, fill="#f7786f")+
+    #labs(x="Longitude", y="Latitude")+
+    #theme_bw()
     
     
     #--------------------------------------------
