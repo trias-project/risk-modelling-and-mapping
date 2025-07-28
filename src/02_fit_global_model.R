@@ -12,7 +12,7 @@ options("rgdal_show_exportToProj4_warnings"="none")
 
 packages <- c( "dplyr", "stringr", "here", "qs","CoordinateCleaner","terra", "raster", "rnaturalearth", "rnaturalearthdata", 
                "ggplot2","tidyterra","mapview", "dismo", "sdm", "caret", "viridisLite", "kableExtra","future", "future.apply",
-               "randomForest","earth", "progressr", "sf", "gbm", "PresenceAbsence")
+               "randomForest","earth", "progressr", "sf", "gbm", "PresenceAbsence","geosphere","arm")
 
 for(package in packages) {
   print(package)
