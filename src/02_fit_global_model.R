@@ -175,12 +175,11 @@ eu_climpreds.10<-divide10(eu_climpreds)  # correct for integer format of Chelsa 
 #---------------------------------------------
 #-- Remove NA pixels from climate rasters ----
 #---------------------------------------------
-#This is to avoid that some layers have NA while others have values in certain pixels
-#Mask pixels in the rasterstack where at least one layer has NA
-na_mask_globalclimpreds_terra<- app(globalclimpreds_terra, function(x) any(is.na(x)))
-na_mask_eu_climpreds.10<- app(eu_climpreds.10, function(x) any(is.na(x)))
-globalclimpreds_terra<- terra::mask(globalclimpreds_terra, na_mask_globalclimpreds_terra, maskvalue=1)
-eu_climpreds.10<- terra::mask(eu_climpreds.10, na_mask_eu_climpreds.10, maskvalue=1)
+# This ensures all rasters have the same NA structure
+na_mask_globalclimpreds_terra <- sum(is.na(globalclimpreds_terra)) > 0
+globalclimpreds_terra <- terra::mask(globalclimpreds_terra, na_mask_globalclimpreds_terra, maskvalue = 1)
+na_mask_eu_climpreds.10 <- sum(is.na(eu_climpreds.10)) > 0
+eu_climpreds.10 <- terra::mask(eu_climpreds.10, na_mask_eu_climpreds.10, maskvalue = 1)
 
 
 #--------------------------------------------
