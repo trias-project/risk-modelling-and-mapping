@@ -2,7 +2,7 @@
 #-----------To do: specify project ----------
 #--------------------------------------------
 #specify project name
-projectname<-"Project_Frédérique"
+projectname<-"PA prob & Alternative Treshold & Ensemble Boyce"
 
 
 #--------------------------------------------
