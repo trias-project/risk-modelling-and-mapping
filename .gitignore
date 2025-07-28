@@ -47,7 +47,10 @@ data/processed/general/
 data/external/bias_grids/
 data/external/climate/
 data/external/data_cube/
-data/external/GIS/
+data/external/GIS/Belgium/
+data/external/GIS/Belgium_ecoregions/
+data/external/GIS/Country/
+data/external/GIS/Europe/
 data/external/habitat/
 data/external/PRA/PRA_Birds/
 data/external/PRA/PRA_mammals/
