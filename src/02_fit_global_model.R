@@ -344,8 +344,6 @@ with_progress({
     #--------------------------------------------
     #- Select ecoregions containing occurrences -
     #--------------------------------------------
-    occ_ecoIntersect <- sf::st_intersects(wwf_eco,global.occ.sf) 
-    wwf_ecoSub1<-wwf_eco[lengths(occ_ecoIntersect) > 0,1]
     
     # Ensure valid geometries
     #wwf_eco_biome <- sf::st_make_valid(wwf_eco_biome)
