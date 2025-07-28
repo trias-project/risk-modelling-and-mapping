@@ -109,7 +109,7 @@ if (nrow(not_accepted)!=0) {
   paste0("All species are accepted taxa in the GBIF backbone 🎉")
 }
 
- #Extract taxonkeys of each species, for synonyms the acceptedUsageKey is stored
+#Extract taxonkeys of each species, for synonyms the acceptedUsageKey is stored
 accepted_taxonkeys<-mapped_taxa %>%
   dplyr::filter(status =="ACCEPTED")%>%
   dplyr::pull(usageKey)
