@@ -2,10 +2,33 @@
 #----To do: specify project and species------
 #--------------------------------------------
 #specify project name
-project<-"Project_Frédérique"
+project<-"PA prob & Alternative Treshold & Ensemble Boyce"
 
 # specify the scientific name of the species to be modelled; see an example below
-species<-c("Elodea densa","Koenigia polystachya", "Hydrocharis laevigata")
+species<-c("Cabomba caroliniana",
+           "Cipangopaludina chinensis",
+           "Salvinia ×molesta",
+           "Xenopus laevis",
+           "Apalone ferox",
+           "Muntiacus reevesi",
+           "Myriophyllum aquaticum",
+           "Vaccinium corymbosum",
+           "Alternanthera philoxeroides",
+           "Mustela vison",
+           "Procyon lotor",
+           "Faxonius virilis",
+           "Faxonius immunis",
+           "Obama nungara",
+           "Procambarus clarkii",
+           "Pacifastacus leniusculus",
+           "Crassula helmsii",
+           "Neogobius melanostomus",
+           "Pseudorasbora parva",
+           "Elaphe taeniura",
+           "Heracleum mantegazzianum",
+           "Ambrosia artemisiifolia",
+           "Vespa velutina",
+           "Vespa mandarinia")
 
 
 #--------------------------------------------
