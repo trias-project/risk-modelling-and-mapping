@@ -189,9 +189,9 @@ eu_climpreds.10 <- terra::mask(scaled_stack_europe, euboundary_vect)
 #-- Remove NA pixels from climate rasters ----
 #---------------------------------------------
 # This ensures all rasters have the same NA structure
-na_mask_globalclimpreds_terra <- sum(is.na(globalclimpreds_terra)) > 0
+na_mask_globalclimpreds_terra <- terra::sum(is.na(globalclimpreds_terra)) > 0
 globalclimpreds_terra <- terra::mask(globalclimpreds_terra, na_mask_globalclimpreds_terra, maskvalue = 1)
-na_mask_eu_climpreds.10 <- sum(is.na(eu_climpreds.10)) > 0
+na_mask_eu_climpreds.10 <- terra::sum(is.na(eu_climpreds.10)) > 0
 eu_climpreds.10 <- terra::mask(eu_climpreds.10, na_mask_eu_climpreds.10, maskvalue = 1)
 
 
@@ -347,6 +347,20 @@ with_progress({
     occ_ecoIntersect <- sf::st_intersects(wwf_eco,global.occ.sf) 
     wwf_ecoSub1<-wwf_eco[lengths(occ_ecoIntersect) > 0,1]
     
+    # Ensure valid geometries
+    #wwf_eco_biome <- sf::st_make_valid(wwf_eco_biome)
+    
+    # Disable S2 geometry engine to avoid topological issues
+    #sf::sf_use_s2(FALSE)
+    
+    # Keep only biome polygons that intersect at least one occurrence point
+    has_occurrence <- lengths(sf::st_intersects(wwf_eco_biome, global.occ.sf)) > 0
+    wwf_ecoSub1 <- wwf_eco_biome[has_occurrence, ]
+    
+    # Plot result
+    plot(wwf_ecoSub1$geometry)
+    points(global.occ.sf, col = "red", pch = 16, cex = 0.5)
+
     
     #--------------------------------------------
     #------------- Plot ecoregions --------------
