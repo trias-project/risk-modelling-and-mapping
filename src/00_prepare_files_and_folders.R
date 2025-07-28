@@ -366,23 +366,6 @@ zen4R::download_zenodo(doi="https://doi.org/10.5281/zenodo.15102496",
 
 
 #-------------------------------------------------
-#-----------  Create CHELSA Eu clips  ------------
-#-------------------------------------------------
-# List CHELSA layers and layer used for masking
-CHELSA_layers<-list.files(here("data/external/climate/trias_CHELSA"),pattern="\\.tif$",full.names = T)
-mask_layer<-terra::rast(here::here(chelsa_eu_folder,"CHELSA_precipSeasonality_15.tif"))
-
-#Crop and mask
-for (file in CHELSA_layers){
-  raster_layer<-terra::rast(file)
-  r <- terra::crop(raster_layer, ext(mask_layer))
-  r<-terra::mask(r, mask_layer)
-  terra::writeRaster(r, filename=here::here(chelsa_eu_folder, basename(file)), overwrite=TRUE )
-  print(paste0("Created rasterlayer ", basename(file)," in ", chelsa_eu_folder))
-}
-
-
-#-------------------------------------------------
 #--  Rename climate layers for European model  --
 #-------------------------------------------------
 
