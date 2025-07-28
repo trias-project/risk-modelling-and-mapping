@@ -226,7 +226,9 @@ bias_grid_paths <- list(
 #------- Split dataframe by taxonkey --------
 #--------------------------------------------
 sort(unique(cleaned$species))
-split_df<-split(cleaned,cleaned$species) 
+split_df<-split(cleaned,cleaned$species)
+split_df_all_occs <- split_df                                 #keep a copy with all occurrences
+#split_df <- thinOccurrences50(split_df_all_occs)  #split_df as filename for the rarefied occurrences
 
 
 #--------------------------------------------
@@ -235,13 +237,15 @@ split_df<-split(cleaned,cleaned$species)
 rm(global.occ.LL,cleaned)
 gc()
 
+names(split_df)
+
 
 #--------------------------------------------
 #-------Start loop for SDM modelling --------
 #--------------------------------------------
 with_progress({
   p <- progressr::progressor(along = 1:length(split_df)) 
-  for(i in seq_along (split_df)){ 
+  for(i in 1:length(split_df)) {
     
     #--------------------------------------------
     #------------- Track progress ---------------
