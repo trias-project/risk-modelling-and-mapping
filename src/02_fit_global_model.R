@@ -61,7 +61,6 @@ accepted_taxonkeys<-taxa_info%>%
   dplyr::pull(speciesKey)%>%
   unique()
 
-
 #--------------------------------------------
 #-------- Filter global occurrences----------
 #--------------------------------------------
@@ -82,12 +81,12 @@ identificationVerificationStatus_to_discard <- c( "unverified",
                                                   "probable",
                                                   "unconfirmed - not reviewed",
                                                   "validation requested",
-                                                "unconfirmed - plausible")
-
+                                                  "unconfirmed - plausible")
+###ALLOW FOR 5 KM
 #enter value for max coordinate uncertainty in meters, default = 1000
 global.occ<-global %>%
   dplyr::filter(speciesKey%in%accepted_taxonkeys) %>%   
-  dplyr::filter(is.na(coordinateUncertaintyInMeters)| coordinateUncertaintyInMeters<= 1000) %>%
+  dplyr::filter(is.na(coordinateUncertaintyInMeters)| coordinateUncertaintyInMeters<= 5000) %>%
   dplyr::filter(!str_to_lower(identificationVerificationStatus) %in% identificationVerificationStatus_to_discard)
 
 #Remove coordinates that for both lon and lat values, have less than 4 decimal places
