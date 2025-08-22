@@ -2,7 +2,7 @@
 #-----------To do: specify project ----------
 #--------------------------------------------
 #specify project name
-projectname<-"PA prob & Alternative Treshold & Ensemble Boyce"
+projectname <- "PA prob & Alternative Treshold & Ensemble Boyce"
 
 
 #--------------------------------------------
@@ -60,7 +60,7 @@ identificationVerificationStatus_to_discard <- c( "unverified",
                                                   "unconfirmed - plausible")
 
 #enter value for max coordinate uncertainty in meters, default = 5000
-#Reasoning: several invasive species that have datasets from designs with default uncertainty of 5km
+#Reasoning: there are several invasive species datasets with default uncertainty of 5km
 global.occ<-global %>%
   dplyr::filter(speciesKey%in%accepted_taxonkeys) %>%   
   dplyr::filter(is.na(coordinateUncertaintyInMeters)| coordinateUncertaintyInMeters<= 5000) %>% 
@@ -71,7 +71,7 @@ global.occ$lon_dplaces<-sapply(global.occ$decimalLongitude, function(x) decimalp
 global.occ$lat_dplaces<-sapply(global.occ$decimalLatitude, function(x) decimalplaces(x))
 global.occ[global.occ$lon_dplaces < 4 & global.occ$lat_dplaces < 4 , ]<-NA
 global.occ<-global.occ[ which(!is.na(global.occ$lon_dplaces)),]
-global.occ<-within(global.occ,rm("lon_dplaces","lat_dplaces")) # n= 1758
+global.occ<-within(global.occ,rm("lon_dplaces","lat_dplaces")) 
 
 
 #--------------------------------------------
@@ -105,7 +105,6 @@ global.occ <- global.occ %>%
   ))
 
 
-
 #--------------------------------------------
 #-------Prepare occurrence dataset-----------
 #--------------------------------------------
@@ -117,12 +116,6 @@ rm(global.occ, global)
 #--------------------------------------------
 #-----------Do coordinate cleaning-----------
 #--------------------------------------------
-# OPTIONAL: Coordinates are tested for several things: whether they are in capitals, whether ... . For each coordinate a column per test is added indicating wether the result is potentially problematic (FALSE) or a clean coordinate (TRUE)
-#flags_report<-clean_coordinates(x = global.occ.LL, lon= "decimalLongitude", lat= "decimalLatitude",
-#  tests = c("capitals", 
-# "centroids","gbif", "institutions", 
-# "seas", "zeros"))
-
 # Clean coordinates based on their proximity to country centroids, capitals, biodiversity institutions, GBIF headquarters, and the 0/0 point
 cleaned<-global.occ.LL%>%
   CoordinateCleaner::cc_cen(buffer=100) %>% # remove points within a buffer of 100m around country centroids, default 1km
@@ -161,7 +154,7 @@ eu_climpreds.10 <- terra::mask(scaled_stack_europe, euboundary_vect)
 
 
 #---------------------------------------------
-#-- Remove NA pixels from climate rasters ----
+#- Remove NA pixels and mask to European ext -
 #---------------------------------------------
 # This ensures all rasters have the same NA structure
 na_mask_globalclimpreds_terra <- terra::sum(is.na(globalclimpreds_terra)) > 0
@@ -180,8 +173,6 @@ world<-rnaturalearth::ne_countries(scale=50)
 #--------------Load ecoregions --------------
 #--------------------------------------------
 wwf_eco_biome<-sf::st_read(here::here("./data/external/GIS/official/newRealms.shp")) #TODO load file
-#wwf_eco_biome<-sf::st_transform(wwf_eco, 4326) %>%
-#  sf::st_make_valid()
 plot(wwf_eco_biome)
 
 
@@ -198,15 +189,15 @@ plot(wwf_eco_biome)
 #-------Load file paths to bias grids -------
 #--------------------------------------------
 bias_grid_paths <- list(
-  Plants = here::here("./data/external/bias_grids/final/trias/plants_10km_bias_layer_log.tif"),
-  Amphibians = here::here("./data/external/bias_grids/final/trias/amphibians_10km_bias_layer_log.tif"),
-  Birds = here::here("./data/external/bias_grids/final/trias/birds_1deg_min5.tif"),
-  Mammals = here::here("./data/external/bias_grids/final/trias/mammals_10km_bias_layer_log.tif"),
-  Molluscs = here::here("./data/external/bias_grids/final/trias/mollusca_10km_bias_layer_log.tif"),
-  Reptiles = here::here("./data/external/bias_grids/final/trias/reptiles_10km_bias_layer_log.tif"),
-  Fish = here::here("./data/external/bias_grids/final/trias/fish_10km_bias_layer_log.tif"),
-  Malacostraca = here::here("./data/external/bias_grids/final/trias/malacostraca_10km_bias_layer_log.tif"),
-  Insects = here::here("./data/external/bias_grids/final/trias/insects_10km_bias_layer_log.tif"))
+  Plants = here::here("./data/external/bias_grids/final/trias/plants_10km_bias_layer_log.tif"), #0-13.24
+  Amphibians = here::here("./data/external/bias_grids/final/trias/amphibians_10km_bias_layer_log.tif"),#0-12.06
+  Birds = here::here("./data/external/bias_grids/final/trias/birds_1deg_min5.tif"),#5-1703018
+  Mammals = here::here("./data/external/bias_grids/final/trias/mammals_10km_bias_layer_log.tif"), #0-13.36
+  Molluscs = here::here("./data/external/bias_grids/final/trias/mollusca_10km_bias_layer_log.tif"),#0-12.48
+  Reptiles = here::here("./data/external/bias_grids/final/trias/reptiles_10km_bias_layer_log.tif"), #0-11.34
+  Fish = here::here("./data/external/bias_grids/final/trias/fish_10km_bias_layer_log.tif"),#0-14.67
+  Malacostraca = here::here("./data/external/bias_grids/final/trias/malacostraca_10km_bias_layer_log.tif"),#0-13.12
+  Insects = here::here("./data/external/bias_grids/final/trias/insects_10km_bias_layer_log.tif")) #0-15.78
 
 
 #--------------------------------------------
@@ -242,7 +233,7 @@ with_progress({
     #--------------------------------------------
     #----------Load species data ----------------
     #--------------------------------------------
-    species<-names(split_df)[i]
+    species <- names(split_df)[i]
     print(species)
     first_two_words <- sub("^(\\w+)\\s+(\\w+).*", "\\1_\\2", species)  # Extract first two words of species name
     global.occ.LL.cleaned<-split_df[[i]]
@@ -309,11 +300,11 @@ with_progress({
     #--------------------------------------------
     #------ Plot distribution of occurrences ----
     #--------------------------------------------
-    #ggplot()+ 
-    #geom_sf(data = world,  colour = "black", fill = NA)+
-    #geom_point(data=global.occ.sf, aes(x=decimalLongitude, y= decimalLatitude),  fill="green", shape = 22, colour = "black", size=3)+
-    #labs(x="Longitude", y="Latitude")+
-    #theme_bw()
+    # ggplot()+
+    # geom_sf(data = world,  colour = "black", fill = NA)+
+    # geom_point(data=global.occ.sf, aes(x=decimalLongitude, y= decimalLatitude),  fill="green", shape = 22, colour = "black", size=3)+
+    # labs(x="Longitude", y="Latitude")+
+    # theme_bw()
     
     
     #--------------------------------------------
@@ -337,13 +328,14 @@ with_progress({
     
     #--------------------------------------------
     #------------- Plot ecoregions --------------
-    #--------------------------------------------
-    #ggplot()+ 
-    #geom_sf(data = world,  colour = "black", fill = NA)+
-    #geom_sf(data=wwf_ecoSub1, fill="#f7786f")+
-    #labs(x="Longitude", y="Latitude")+
-    #theme_bw()
-    
+    --------------------------------------------
+    # ggplot()+
+    # geom_sf(data = world,  colour = "black", fill = NA)+
+    # geom_sf(data=wwf_ecoSub1, fill="#f7786f")+
+    # geom_point(data=global.occ.sf, aes(decimalLongitude, decimalLatitude), color="blue")+
+    # labs(x="Longitude", y="Latitude")+
+    # theme_bw()
+
     
     #--------------------------------------------
     #------ Import right bias grid --------------
@@ -363,7 +355,7 @@ with_progress({
     #Mask biasgrid by ecoregions with occurrences 
     #--------------------------------------------
     wwf_ecoSub1_ext<-terra::ext(wwf_ecoSub1) 
-    wwf_ecoSub1_vector <- vect(wwf_ecoSub1) #Convert wwf_ecoSub1 to a SpatVector that can be used for masking
+    wwf_ecoSub1_vector <- terra::vect(wwf_ecoSub1) #Convert wwf_ecoSub1 to a SpatVector that can be used for masking
     biasgrid_crop <- terra::crop(biasgrid, wwf_ecoSub1_ext) #Crop biasgrid to extent wwf_ecoSub1
     biasgrid_sub <- terra::mask(biasgrid_crop, wwf_ecoSub1_vector)#Mask cropped biasgrid with SpatVector
     
@@ -377,14 +369,14 @@ with_progress({
     #--------------------------------------------
     #---------------Visualize biasgrid-----------
     #--------------------------------------------
-    #ggplot()+ 
-      #geom_sf(data = world,  colour = "black", fill = NA)+
-      #geom_spatraster(data=biasgrid_sub)+
-      #scale_fill_continuous(na.value = "transparent",low = "blue", high = "orange")+
-      #labs(x="Longitude", y="Latitude")+
-      #theme_bw()
-    
-    
+    # ggplot()+
+    # geom_sf(data = world,  colour = "black", fill = NA)+
+    # geom_spatraster(data=biasgrid_sub)+
+    # scale_fill_continuous(na.value = "transparent",low = "blue", high = "orange")+
+    # labs(x="Longitude", y="Latitude")+
+    # theme_bw()
+
+
     #--------------------------------------------
     #---------- Generate pseudoabsences ---------
     #--------------------------------------------
@@ -411,54 +403,59 @@ with_progress({
       dplyr::rename(decimalLongitude=x,
                     decimalLatitude=y)
     
-    global_presabs<- rbind(global.occ.sf,global_pseudoAbs)# join pseudoabsences with presences 
-    rm(global_points)
+    
+    global_presabs <- rbind(global.occ.sf, global_pseudoAbs)
+    #rm(global_points)
     
     
     #--------------------------------------------
     #--Visualize presence-pseudoabsence dataset--
     #--------------------------------------------
-    #mapview(biasgrid_sub_raster, 
-            #col.regions = colorRampPalette(c("blue", "orange")),
-            #alpha=1, 
-            #  na.color = "transparent", 
-            #layer.name = "Bias Grid") +
-      #mapview(global_presabs, zcol = "species", 
-              #col.regions = c("red", "yellow"),
-              #layer.name = "Species distribution")
-    
+    # ggplot()+
+    #   geom_sf(data = world,  colour = "black", fill = NA)+
+    #   geom_spatraster(data=biasgrid_sub)+
+    #   geom_point(data=global_presabs, aes(x=decimalLongitude, y=decimalLatitude, color=factor(species)))+
+    #   scale_color_manual(values=c("red", "green"), name="Occurrence type")+
+    #   scale_fill_continuous(na.value = "transparent",low = "blue", high = "orange", name="Weight")+
+    #   labs(x="Longitude", y="Latitude")+
+    #   theme_bw()
+
     
     #--------------------------------------------
     #---- Extract climate data for modelling-----
     #--------------------------------------------
-    global.data <- sdm::sdmData(species~.,train=vect(global_presabs),predictors=globalclimpreds_terra) 
-    global.data.df<-as.data.frame(global.data)
+    global.data.df <- sdm::sdmData(species~.,train=vect(global_presabs),predictors=globalclimpreds_terra)%>%
+      as.data.frame()
     
     
     #--------------------------------------------
     #--- Remove highly correlated predictors---
     #--------------------------------------------
-    # Identify highly correlated predictors
-    correlationMatrix<-cor(global.data.df[,-c(1,2)]) #Calculate pearson correlation among environmental values
-    highlyCorrelated <- caret::findCorrelation(correlationMatrix, cutoff=0.7,exact=TRUE,names=TRUE)#Returns names of environmental variables to be removed because they are correlated more than 0.7 with other variables.  If two variables have a high correlation, the function removes the variable with the largest mean absolute correlation.
-    preds<-as.data.frame(highlyCorrelated)
+    # Calculate correlation matrix (excluding rID and species)
+    correlationMatrix <- cor(global.data.df[, -c(1, 2)])
     
-    # Remove highly correlated predictors from dataframe 
-    global.data.df.subset<- global.data.df %>%
-      dplyr::select (-all_of(highlyCorrelated), -rID) %>% 
-      dplyr::mutate(species = as.factor(species)) %>%
-      dplyr::mutate(species = recode_factor(species, 
-                                     '0' = "absent",
-                                     '1' = "present")) %>%  # Later steps require non numeric dependent variable
-      dplyr::mutate(species = relevel(species, ref = "present")) 
+    # Identify highly correlated variables (cutoff = 0.7)
+    highlyCorrelated <- caret::findCorrelation(correlationMatrix, cutoff = 0.7, exact = TRUE, names = TRUE)
     
-    #Remove them from climate stack
-    eu_climpreds.10_selection<-eu_climpreds.10%>%
+    # Remove highly correlated predictors and rID, and prepare species factor
+    global.data.df.uncor <- global.data.df %>%
+      dplyr::select(-all_of(highlyCorrelated), -rID) %>%
+      dplyr::mutate(
+        species = as.factor(species),
+        species = recode_factor(species, '0' = "absent", '1' = "present"),
+        species = relevel(species, ref = "present")
+      )
+    
+    # Remove them from climate stack
+    globalclimpreds_terra_selection <- globalclimpreds_terra %>%
+      subset(!names(globalclimpreds_terra) %in% highlyCorrelated)
+    
+    eu_climpreds.10_selection <- eu_climpreds.10 %>%
       subset(!names(eu_climpreds.10) %in% highlyCorrelated)
       
     
     #--------------------------------------------
-    #--Correct climate data from integer format--
+    #--- Run multiple machine learning models ---
     #--------------------------------------------
     #Divide all climate data by 10
     global.data.df.uncor<-cbind("species"=  global.data.df.subset$species,divide10(global.data.df.subset[,-c(1)]))
