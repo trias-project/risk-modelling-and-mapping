@@ -516,23 +516,17 @@ with_progress({
     n0 <- 10000                # pseudoabsences (adjust to your setup if different)
     prev_ratio <- n1 / n0
     
-    #--------------------------------------------
-    #--- Run multiple machine learning models ---
-    #--------------------------------------------
-    #preProc: preprocessing of predictors (environmental data). method = "center" subtracts the mean of the predictor's data (again from the data in x) from the predictor values while method = "scale" divides by the standard deviation.
-    control <- caret::trainControl(method="cv",
-                                   number=10,
-                                   savePredictions="final", 
-                                   preProc=c("center","scale"),
-                                   classProbs=TRUE)
-    classList1 <- c("glm","gbm","rf","earth")
-    set.seed(457)
-    global_train <- caretEnsemble::caretList(species~., 
-                                             data= global.data.df.uncor,
-                                             trControl=control,
-                                             methodList=classList1,
-                                             metric="Accuracy")
+    #define methods and data
+    sdm_data <- sdm::sdmData(species~.,train=vect(global_presabs),predictors=globalclimpreds_terra_selection) 
+    methods <- c("glm", "gam", "bioclim", "brt", "rf", "glmpoly", "mars", "maxent", "fda", "cart") #, "fda","cart" do not work!!
     
+    #run model
+    model <- sdm(
+      species ~ ., data = sdm_data,
+      methods = methods  # 10 models
+    )
+    print(model)
+   
     
     #--------------------------------------------
     #--Return accurracy, kappa and correlation --
