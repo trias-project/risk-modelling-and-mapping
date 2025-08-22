@@ -433,12 +433,19 @@ with_progress({
     #--------------------------------------------
     #--- Create presence-pseudoabsence dataset---
     #--------------------------------------------
-    global_pseudoAbs<-global_points %>%
-      as.data.frame()%>%
-      dplyr::mutate(species = rep(0,length(x)))%>%
-      sf::st_as_sf(coords=c("x", "y"), crs=4326, remove=FALSE)%>%
-      dplyr::rename(decimalLongitude=x,
-                    decimalLatitude=y)
+    # Extract coordinates from SpatVector
+    coords <- terra::crds(global_points)
+    
+    # Add coordinates and convert
+    global_pseudoAbs <- global_points %>%
+      as.data.frame() %>%
+      mutate(x = coords[, 1],
+             y = coords[, 2],
+             species = 0) %>%
+      sf::st_as_sf(coords = c("x", "y"), crs = 4326, remove = FALSE) %>%
+      rename(decimalLongitude = x,
+             decimalLatitude = y) %>%
+      dplyr::select(decimalLongitude, decimalLatitude, species, geometry)
     
     
     global_presabs <- rbind(global.occ.sf, global_pseudoAbs)
