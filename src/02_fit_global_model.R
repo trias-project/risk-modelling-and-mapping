@@ -294,12 +294,7 @@ with_progress({
     global.occ.LL.cleaned$species<- rep(1,length(global.occ.LL.cleaned$decimalLongitude)) #adds columns indicating species presence (1) needed for modeling
     global.occ.sf<-sf::st_as_sf(global.occ.LL.cleaned, coords=c("decimalLongitude", "decimalLatitude"), crs=4326, remove= FALSE)
     
-    #------ Define number of pseudoabsences -----
-    #--------------------------------------------
-    numb.global.pseudoabs <-length(global.occ.sf$decimalLongitude) #sets the number of pseudoabsences equal to number of unique presences
-    rm(global.occ.LL.cleaned)
-    
-    
+   
     #-------------------------------------------------------
     #-Don't fit model if less than 20 global presences -----
     #-------------------------------------------------------   
@@ -327,7 +322,7 @@ with_progress({
     #wwf_eco_biome <- sf::st_make_valid(wwf_eco_biome)
     
     # Disable S2 geometry engine to avoid topological issues
-    #sf::sf_use_s2(FALSE)
+    sf::sf_use_s2(FALSE)
     
     # Keep only biome polygons that intersect at least one occurrence point
     has_occurrence <- lengths(sf::st_intersects(wwf_eco_biome, global.occ.sf)) > 0
@@ -335,7 +330,6 @@ with_progress({
     
     # Plot result
     plot(wwf_ecoSub1$geometry)
-    points(global.occ.sf, col = "red", pch = 16, cex = 0.5)
 
     
     #--------------------------------------------
