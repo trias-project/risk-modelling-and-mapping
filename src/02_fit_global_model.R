@@ -265,9 +265,9 @@ with_progress({
                             "name"= "Rasters/Interim"),
                        list("path"=file.path("./data/projects", projectname, paste0(first_two_words, "_", taxonkey), "Rasters", "Global"),
                             "name"= "Rasters/Global"),
-                       list("path"=file.path("./data/projects", projectname, paste0(first_two_words, "_", taxonkey), "PDFs"),
+                       list("path"=file.path("./data/projects", projectname, paste0(first_two_words, "_", taxonkey), "PDFs", "Global"),
                             "name"= "PDFs"),
-                       list("path"=file.path("./data/projects", projectname, paste0(first_two_words, "_", taxonkey), "PNGs"),
+                       list("path"=file.path("./data/projects", projectname, paste0(first_two_words, "_", taxonkey), "PNGs", "Global"),
                             "name"= "PNGs"))
     
     # Check and create each folder if necessary
