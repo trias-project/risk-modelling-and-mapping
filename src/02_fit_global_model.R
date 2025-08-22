@@ -18,30 +18,7 @@ for(package in packages) {
   library(package, character.only = TRUE)
 }
 
-
-#--------------------------------------------
-#--- Load right version of caretEnsemble-----
-#--------------------------------------------
-# Define the required version
-desired_version <- "2.0.3"
-
-if ("caretEnsemble" %in% rownames(installed.packages())) {
-  current_version <- packageVersion("caretEnsemble")
-  if (as.character(current_version) != desired_version) {
-    remove.packages("caretEnsemble")
-    devtools::install_github("zachmayer/caretEnsemble@2.0.3")
-    library(caretEnsemble)
-    rm(current_version, desired_version)
-  } else {
-    library(caretEnsemble)
-    rm(current_version, desired_version)
-  }
-  
-} else {
-  devtools::install_github("zachmayer/caretEnsemble@2.0.3")
-  library(caretEnsemble)
-  rm(desired_version)
-}
+sdm::installAll()
 
 
 #--------------------------------------------
