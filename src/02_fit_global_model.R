@@ -590,67 +590,57 @@ with_progress({
     })
    
     
-    # Display accuracy of each model
-    Global.Mod.Accuracy<-summary(GlobalModelResults)
+    #---------------------------------------------
+    #-- Create Ensemble model using PCAm method --
+    #---------------------------------------------
+
+    # Stack fav rasters into one SpatRaster – adjust if yours are different
+    fav_rasters_list <- lapply(modeloutput, function(x) x$fav_raster)
     
-    #Display correlation among models.
-    #Weakly correlated algorithms are persuasive for stacking them in ensemble.
-    Global.Mod.Cor<-caret::modelCor(resamples(global_train))
-   
+    # Combine into a SpatRaster stack
+    fav_stack <- terra::rast(fav_rasters_list)
     
-    #--------------------------------------------
-    #---------- Create ensemble model -----------
-    #--------------------------------------------
-    #combine individual models into one
-    set.seed(478)
-    global_stack <- caretEnsemble(
-      global_train, 
-      metric="Accuracy",
-      trControl=trainControl(method="cv",
-                             number=10,
-                             savePredictions= "final",
-                             classProbs=TRUE))
-    print(global_stack)
+    # Assign layer names based on model methods
+    names(fav_stack) <- names(modeloutput)
     
+    #make PCA
+    pca_result <- rasterPCA(fav_stack, nSamples = NULL, spca = FALSE, maskCheck = TRUE)
     
-    #--------------------------------------------
-    #Identify best threshold and get accurracy
-    #--------------------------------------------
-    #Identify threshold that maximizes spec=sens
-    global.ens.thresh<-findThresh(global_stack$ens_model$pred)
+    #-----------------GET TOP 5 variance models----------------
+    # Step 1: Recover original raster stack used in rasterPCA
+    fav_stack <- eval(pca_result$call$img)
     
-    #Return accurracy
-    ensemble_accurracy<-accuracyStats(global_stack$ens_model$pred,global.ens.thresh$predicted)
+    # Step 2: Extract PC1 loadings from princomp object
+    loadings <- pca_result$model$loadings[, 1]  # Comp.1 = PC1
+    names(loadings) <- rownames(pca_result$model$loadings)
     
+    # Step 3: Convert raster stack to matrix (rows = pixels, cols = models)
+    fav_matrix <- as.matrix(fav_stack)
     
-    #--------------------------------------------
-    #-- Get variable importance of global model--
-    #--------------------------------------------
-    variableImportance_global<-caret::varImp(global_stack)
+    # Step 4: Calculate variance along PC1 for each model
+    model_variances <- setNames(numeric(nlyr(fav_stack)), names(fav_stack))
     
+    for (i in 1:nlyr(fav_stack)) {
+      model_vals <- fav_matrix[, i]
+      centered <- model_vals - mean(model_vals, na.rm = TRUE)
+      projection <- centered * loadings[i]
+      model_variances[i] <- var(projection, na.rm = TRUE)
+    }
     
-    #--------------------------------------------
-    #-------- Make predictions for Europe--------
-    #--------------------------------------------
-    global_model <- terra::predict(eu_climpreds.10_selection,global_stack,type="prob", na.rm = TRUE) 
+    # Step 5: Select top 5 models with highest variance on PC1
+    top5_models <- names(sort(model_variances, decreasing = TRUE))[1:5]
+    cat("Top 5 models by variance along PC1:\n")
+    print(top5_models)
     
+    # Step 6: Subset fav_stack to top 5 layers
+    top5_stack <- subset(fav_stack, top5_models)
     
-    #--------------------------------------------
-    #-------------- Plot predictions-------------
-    #--------------------------------------------
-    #brks <- seq(0, 1, by=0.1) 
-    #nb <- length(brks)-1 
-    # Generate Viridis palette
-    #viridis_palette <- viridis(nb)
+    # Step 7: Compute pixel-wise median = consensus model
+    consensus_median <- app(top5_stack, median)
     
-    #ggplot() + 
-      #geom_sf(data = world,  colour = "grey", fill = NA)+
-      #geom_spatraster(data = global_model) +
-      #scale_fill_gradientn(colors = viridis_palette, breaks = brks, labels = brks, na.value = NA) +
-      #geom_sf(data = global.occ.sf, color = "black", fill = "red", size =1.5, shape = 21) +
-      #coord_sf(xlim = c(-10, 40), ylim = c(35, 72)) + 
-      #labs(fill = "Suitability")+
-      #theme_bw()
+    # Step 8: Plot result
+    plot(consensus_median, main = "Consensus (Median of Top 5 Models by Variance on PC1)")
+    
     
     #--------------------------------------------
     #-- Prepare global_presabs for export--------
