@@ -2,10 +2,10 @@
 #----To do: specify project and species------
 #--------------------------------------------
 #specify project name
-project<-"PA prob & Alternative Treshold & Ensemble Boyce"
+project <- "PA prob & Alternative Treshold & Ensemble Boyce"
 
 # specify the scientific name of the species to be modelled; see an example below
-species<-c("Cabomba caroliniana",
+species <- c("Cabomba caroliniana",
            "Cipangopaludina chinensis",
            "Salvinia ×molesta",
            "Xenopus laevis",
@@ -36,9 +36,9 @@ species<-c("Cabomba caroliniana",
 #--------------------------------------------
 packages <- c("rgbif", "dplyr", "purrr", "assertthat", "readr", "here", "qs")
 
-for(package in packages) {
+for (package in packages) {
   print(package)
-  if( ! package %in% rownames(installed.packages()) ) { install.packages( package ) }
+  if (!package %in% rownames(installed.packages()) ) { install.packages( package ) }
   library(package, character.only = TRUE)
 }
 
@@ -53,10 +53,10 @@ source("./src/helper_functions.R")
 #-------------Create folders-----------------
 #--------------------------------------------
 # Define the folder paths
-folder_paths<-list(list("path"=file.path("./data/projects",project),
-                        "name"= project),
-                   list("path"=file.path("./data/raw"),
-                        "name"= "raw")
+folder_paths <- list(list("path" = file.path("./data/projects",project),
+                        "name" = project),
+                   list("path" = file.path("./data/raw"),
+                        "name" = "raw")
 )
 
 # Check and create each folder if necessary
@@ -89,8 +89,8 @@ mapped_taxa <- purrr::map_dfr(
 )
 
 #Make sure that only species info is stored as it is possible that genus information is captured when the species part of the name is not clear
-mapped_taxa<-mapped_taxa %>%
-  dplyr::filter(rank =="SPECIES")
+mapped_taxa <- mapped_taxa %>%
+  dplyr::filter(rank == "SPECIES")
 
 #Make sure that all species were mapped to the GBIF backbone, if not an error will appear indicating which species are missing
 assertthat::assert_that(
@@ -100,30 +100,30 @@ assertthat::assert_that(
 )
 
 not_accepted <- mapped_taxa %>%
-  dplyr::filter(status !="ACCEPTED")
+  dplyr::filter(status != "ACCEPTED")
 
-if (nrow(not_accepted)!=0) {
-  warning(paste0("The following species do not have an accepted taxonomic status in the GBIF backbone: ",paste(unique(not_accepted$scientificName), collapse=", "),". Their corresponding accepted species names will be used for downloading occurrence data.")
+if (nrow(not_accepted) != 0) {
+  warning(paste0("The following species do not have an accepted taxonomic status in the GBIF backbone: ",paste(unique(not_accepted$scientificName), collapse = ", "),". Their corresponding accepted species names will be used for downloading occurrence data.")
   )
 } else {
   paste0("All species are accepted taxa in the GBIF backbone 🎉")
 }
 
 #Extract taxonkeys of each species, for synonyms the acceptedUsageKey is stored
-accepted_taxonkeys<-mapped_taxa %>%
-  dplyr::filter(status =="ACCEPTED")%>%
+accepted_taxonkeys <- mapped_taxa %>%
+  dplyr::filter(status == "ACCEPTED") %>%
   dplyr::pull(usageKey)
 
-if(nrow(not_accepted!=0)){
-  synonym_taxonkeys<-mapped_taxa %>%
-    dplyr::filter(status !="ACCEPTED")%>%
+if (nrow(not_accepted != 0)) {
+  synonym_taxonkeys <- mapped_taxa %>%
+    dplyr::filter(status != "ACCEPTED") %>%
     dplyr::pull(acceptedUsageKey)
   
-  accepted_taxonkeys<-c(accepted_taxonkeys, synonym_taxonkeys)
+  accepted_taxonkeys <- c(accepted_taxonkeys, synonym_taxonkeys)
 }
 
 #Keep unique accepted taxonkeys
-accepted_taxonkeys<-unique(accepted_taxonkeys)
+accepted_taxonkeys <- unique(accepted_taxonkeys)
 
 
 #--------------------------------------------
@@ -142,7 +142,7 @@ basis_of_record <- c(
 
 #Time period
 year_begin <- 1971
-year_end <-2024
+year_end <- 2024
 
 #Only georeferenced points
 hasCoordinate <- TRUE
@@ -151,7 +151,7 @@ hasCoordinate <- TRUE
 #--------------------------------------------
 #---------------Perform download-------------
 #--------------------------------------------
-#Note that GBIF credentials are required
+#Note that GBIF credentials are required, if this code fails just run again
 gbif_download_key <- rgbif::occ_download(
   pred_in("taxonKey", accepted_taxonkeys),
   pred_in("basisOfRecord", basis_of_record),
@@ -169,9 +169,9 @@ rgbif::occ_download_wait(gbif_download_key)#Check download status
 #--------------------------------------------
 #--------------Retrieve download-------------
 #--------------------------------------------
-rgbif::occ_download_get(gbif_download_key, path = here::here("data","raw"), overwrite=TRUE)
+rgbif::occ_download_get(gbif_download_key, path = here::here("data","raw"), overwrite = TRUE)
 metadata <- rgbif::occ_download_meta(key = gbif_download_key)
-gbif_download_key<-metadata$key
+gbif_download_key <- metadata$key
 
 #extract_GBIF_occurrence
 raw.path<- here::here("data", "raw", gbif_download_key)
@@ -194,7 +194,7 @@ taxa_info<-data.frame(speciesKey=unique(global$speciesKey),
 
 #Save occurrence data as .qs file and taxa info as .csv
 qs::qsave(global, paste0("./data/projects/",project,"/",project,"_occurrences.qs"))
-write.csv2(taxa_info, paste0("./data/projects/",project,"/",project,"_taxa_info.csv"), row.names=FALSE)
+write.csv2(taxa_info, paste0("./data/projects/",project,"/",project,"_taxa_info.csv"), row.names = FALSE)
 
 
 #--------------------------------------------
