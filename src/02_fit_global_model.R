@@ -377,8 +377,6 @@ with_progress({
     climategrid_rast<-terra::crop(globalclimpreds_terra[[1]], wwf_ecoSub1_ext)
     biasgrid_sub<-terra::mask(biasgrid_sub, climategrid_rast) 
     
-    biasgrid_sub_raster <- raster::raster(biasgrid_sub) #Convert SpatRaster back to normal raster object, needed in function generate_pseudoabs(which is based on dismo::randomPoints)
-    
     
     #--------------------------------------------
     #---------------Visualize biasgrid-----------
@@ -394,17 +392,42 @@ with_progress({
     #--------------------------------------------
     #---------- Generate pseudoabsences ---------
     #--------------------------------------------
-    # generates pseudo absences equal to the number of presences, from cells that are not NA in biasgrid_sub and not from cells that have occurrence points as indicated in global.occ.sf. 
-    #extf 1.1 increases the size of extent with 5% at each side of the extent (default value) but when ext is NULL it won't do anything.
-    #excludep = TRUE indicates that presence points are excluded from the background, prob: if TRUE the values in mask are interpreted as probability weights (only works for rasters with a modest size that can be loaded into RAM)
     
-    #Create alternative raster consisting of only ecoregions without biasgrid mask, used only when not enough pseudoabsence points can be generated using biasgrid_sub as mask layer
-    ecoregions_crop<-terra::crop(globalclimpreds_terra[[1]], wwf_ecoSub1_ext) #Crop one of the climate rasters to extent ecoregions
-    ecoregions_raster<-terra::mask(ecoregions_crop,wwf_ecoSub1_vector) #Mask with ecoregions vector
+    # #Create alternative raster consisting of ecoregions without biasgrid mask (for when not enough PA can be generated)
+    # ecoregions_crop<-terra::crop(globalclimpreds_terra[[1]], wwf_ecoSub1_ext) #Crop one of the climate rasters to extent ecoregions
+    # ecoregions_raster<-terra::mask(ecoregions_crop,wwf_ecoSub1_vector) #Mask with ecoregions vector
+    # 
     
-    #Generate pseudoabsences
+    #LIMIT TO AREA OF 100KM AROUND OCCURRENCES
+    #global.occ.sf_buffer_100km <- st_buffer(global.occ.sf, dist = 100000)
+    #global.occ.sf_buffer_100km <- vect(st_union(global.occ.sf_buffer_100km))
+    # Convert raster from 'raster' to 'terra' format if needed
+    #if (inherits(biasgrid_sub_raster, "Raster")) {
+    #  biasgrid_sub_raster <- rast(biasgrid_sub_raster)
+    #}
+    #biasgrid_sub_raster<-terra::mask(biasgrid_sub_raster,global.occ.sf_buffer_100km)
+    #biasgrid_sub_raster_raster <- raster::raster(biasgrid_sub_raster)
+    
+    
+    #---------Mask cells that contain occurrences---------
+    # Convert sf to terra-compatible vector
+    for_PA_vect <- terra::vect(for_PA_selection)
+    # Identify raster cells that correspond to these points
+    cells_to_exclude <- terra::cellFromXY(biasgrid_sub, terra::crds(for_PA_vect))
+    # Set those cells to NA
+    biasgrid_sub[cells_to_exclude] <- NA
+    
+    #--------------Generate pseudoabsences-----------------
+    #TODO check if alternative is needed when not enough points can be selected
+    #Before we used ecoregions grid, without biasgrid mask as alternative
     set.seed(728)
-    global_points <- generate_pseudoabs( mask = biasgrid_sub_raster, alternative_mask = raster::raster(ecoregions_raster) , n = numb.global.pseudoabs, p =  sf::st_drop_geometry(global.occ.sf))
+    global_points <- terra::spatSample(
+      biasgrid_sub,
+      size = 10000,
+      method = "weights",     # weighted random sampling
+      as.points = TRUE,       # return SpatVector of points
+      na.rm = TRUE # ignore NA pixels: DOES NOT WORK, CHECK THIS
+    )
     
     
     #--------------------------------------------
