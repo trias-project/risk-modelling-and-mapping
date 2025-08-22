@@ -817,7 +817,8 @@ with_progress({
     #------------------ Clean up-----------------
     #--------------------------------------------
     print(paste("Global model has been created for", species))
-    rm(list = setdiff(ls(), c("p","wwf_eco","eu_climpreds.10", "split_df", "accuracyStats", "decimalplaces", "divide10", "findThresh", "predict_large_raster", "globalclimpreds_terra","bias_grid_paths", "i", "world", "projectname", "generate_pseudoabs", "create_folder")))
+    
+    rm(list = setdiff(ls(), c("p","wwf_eco_biome","eu_climpreds.10", "split_df",  "decimalplaces", "globalclimpreds_terra","bias_grid_paths", "i", "world", "projectname", "create_folder", "split_df_all_occs", "exportPDF")))
    
   }
 
