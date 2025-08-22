@@ -511,6 +511,10 @@ with_progress({
       return(fav)
     }
     
+    #Define prevalence ratio
+    n1 <- nrow(global.occ.sf)  # presences
+    n0 <- 10000                # pseudoabsences (adjust to your setup if different)
+    prev_ratio <- n1 / n0
     
     #--------------------------------------------
     #--- Run multiple machine learning models ---
