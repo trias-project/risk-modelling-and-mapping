@@ -785,15 +785,20 @@ with_progress({
     #--------------------------------------------
     globalmodels <-list(species = species, #Species name
                         taxonkey = taxonkey, #Species taxonkey
-                        global_ensemble_model = global_stack, #Global ensemble model 
-                        global_data_df_uncor=global.data.df.uncor, #Data used to fit the global ensemble model (climate data for each presence/pseudoabsence)
-                        global_presabs=global_presabs,#xy coordinates of presences and pseudoabsences used to fit the models
-                        model_accuracy = ensemble_accurracy, #Accuracy of ensemble model
-                        variable_importance = variableImportance_global, #Variable importance in each separate model and overall
-                        occurrences=global.occ.sf, #Sf dataframe of occurrence data used to fit the models
-                        model_correlation = Global.Mod.Cor #Correlation between the separate models
-    )
-    
+                        global_data_df_uncor=global.data.df.uncor, #Data used to fit the model (climate data for each presence/pseudoabsence)
+                        global_presabs = global_presabs,#xy coordinates of presences and pseudoabsences used to fit the models
+                        occurrences=for_PA_selection, #All raw occurrences
+                        occurrences5km = global.occ.sf, #Processed occurrences used to fit the models
+                        occurrences1km = if (exists("global.occ_1KM")) global.occ_1KM else NULL,
+                        mtp_5_threshold = binary_maps$`5%`$mean_MTP,
+                        mtp_1_threshold = binary_maps$`1%`$mean_MTP,
+                        sdm_model = model,
+                        pca_result = pca_result,
+                        top5_models = top5_models,
+                        final_boyce = boyce_val,
+                        global_EU_sensitivity_5pct_threshold =  binary_maps$`5%`$EU_sensitivity,
+                        global_EU_sensitivity_1pct_threshold =  binary_maps$`1%`$EU_sensitivity)
+                        
     qs::qsave(globalmodels, paste0("./data/projects/",projectname,"/",first_two_words,"_",taxonkey,"/Global_model_",first_two_words,"_",taxonkey,".qs"))
     
     
