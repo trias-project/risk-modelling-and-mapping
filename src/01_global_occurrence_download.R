@@ -75,6 +75,9 @@ mapped_taxa <- purrr::map_dfr(
   ~ {
     tryCatch(
       {
+        # Add a small delay to avoid API misses
+        Sys.sleep(0.2)
+        
         data <- rgbif::name_backbone(name = .x)
         if (length(data) == 0) {
           stop("No match with the GBIF backbone found")
