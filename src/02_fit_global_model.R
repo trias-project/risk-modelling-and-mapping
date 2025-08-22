@@ -355,6 +355,14 @@ with_progress({
     } else {
       stop("No bias grid available for this species. Species has to be one of the following: Amphibians, Molluscs, Mammals, Reptiles, Birds, Plants, Fish, Malacostraca, or Insects.")
     }
+
+    #Mask biasgrid with climate layers (no PA can be selected in NA climate pixels)
+    biasgrid_log <- terra::mask(biasgrid, globalclimpreds_terra[[1]])
+    
+    # Rescale raster values to range from 1 to 20
+    min_val <- global(biasgrid_log, fun = "min", na.rm = TRUE)[[1]]
+    max_val <- global(biasgrid_log, fun = "max", na.rm = TRUE)[[1]]
+    biasgrid <- ((biasgrid_log - min_val) / (max_val - min_val)) * 19 + 1
     
     
     #--------------------------------------------
