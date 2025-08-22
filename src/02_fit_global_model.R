@@ -529,10 +529,66 @@ with_progress({
    
     
     #--------------------------------------------
-    #--Return accurracy, kappa and correlation --
-    #--------------------------------------------
-    #Return the results for each model
-    GlobalModelResults<-caret::resamples(global_train)  
+    #---  Make predictions using each model  ---
+    #-------------------------------------------- 
+    # Get model info
+    info <- sdm::getModelInfo(model)
+    
+    #Get presence data and their associated climatological values
+    pres_data <- subset(global.data.df.uncor, species == "present")
+    pres_features <- pres_data[, -which(names(pres_data) == "species")]
+    
+    #Create empty list to store models in
+    modeloutput<-list()
+    
+    system.time({
+      for(modelmethod in methods){
+        
+        print(modelmethod)
+        
+        #Create raster with predictions for Europe
+        pred_raster <- predict(model,
+                               newdata = eu_climpreds.10_selection,
+                               method = modelmethod)
+        
+        # Get model IDs
+        model_ids <- info$modelID[info$method == modelmethod]
+        
+        # Subset using those IDs
+        method_model <- model[[model_ids]]  
+        
+        #Apply the transformation to the raster
+        fav_raster <- favourability_from_prob(pred_raster, prev_ratio)
+        
+        #Get threshold
+        fitted_model <- predict(method_model, newdata = pres_features, type = "response")
+        fitted_favourability <- favourability_from_prob(fitted_model[[1]], prev_ratio)
+        
+        # 1% minimum training presence threshold
+        threshold_1pct <- quantile(fitted_favourability, probs = 0.01, na.rm = TRUE)
+        
+        #5% minimum training presence threshold
+        threshold_5pct <- quantile(fitted_favourability, probs = 0.05, na.rm = TRUE)
+        
+        # Binarize rasters using the thresholds
+        binary_1pct <- fav_raster >= threshold_1pct 
+        binary_5pct <- fav_raster >= threshold_5pct
+        
+        # Plot
+       plot(fav_raster, main = paste0("Favourability (", modelmethod,")"))
+       plot(binary_1pct, main = paste0("Binary map ",modelmethod," (1% threshold)"))
+       plot(binary_5pct, main = paste0("Binary map ",modelmethod," (5% threshold)"))
+        
+        #Store
+        modeloutput[[modelmethod]]<-list(fav_raster=fav_raster,
+                                         binary1pct=binary_1pct,
+                                         binary5pct=binary_5pct,
+                                         model=method_model)
+        
+        rm(fav_raster, binary_1pct, binary_5pct, method_model)
+      }
+    })
+   
     
     # Display accuracy of each model
     Global.Mod.Accuracy<-summary(GlobalModelResults)
