@@ -137,6 +137,9 @@ scaled_files <- list.files(
 # Load and stack
 globalclimpreds_terra <- terra::rast(scaled_files)
 
+#Decrease resolution to match coordinate uncertainty of global occurrences: use around 5km at equator by averaging
+globalclimpreds_terra<- aggregate(globalclimpreds_terra, fact=5, fun=mean, na.rm=TRUE)
+
 # Optional: check
 print(globalclimpreds_terra)
 
