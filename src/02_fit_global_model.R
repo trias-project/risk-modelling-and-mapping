@@ -642,6 +642,133 @@ with_progress({
     plot(consensus_median, main = "Consensus (Median of Top 5 Models by Variance on PC1)")
     
     
+    #------------------------------------------
+    #-- Create map with ensemble suitability --
+    #------------------------------------------
+    #Add EU occurrence points and EU Boyce-index value
+    
+    #Extract all raster values (excluding NAs)
+    all_suit_vals <- values(consensus_median)
+    all_suit_vals <- all_suit_vals[!is.na(all_suit_vals)]
+    
+    #Extract suitability values at occurrence locations
+    occ_suit_vals <- terra::extract(consensus_median, vect(global.occ.sf))[,2]
+    occ_suit_vals <- occ_suit_vals[!is.na(occ_suit_vals)]
+    
+    #Compute Boyce only if there are enough occurrences
+    if (length(occ_suit_vals) > 0) {
+      boyce_result <- ecospat.boyce(
+        fit = all_suit_vals,
+        obs = occ_suit_vals,
+        nclass = 0
+      )
+      boyce_val <- round(boyce_result$cor, 3)
+    } else {
+      warning(paste("No EU occurrences available to calculate Boyce index for", species))
+      boyce_val <- "NA (no EU data)"
+      }
+    
+    #Prepare title and species extension
+    species_title <- gsub("_", " ", first_two_words)
+    rest_of_name <- if (grepl("^\\S+\\s+\\S+$", species)) "" else sub("^\\S+\\s+\\S+\\s+", "", species)
+    
+    #Define PNG and PDF folders
+    PDF_folder <- file.path("./data/projects", projectname, paste0(first_two_words, "_", taxonkey), "PDFs")
+    PNG_folder<-file.path("./data/projects", projectname, paste0(first_two_words, "_", taxonkey), "PNGs")
+    
+    for (occs in list(NULL, global.occ.sf)){
+      # Export PDFs with and without occurrences plotted
+      exportPDF(predictions = consensus_median,
+                taxonName = first_two_words,
+                nameExtension= rest_of_name,
+                dataType = "Suit",
+                taxonNameTitle = species_title,
+                taxonKey = taxonkey,
+                scenario = "hist",
+                regionName = "Global",
+                returnPredictions = FALSE,
+                returnPNG = FALSE,
+                occ_data=occs,
+                exportPNG=TRUE,
+                LabelValue= boyce_val,
+                LabelName="Boyce index")
+    }
+
+    
+    #------------------------------------------
+    #------------ Create binary map -----------
+    #------------------------------------------
+    # Get predictor values at occurrence points
+    predictors_only <- global.data.df.uncor%>%
+      dplyr::filter(species=="present")%>%
+      dplyr::select(-species)
+
+    
+    # Predict for top 5 models
+    pred_vals <- list()
+    for (method in top5_models) {
+      pred_vals[[method]] <- predict(model, newdata = predictors_only, method = tolower(method))
+    }
+    
+    # Favourability transformation
+    fav_vals <- lapply(pred_vals, function(p) favourability_from_prob(p[[1]], prev_ratio))
+    
+    binary_maps<-list()
+    for (probs in c(0.05, 0.01)){
+    
+    #Define mtp_pct
+    mtp_pct <- switch(as.character(probs),
+                     "0.05" = "5%",
+                     "0.01" = "1%")  
+      
+    # Thresholds
+    thr <- sapply(fav_vals, function(fv) quantile(fv, probs = probs, na.rm = TRUE))
+    
+    # Averages
+    mean_pct <- mean(thr, na.rm = TRUE)
+    cat(paste0("Mean ",mtp_pct," minimum training presence threshold: ", round(mean_pct, 4), "\n"))
+    
+    # Binary raster using MTP threshold
+    binary_map_pct <- consensus_median >= mean_pct  
+    binary_map_pct <- as.factor( binary_map_pct*1) #Convert TRUE/FALSE to 1/0 and then to Present/Absent
+    levels( binary_map_pct) <- data.frame(ID = c(0, 1),
+                                          class = c("Absent", "Present"))
+
+    # Calculate sensitivity in Europe
+    occ_values <- terra::extract(binary_map_pct, vect(global.occ.sf))[,2]  # Extract raster values (2nd column) at occurrence locations
+    cat("Occurrences in suitable cells:", sum(occ_values == "Present", na.rm = TRUE), "\n")
+    cat("Occurrences in unsuitable cells:", sum(occ_values == "Absent", na.rm = TRUE), "\n")
+    cat("Occurrences in NA cells:", sum(is.na(occ_values)), "\n")
+    global_EU_sensitivity <- sum(occ_values == "Present", na.rm = TRUE) / sum(occ_values %in% c("Present", "Absent"), na.rm = TRUE)
+    
+    
+    # export as PDF and PNG with and without occurrences plotted and return as PNG
+    for (occs in list(NULL, global.occ.sf)){
+      exportPDF(predictions = binary_map_pct,
+                taxonName = first_two_words,
+                nameExtension= rest_of_name,
+                dataType = "Binary",
+                taxonNameTitle = species_title,
+                taxonKey = taxonkey,
+                scenario = "hist",
+                regionName = "Global",
+                returnPredictions = FALSE,
+                returnPNG = TRUE,
+                occ_data=occs,
+                exportPNG=TRUE,
+                LabelValue= mtp_pct,
+                LabelName="MTP threshold",
+                Label2Value=round(global_EU_sensitivity,3),
+                Label2Name="Sensitivity")
+    }
+    
+    binary_maps[[mtp_pct]]<-list(binary_raster=binary_map_pct,
+                                 EU_sensitivity=global_EU_sensitivity,
+                                 mean_MTP=mean_pct)
+    rm(binary_map_pct)
+    }
+    
+
     #--------------------------------------------
     #-- Prepare global_presabs for export--------
     #--------------------------------------------  
