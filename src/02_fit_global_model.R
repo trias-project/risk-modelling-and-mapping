@@ -151,19 +151,24 @@ euboundary<-sf::st_read(here("./data/external/GIS/Europe/EUROPE.shp"))
 # Convert sf boundary to SpatVector
 euboundary_vect <- terra::vect(euboundary)
 
-# Crop and mask scaled_stack
-scaled_stack_europe <- terra::crop(globalclimpreds_terra, euboundary_vect)
-eu_climpreds.10 <- terra::mask(scaled_stack_europe, euboundary_vect)
-
 
 #---------------------------------------------
 #- Remove NA pixels and mask to European ext -
 #---------------------------------------------
 # This ensures all rasters have the same NA structure
-na_mask_globalclimpreds_terra <- terra::sum(is.na(globalclimpreds_terra)) > 0
-globalclimpreds_terra <- terra::mask(globalclimpreds_terra, na_mask_globalclimpreds_terra, maskvalue = 1)
-na_mask_eu_climpreds.10 <- terra::sum(is.na(eu_climpreds.10)) > 0
-eu_climpreds.10 <- terra::mask(eu_climpreds.10, na_mask_eu_climpreds.10, maskvalue = 1)
+na_mask_globalclimpreds_terra <- anyNA(globalclimpreds_terra)
+globalclimpreds_terra  <- terra::mask(
+  globalclimpreds_terra,
+  na_mask_globalclimpreds_terra,
+  maskvalue = 1,
+  filename = "data/external/climate/masked_globalclimpreds.tif",
+  overwrite = TRUE,
+  wopt = list(gdal = c("COMPRESS=LZW"))
+)
+
+# Crop and mask scaled_stack to European extent
+eu_climpreds.10 <- terra::crop(globalclimpreds_terra, euboundary_vect)
+eu_climpreds.10 <- terra::mask(eu_climpreds.10, euboundary_vect)
 
 
 #--------------------------------------------
