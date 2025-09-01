@@ -186,6 +186,14 @@ with_progress({
       as.data.frame()
  
     
+    #-----------------------------------------------
+    #----------- Process occurrences ---------------
+    #-----------------------------------------------
+    #Keep only one occurrence per grid cell
+    eu_occ <- remove_duplicates(occurrences =  eu_occ, rast_template = habitat_stack[[1]])
+    
+    #Remove occurrences within grid cells with NA values
+    eu_occ <- remove_nodata_occurrences(occurrences = eu_occ, rast_template= habitat_stack, st_crs(habitat_stack))
     
     # Keep XY coordinates
     euocc<-eu_occ%>%
