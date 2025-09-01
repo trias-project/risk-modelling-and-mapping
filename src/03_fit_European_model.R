@@ -148,8 +148,8 @@ with_progress({
     
     #Load rasterlayers
     biasgrid_sub <- terra::rast(biasgrid_file)
-    global_model <- terra::rast(global_model_file)
-
+    global_climate_for_eu <- terra::rast(global_model_file)%>%
+      terra::project( habitat_stack)
         
     #--------------------------------------------
     #------------ Define folder paths -----------
