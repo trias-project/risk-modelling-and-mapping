@@ -326,15 +326,16 @@ with_progress({
     fullstack <- subset(habitat_stack, !(names(habitat_stack) %in% drop_vars))
 
     
-    # extract environmental data for eu presences and add presence indicator (1)
-    presence<-as.data.frame(euocc)
-    names(presence)<- c("x","y")
-    presence1<-terra::extract(rmiclimpreds,presence, ID=FALSE)
-    presence1$occ<-1
+    #-----------------------------------------------------------
+    #- Extract predictor values for presences and pseudoabsences
+    #-----------------------------------------------------------
+    # Extract raster values from fullstack
+    occ.full.data.df <- terra::extract(fullstack, terra::vect(eu_presabs), ID = FALSE) %>%
+      dplyr::mutate(occ = eu_presabs$species) 
     
-    # join each pseudoabsence set with presences 
-    eu_presabs.pts<-lapply(pseudoabs_pts2,  function(x) rbind(x, presence1))
-    eu_presabs.coord<-lapply(pseudoabs_pts, function(x) rbind(x,presence))
+    if (anyNA(occ.full.data.df)) warning("Some pseudoabsence points fall within NA grid cells")
+    
+    occ_counts <- table(occ.full.data.df$occ)
     
     
     #--------------------------------------------
