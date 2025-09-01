@@ -283,16 +283,32 @@ with_progress({
     
     
     #--------------------------------------------
-    #Randomly generate pseudoabsences in pseudoSamplingArea
+    #--- Create presence-pseudoabsence dataset ---
     #--------------------------------------------
-    # Set number of pseudoabsences equal to the number of presences
-    numb.eu.pseudoabs<-nrow(euocc)
+    # Ensure CRS match
+    if (!st_crs(eu_occ) == st_crs(euboundary)) {
+      euboundary <- st_transform(euboundary, st_crs(eu_occ))
+      print("transforming CRS of euboundary")
+    }
     
-    # Generate pseudoabsences 10 times, store in a list with 10 datasets and names them X1-X10
-    setlist<-seq(1,10,1)
-    set.seed(120)
-    pseudoabs_pts <- lapply(setlist, generate_pseudoabs, mask = (1/raster(pseudoSamplingArea)), alternative_mask = (1/raster(global_masked_proj)), n = numb.eu.pseudoabs, p = euocc)
-    names(pseudoabs_pts) <- paste0("X", setlist)
+    # Format presence data (eu_occ)
+    eu_occ <- eu_occ %>%
+      dplyr::mutate(species = "present") %>%
+      dplyr::relocate(decimalLongitude, decimalLatitude, species, geometry)
+  
+    #Format pseudoabsence data (global_points) 
+    global_points_sf <- global_points[, 0] %>% #Keep only geometry
+      sf::st_as_sf() %>% #Convert to sf
+      dplyr::mutate(coords = st_coordinates(geometry),#Extract coordinates as matrix
+             decimalLongitude = coords[,1], #Add coordinates to designated column
+             decimalLatitude  = coords[,2], #Add coordinates to designated column
+             species = "absent") %>%
+      dplyr::select(-coords) %>%  # drop helper column
+      dplyr::relocate(decimalLongitude, decimalLatitude, species, geometry) #Reorder columns
+    
+    #Combine presence and pseudoabsence data
+    eu_presabs <- rbind(eu_occ, global_points_sf)
+
     
     
     #--------------------------------------------
