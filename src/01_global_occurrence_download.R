@@ -195,6 +195,90 @@ global <- dplyr::select(global, c(acceptedTaxonKey,acceptedScientificName, decim
 
 
 #--------------------------------------------
+# Process ambiguous synonyms
+#--------------------------------------------
+
+#Get unique taxonkeys that are not part of the accepted taxonkeys (ambiguous keys)
+ambiguous<-global%>%
+  dplyr::filter(!acceptedTaxonKey %in% accepted_taxonkeys)%>%
+  dplyr::select(acceptedTaxonKey, acceptedScientificName)%>%
+  dplyr::distinct()
+
+if (nrow(ambiguous) > 0) {
+#Map these with the GBIF backbone
+mapped_ambiguous<- purrr::map_dfr(
+  ambiguous$acceptedScientificName,
+  ~ {
+    tryCatch(
+      {
+        # Add a small delay to avoid API misses
+        Sys.sleep(0.2)
+        
+        data <- rgbif::name_backbone(name = .x)
+        if (length(data) == 0) {
+          stop("No match with the GBIF backbone found")
+        }
+        data
+      },
+      error = function(e) {
+        NULL
+      }
+    )
+  }
+)
+
+#Keep original acceptedScientificName and the species it was mapped to
+mapped_ambiguous <- mapped_ambiguous %>% 
+  dplyr::select(verbatim_name, species)
+
+#Map the species-level against the GBIF backbone
+mapped_ambiguous_species <- purrr::map_dfr(
+  mapped_ambiguous$species,
+  ~ {
+    tryCatch(
+      {
+        # Add a small delay to avoid API misses
+        Sys.sleep(0.2)
+        
+        data <- rgbif::name_backbone(name = .x)
+        if (length(data) == 0) {
+          stop("No match with the GBIF backbone found")
+        }
+        data
+      },
+      error = function(e) {
+        NULL
+      }
+    )
+  }
+)
+
+#Create a df with the following columns:
+#verbatim_name= original acceptedScientificName in df 'global'
+#usageKey = taxonKey of the mapped species
+#scientificName = scientific name of the mapped species
+mapped<- mapped_ambiguous %>%
+  dplyr::select(species, verbatim_name) %>%
+  left_join(mapped_ambiguous_species, by = c("species" = "verbatim_name"))%>%
+  dplyr::select(verbatim_name, usageKey, scientificName)
+
+#Add this info to df 'global'
+global<-left_join(global, mapped, by = c("acceptedScientificName" = "verbatim_name"))
+
+#Overwrite acceptedScientificName and acceptedTaxonKey if necessary
+global<-global %>%
+  dplyr::mutate(
+    acceptedScientificName = ifelse(!acceptedTaxonKey %in% accepted_taxonkeys,
+                                    scientificName, 
+                                    acceptedScientificName),
+    acceptedTaxonKey = ifelse(!acceptedTaxonKey %in% accepted_taxonkeys, 
+                              usageKey,
+                              acceptedTaxonKey))%>%
+  dplyr::select(-c(usageKey, scientificName))%>%
+  dplyr::filter(acceptedTaxonKey %in% accepted_taxonkeys) 
+}
+
+#--------------------------------------------
 #------------------Save data-----------------
 #--------------------------------------------
 #Create dataset taxa_info containing scientific name, canonical name, taxonkeys, gbif download key,...
