@@ -643,12 +643,36 @@ with_progress({
     #--------------------------------------------
     #- ------ Save rasters-----------------------
     #--------------------------------------------
-    #Define raster path
-    fullstack_be_file<- file.path(raster_folder,"Interim", paste0("Fullstack_be_",first_two_words,"_",taxonkey,".tif"))
+    # Export continuous suitability raster
+    clim_hab_file <- here::here(raster_EU_folder,
+                               paste0("Climate_Habitat_", 
+                                      first_two_words,
+                                      "_", 
+                                      taxonkey,
+                                      ".tif"))
     
-    #Save locally because if in .qs file parts of the metadata will be stored in a Temp file that will be erased over time
-    terra::writeRaster(fullstack_be, filename =fullstack_be_file, overwrite = TRUE)
-
+    terra::writeRaster(clim_hab, filename = clim_hab_file, overwrite = T)
+    
+    # Export binary raster — 1% threshold
+    clim_hab_binary_1pct_file <- here::here(raster_EU_folder,
+                                           paste0("Climate_Habitat_binary_1pct_",
+                                                  first_two_words,
+                                                  "_", 
+                                                  taxonkey,
+                                                  ".tif"))
+    
+    terra::writeRaster(clim_hab_binary_1pct, filename = clim_hab_binary_1pct_file, overwrite = T)
+    
+    # Export binary raster — 5% threshold
+    clim_hab_binary_5pct_file <- here::here(raster_EU_folder, 
+                                           paste0("Climate_Habitat_binary_5pct_",
+                                                  first_two_words,
+                                                  "_",
+                                                  taxonkey,
+                                                  ".tif"))
+    
+    terra::writeRaster(clim_hab_binary_5pct, filename = clim_hab_binary_5pct_file, overwrite = T)
+    
     
     #--------------------------------------------
     #-------- End of loop -----------------------
