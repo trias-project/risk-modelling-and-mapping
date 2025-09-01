@@ -95,30 +95,30 @@ lapply(folder_paths, function(folder){
 
 
 #-------------------------------------------------
-#------ Store the CHELSA layers  --------------
+#--------- Store the CHELSA layers  --------------
 #-------------------------------------------------
 options(timeout = 600) #set time-out to 10 min 
 
-for(i in c("01", "04", "05", "06","07", "12","13","14","15")){
+for(i in c("1", "4", "5", "6","7", "12","13","14","15")){
   
   # Define CHELSA layer name
   layer_name <- switch(i,
-                       "01" = "meantemp",
-                       "04" = "temp_seasonality",
-                       "05" = "maxTmpWarmestMon",
-                       "06"= "minTmpColdestMon",
-                       "07"="temp_annRange",
+                       "1" = "meantemp",
+                       "4" = "temp_seasonality",
+                       "5" = "maxTmpWarmestMon",
+                       "6"= "minTmpColdestMon",
+                       "7"="temp_annRange",
                        "12"="annPrecip",
                        "13"="precipWettestMon",
                        "14"="precipDriestMon",
                        "15"="precipSeasonality")
   
   if(grepl("windows", Sys.getenv("OS"), ignore.case = TRUE)) {
-    download.file(url = paste0("https://os.zhdk.cloud.switch.ch/chelsav1/climatologies/bio/CHELSA_bio10_",i,".tif"),
+    download.file(url = paste0("https://os.zhdk.cloud.switch.ch/chelsav2/GLOBAL/climatologies/1981-2010/bio/CHELSA_bio",i,"_1981-2010_V.2.1.tif"),
                   mode = "wb",
                   destfile = here::here(global_climate_folder,paste0("CHELSA_",layer_name,"_",i,".tif")))
   }else{
-    download.file(url = paste0("https://os.zhdk.cloud.switch.ch/chelsav1/climatologies/bio/CHELSA_bio10_",i,".tif"),
+    download.file(url = paste0("https://os.zhdk.cloud.switch.ch/chelsav2/GLOBAL/climatologies/1981-2010/bio/CHELSA_bio",i,"_1981-2010_V.2.1.tif"),
                   destfile = here::here(global_climate_folder,paste0("CHELSA_",layer_name,"_",i,".tif")))
   }
 }
