@@ -127,7 +127,7 @@ with_progress({
     if(file.exists(global_model_file)){
       
       #This was stored as part of  script 02_fit_global_model
-      globalmodels<-qs::qread( paste0("./data/projects/",projectname,"/",first_two_words,"_",taxonkey,"/Global_model_",first_two_words,"_",taxonkey,".qs"))
+      globalmodels <- qs::qread(global_model_file)
       
       #Extract different data objects stored in globalmodels
       global.occ.sf<-globalmodels$occurrences
