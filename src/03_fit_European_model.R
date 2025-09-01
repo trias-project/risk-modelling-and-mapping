@@ -2,7 +2,7 @@
 #-----------To do: specify project ----------
 #--------------------------------------------
 #specify project name
-projectname<-"Project_Frédérique"
+projectname <-"PA prob & Alternative Treshold & Ensemble Boyce"
 
 
 #--------------------------------------------
@@ -10,7 +10,7 @@ projectname<-"Project_Frédérique"
 #--------------------------------------------
 options("rgdal_show_exportToProj4_warnings"="none")
 
-packages <- c( "viridis","dplyr", "here", "qs","terra", "tidyterra","sf", "ggplot2","RColorBrewer","magick","patchwork","grid", "randomForest", "progressr", "raster", "dismo", "caret", "caretEnsemble", "kableExtra","gbm", "PresenceAbsence")
+packages <- c( "viridis","dplyr", "here", "qs","terra", "tidyterra","sf", "ggplot2","RColorBrewer","magick","patchwork","grid", "randomForest", "progressr", "raster", "dismo", "caret", "caretEnsemble", "kableExtra","gbm", "PresenceAbsence", "RStoolbox", "sdm")
 
 for(package in packages) {
   print(package)
@@ -18,40 +18,7 @@ for(package in packages) {
   library(package, character.only = TRUE)
 }
 
-
-#--------------------------------------------
-#---  Load right version of caretEnsemble  --
-#--------------------------------------------
-# Define the required version
-desired_version <- "2.0.3"
-
-if ("caretEnsemble" %in% rownames(installed.packages())) {
-  current_version <- packageVersion("caretEnsemble")
-  if (as.character(current_version) != desired_version) {
-    remove.packages("caretEnsemble")
-    devtools::install_github("zachmayer/caretEnsemble@2.0.3")
-    library(caretEnsemble)
-    rm(current_version, desired_version)
-  } else {
-    library(caretEnsemble)
-    rm(current_version, desired_version)
-  }
-  
-} else {
-  devtools::install_github("zachmayer/caretEnsemble@2.0.3")
-  library(caretEnsemble)
-  rm(desired_version)
-}
-
-
-#--------------------------------------------
-#----------  To do: specify country  --------
-#--------------------------------------------
-#If you'd like to predict for another country, change the shapefile
-country_name<-"Belgium"
-country<-sf::st_read(here("./data/external/GIS/Belgium/belgium_boundary.shp"))
-country_ext<-terra::ext(country) 
-country_vector <- terra::vect(country) #Convert to a SpatVector, used for masking
+sdm::installAll()
 
 
 #--------------------------------------------
