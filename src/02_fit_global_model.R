@@ -257,6 +257,7 @@ with_progress({
     speciesgroup<-unique(global.occ.LL.cleaned$Group)
     global.occ.LL.cleaned<-global.occ.LL.cleaned %>%
       dplyr::select(c(decimalLongitude,decimalLatitude))
+    global.occ_1KM<-cleaned_1km %>%
     
     #Generate file for informing PA selection containing all occurrences (no thinning, in case we thinned split_df)
     for_PA_selection <- split_df_all_occs[[i]] %>%
