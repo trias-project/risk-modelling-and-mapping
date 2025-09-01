@@ -63,6 +63,11 @@ habitat_stack <- terra::scale(habitat_stack, center = TRUE, scale = TRUE)
 na_mask_habitat_stack <- anyNA(habitat_stack)
 habitat_stack <- terra::mask(habitat_stack, na_mask_habitat_stack, maskvalue=1)
 
+#---------------------------------------------
+#--------- Load WWF ecoregions file ----------
+#---------------------------------------------
+wwf_eco_biome <- sf::st_read(here("./data/external/GIS/official/wwf_terr_ecos.shp")) %>%
+  sf::st_transform(crs = st_crs(habitat_stack))
 
 #--------------------------------------------
 #------------- Load species data -----------
