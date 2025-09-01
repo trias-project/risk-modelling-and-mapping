@@ -109,7 +109,8 @@ global.occ <- global.occ %>%
 #-------Prepare occurrence dataset-----------
 #--------------------------------------------
 global.occ.LL<-global.occ%>%
-  dplyr::select(decimalLongitude, decimalLatitude, species, speciesKey, Group) 
+  rename(species= acceptedScientificName)%>%
+  dplyr::select(decimalLongitude, decimalLatitude, species, speciesKey, Group, coordinateUncertaintyInMeters) 
 rm(global.occ, global)
 
 
