@@ -475,21 +475,36 @@ with_progress({
     plot(consensus_habitat, main = "Consensus (Median of Top 5 Models by Variance on PC1)")
 
     
-    set.seed(458)
-    lm_ens_hab<-sapply(names(eu_models), function (x) caretEnsemble::caretEnsemble(eu_models[[x]],trControl= control), simplify=FALSE)
+    #------------------------------------------------------------    
+    #-- Create final predictions combining habitat and climate --
+    #------------------------------------------------------------
+    #Combine suitability predictions by global model (climate) and EU habitat model
+    clim_hab <- sqrt(consensus_habitat * global_climate_for_eu)
     
+    #Extract suitability predictions of EU occurrences
+    vals_occ <- terra::extract(clim_hab, terra::vect(eu_occ), ID=FALSE)
     
-    #--------------------------------------------
-    #- Evaluate each ensemble model's performance -
-    #-------------------------------------------- 
-    #based on results from CV, 
-    #identify threshold where sensitivity=specifity
-    thresholds<-sapply(names(lm_ens_hab), function(x) findThresh(lm_ens_hab[[x]]$ens_model$pred),simplify=FALSE)
-  
-    #Using thresholds identified for each model in the previous step, assess performance of each model
-    # accuracy measures
-    thresholds.df<-sapply(names(thresholds), function(x) accuracyStats(lm_ens_hab[[x]]$ens_model$pred,thresholds[[x]]$predicted),simplify=FALSE)
-    thresholds.comb<-do.call(rbind,thresholds.df)
+    #Define 5% and 1% reclassification thresholds
+    threshold_5pct <- quantile(vals_occ, probs = 0.05, na.rm = TRUE)
+    threshold_1pct <- quantile(vals_occ, probs = 0.01, na.rm = TRUE)
+    
+    # Create binary map: 1 if ≥ threshold, 0 otherwise
+    clim_hab_binary_1pct <- clim_hab >= threshold_1pct
+    clim_hab_binary_5pct <- clim_hab >= threshold_5pct
+    
+    # Convert TRUE FALSE to present Absent
+    clim_hab_binary_1pct <- as.factor( clim_hab_binary_1pct*1) 
+    levels(clim_hab_binary_1pct) <- data.frame(ID = c(0, 1),
+                                          class = c("Absent", "Present"))
+
+    clim_hab_binary_5pct <- as.factor( clim_hab_binary_5pct*1) 
+    levels(clim_hab_binary_5pct) <- data.frame(ID = c(0, 1),
+                                               class = c("Absent", "Present"))
+    
+    # Plot (optional)
+    plot(clim_hab_binary_1pct, main = "Binary Map (1% Threshold)")
+    plot(clim_hab_binary_5pct, main = "Binary Map (5% Threshold)")
+    
     
     
     #--------------------------------------------
