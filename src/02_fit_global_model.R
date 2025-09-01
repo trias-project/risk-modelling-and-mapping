@@ -586,7 +586,7 @@ with_progress({
     #-- Create Ensemble model using PCAm method --
     #---------------------------------------------
 
-    # Stack fav rasters into one SpatRaster – adjust if yours are different
+    # List favourability rasters
     fav_rasters_list <- lapply(modeloutput, function(x) x$fav_raster)
     
     # Combine into a SpatRaster stack
@@ -612,11 +612,11 @@ with_progress({
     # Step 4: Calculate variance along PC1 for each model
     model_variances <- setNames(numeric(nlyr(fav_stack)), names(fav_stack))
     
-    for (i in 1:nlyr(fav_stack)) {
-      model_vals <- fav_matrix[, i]
+    for (lyr in 1:nlyr(fav_stack)) {
+      model_vals <- fav_matrix[, lyr]
       centered <- model_vals - mean(model_vals, na.rm = TRUE)
-      projection <- centered * loadings[i]
-      model_variances[i] <- var(projection, na.rm = TRUE)
+      projection <- centered * loadings[lyr]
+      model_variances[lyr] <- var(projection, na.rm = TRUE)
     }
     
     # Step 5: Select top 5 models with highest variance on PC1
@@ -781,7 +781,7 @@ with_progress({
                         global_presabs = global_presabs,#xy coordinates of presences and pseudoabsences used to fit the models
                         occurrences=for_PA_selection, #All raw occurrences
                         occurrences5km = global.occ.sf, #Processed occurrences used to fit the models
-                        occurrences1km = if (exists("global.occ_1KM")) global.occ_1KM else NULL,
+                        occurrences1km = global.occ_1KM,
                         mtp_5_threshold = binary_maps$`5%`$mean_MTP,
                         mtp_1_threshold = binary_maps$`1%`$mean_MTP,
                         sdm_model = model,
@@ -810,7 +810,7 @@ with_progress({
     #--------------------------------------------
     print(paste("Global model has been created for", species))
     
-    rm(list = setdiff(ls(), c("p","wwf_eco_biome","eu_climpreds.10", "split_df",  "decimalplaces", "globalclimpreds_terra","bias_grid_paths", "i", "world", "projectname", "create_folder", "split_df_all_occs", "exportPDF")))
+    rm(list = setdiff(ls(), c("p","wwf_eco_biome","eu_climpreds.10", "split_df",  "decimalplaces", "globalclimpreds_terra","bias_grid_paths", "i", "world", "projectname", "create_folder", "split_df_all_occs", "exportPDF", "remove_duplicates", "remove_nodata_occurrences", "favourability_from_prob")))
    
   }
 
