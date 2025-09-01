@@ -117,7 +117,7 @@ accepted_taxonkeys <- mapped_taxa %>%
   dplyr::filter(status == "ACCEPTED") %>%
   dplyr::pull(usageKey)
 
-if (nrow(not_accepted != 0)) {
+if (nrow(not_accepted > 0)) {
   synonym_taxonkeys <- mapped_taxa %>%
     dplyr::filter(status != "ACCEPTED") %>%
     dplyr::pull(acceptedUsageKey)
@@ -187,10 +187,11 @@ metadata <- rgbif::occ_download_meta(key = gbif_download_key)
 gbif_download_key <- metadata$key
 
 #extract_GBIF_occurrence
-raw.path<- here::here("data", "raw", gbif_download_key)
-unzip(paste0(raw.path,".zip"),exdir=raw.path, overwrite=TRUE)
-global<-as.data.frame(data.table::fread(paste0(raw.path,"/occurrence.txt"),header=TRUE))
-global<-dplyr::select(global, c(speciesKey,species, decimalLatitude, decimalLongitude, kingdom, phylum, class, genus, coordinateUncertaintyInMeters, identificationVerificationStatus))
+raw.path <- here::here("data", "raw", gbif_download_key)
+unzip(paste0(raw.path,".zip"),exdir = raw.path, overwrite = TRUE)
+global <- as.data.frame(data.table::fread(paste0(raw.path,"/occurrence.txt"),header = TRUE))
+  
+global <- dplyr::select(global, c(acceptedTaxonKey,acceptedScientificName, decimalLatitude, decimalLongitude, kingdom, phylum, class,order, genus, coordinateUncertaintyInMeters, identificationVerificationStatus))
 
 
 #--------------------------------------------
