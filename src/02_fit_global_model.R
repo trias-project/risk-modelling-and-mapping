@@ -189,8 +189,7 @@ world<-rnaturalearth::ne_countries(scale=50)
 #--------------------------------------------
 #--------------Load ecoregions --------------
 #--------------------------------------------
-wwf_eco_biome<-sf::st_read(here::here("./data/external/GIS/official/newRealms.shp")) #TODO load file
-plot(wwf_eco_biome)
+wwf_eco_biome<-sf::st_read(here::here("./data/external/GIS/official/newRealms.shp")) 
 
 
 # Dissolve by BIOME
