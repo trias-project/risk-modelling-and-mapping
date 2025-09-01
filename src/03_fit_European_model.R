@@ -244,20 +244,18 @@ with_progress({
     wwf_eco_biome_filtered <- wwf_eco_biome[polygons_with_points, ]
    # plot(wwf_eco_biome_filtered[4], key.pos = NULL)
     
-    #----------------------------------------------
-    #------- Mask with environmental layers -------
-    #----------------------------------------------
-    global_masked_proj<-terra::project(global_model,biasgrid_eu)
     
-    #New: mask with one of the environmental layers to make sure no pseudoabsences are generated outside the environmental layers
-    global_masked_proj<-terra::mask(global_masked_proj, rmiclimpreds[[1]]) 
+    #----------------------------------------------------------------------------------------
+    #---- biasgrid: keep values inside invaded ecoregions, set outside to 1 (lowest value)---
+    #----------------------------------------------------------------------------------------
+    # Step 1: Rasterize WWF polygons to match biasgrid_aligned
+    inside_mask <- terra::rasterize(vect(wwf_eco_biome_filtered), biasgrid_aligned, field = 1, background = NA)
     
+    # Step 2: Apply logic — keep original where inside_mask, else 1
+    biasgrid_temp <- terra::ifel(!is.na(inside_mask), biasgrid_aligned, 1)
     
-    #--------------------------------------------
-    #--Create sampling area for pseudoabsences --
-    #--------------------------------------------
-    # Combine pseudosampling area with bias grid to exclude pixels with no sampling effort or falling outside ecoregions with global occurrences! (NA in biasgrid_eu)
-    pseudoSamplingArea<-terra::mask(global_masked_proj,biasgrid_eu)
+    # Step 3: Restore NA values from the original biasgrid
+    biasgrid_eu <- mask(biasgrid_temp, biasgrid_aligned)
     
     
     #--------------------------------------------
