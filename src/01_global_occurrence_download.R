@@ -34,7 +34,7 @@ species <- c("Cabomba caroliniana",
 #--------------------------------------------
 #-----------------Load packages--------------
 #--------------------------------------------
-packages <- c("rgbif", "dplyr", "purrr", "assertthat", "readr", "here", "qs")
+packages <- c("rgbif", "dplyr", "purrr", "assertthat", "readr", "here", "qs", "retry")
 
 for (package in packages) {
   print(package)
