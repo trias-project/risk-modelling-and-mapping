@@ -268,12 +268,18 @@ with_progress({
     # labs(x="Longitude", y="Latitude")+
     # theme_bw()
     
-    #ggplot()+ 
-     # geom_spatraster(data=global_masked_proj)+
-      #geom_sf(data = euboundary,  colour = "black", fill = NA)+
-      #scale_fill_gradientn(colors = viridis_palette, breaks = brks, labels = brks , na.value = NA) +
-      #labs(x="Longitude", y="Latitude")+
-      #theme_bw()
+    
+    #--------------------------------------------------------------
+    #Generate pseudoabsences in according to sampling bias---------
+    #--------------------------------------------------------------
+    set.seed(728)
+    global_points <- terra::spatSample(
+      biasgrid_eu,
+      size = 10000,
+      method = "weights",     # weighted random sampling
+      as.points = TRUE,       # return SpatVector of points
+      na.rm = TRUE            # ignore NA pixels
+    )
     
     
     #--------------------------------------------
