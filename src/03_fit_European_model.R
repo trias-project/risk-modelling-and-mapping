@@ -361,32 +361,68 @@ with_progress({
   
     
     #--------------------------------------------
-    #- Add habitat and anthropogenic predictors -
-    #--------------------------------------------
-    #combine uncorrelated climate variable selected earlier with habitat layers
-    fullstack<-c(rmiclimpreds_uncor,habitat_stack) 
+    #---  Make predictions using each model  ---
+    #-------------------------------------------- 
     
+    # Get model info
+    info <- sdm::getModelInfo(model)
     
-    #-----------------------------------------------------------
-    #- Extract predictor values for presences and pseudoabsences
-    #-----------------------------------------------------------
-    occ.full.data <-lapply(eu_presabs.coord, function(x) terra::extract(fullstack,x, ID=FALSE))
+    #Get presence data and their associated climatological values
+    pres_features <- occ.full.data.df %>%
+      dplyr::filter(occ == "present") %>%
+      dplyr::select(-occ)
 
+    #Create empty list to store models in
+    modeloutput<-list()
     
-    #--------------------------------------------
-    #--- Remove highly correlated predictors ----
-    #--------------------------------------------
-    # find attributes that are highly correlated in at least one of the models and remove them from all
-    highlyCorrelated_full <-lapply(names(occ.full.data),function(x) caret::findCorrelation(cor(occ.full.data[[x]],use = 'complete.obs'), cutoff=0.7,exact=TRUE,names=TRUE))
-    highlyCorrelated_vec<-unique(unlist(highlyCorrelated_full))
+    #Around 22min for one species
+      for(modelmethod in methods){
+        
+        print(modelmethod)
+        
+        #Create raster with predictions for Europe
+        pred_raster <- predict(model,
+                               newdata = fullstack,
+                               method = modelmethod)
+        
+        # Get model IDs
+        model_ids <- info$modelID[info$method == modelmethod]
+        
+        # Subset using those IDs
+        method_model <- model[[model_ids]]  
+        
+        #Apply the transformation to the raster
+        fav_raster <- favourability_from_prob(pred_raster, prev_ratio)
+        
+        #Get threshold
+        fitted_model <- predict(method_model, newdata = pres_features, type = "response")
+        fitted_favourability <- favourability_from_prob(fitted_model[[1]], prev_ratio)
+        
+        # 1% minimum training presence threshold
+        threshold_1pct <- quantile(fitted_favourability, probs = 0.01, na.rm = TRUE)
+        
+        #5% minimum training presence threshold
+        threshold_5pct <- quantile(fitted_favourability, probs = 0.05, na.rm = TRUE)
+        
+        # Binarize rasters using the thresholds
+        binary_1pct <- fav_raster >= threshold_1pct 
+        binary_5pct <- fav_raster >= threshold_5pct
+        
+        # Plot
+        plot(fav_raster, main = paste0("Favourability (", modelmethod,")"))
+        plot(binary_1pct, main = paste0("Binary map ",modelmethod," (1% threshold)"))
+        plot(binary_5pct, main = paste0("Binary map ",modelmethod," (5% threshold)"))
+        
+        #Store
+        modeloutput[[modelmethod]]<-list(fav_raster=fav_raster,
+                                         binary1pct=binary_1pct,
+                                         binary5pct=binary_5pct,
+                                         model=method_model)
+        
+        rm(fav_raster, binary_1pct, binary_5pct, method_model)
+      }
     
-    #highlyCorrelated_full <-lapply(occ.full.data, function(df) as.data.frame(cor(df, use = "complete.obs")))
-    #Calculate the mean correlation over the 10 datsets and identify highly correlated variables
-    #mean_correlation_full_matrix <- Reduce("+", highlyCorrelated_full) / length(highlyCorrelated_full)
-    #highlyCorrelated_vec<-findCorrelation(as.matrix(mean_correlation_full_matrix), cutoff=0.7,exact=TRUE,names=TRUE)
     
-    # Remove highly correlated predictors from dataset holding occurrences
-    occ.full.data<-sapply(names(occ.full.data),function (x) occ.full.data[[x]][,!(colnames(occ.full.data[[x]]) %in% highlyCorrelated_vec)],simplify=FALSE)
     
     # Remove highly correlated predictors from rasterlayers
     fullstack <- subset(fullstack, !(names(fullstack) %in% highlyCorrelated_vec))
