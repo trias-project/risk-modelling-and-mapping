@@ -154,16 +154,26 @@ hasCoordinate <- TRUE
 #--------------------------------------------
 #---------------Perform download-------------
 #--------------------------------------------
-#Note that GBIF credentials are required, if this code fails just run again
-gbif_download_key <- rgbif::occ_download(
-  pred_in("taxonKey", accepted_taxonkeys),
-  pred_in("basisOfRecord", basis_of_record),
-  pred_gte("year", year_begin),
-  pred_lte("year", year_end),
-  pred("hasCoordinate", hasCoordinate),
-  user = rstudioapi::askForPassword("GBIF username"),
-  pwd = rstudioapi::askForPassword("GBIF password"),
-  email = rstudioapi::askForPassword("Email address for notification")
+gbif_user  <- rstudioapi::askForPassword("GBIF username")
+gbif_pwd   <- rstudioapi::askForPassword("GBIF password")
+gbif_email <- rstudioapi::askForPassword("Email address for notification")
+
+gbif_download_key <- retry::retry(
+  {
+    rgbif::occ_download(
+      pred_in("taxonKey", accepted_taxonkeys),
+      pred_in("basisOfRecord", basis_of_record),
+      pred_gte("year", year_begin),
+      pred_lte("year", year_end),
+      pred("hasCoordinate", hasCoordinate),
+      user  = gbif_user,
+      pwd   = gbif_pwd,
+      email = gbif_email
+    )
+  },
+  when = "error",
+  max_tries = 3,
+  interval = 5
 )
 
 rgbif::occ_download_wait(gbif_download_key)#Check download status
