@@ -213,12 +213,12 @@ with_progress({
     #--------------------------------------------
     #-------- Plot European occurrences ---------
     #--------------------------------------------
-    #ggplot()+ 
-     # geom_sf(data = euboundary,  colour = "black", fill = NA)+
-      #geom_point(data=eu_occ, aes(x=decimalLongitude, y= decimalLatitude),  fill="green", shape = 22, colour = "black", size=3)+
-      #labs(x="Longitude", y="Latitude")+
-      #theme_bw()
-  
+    # ggplot()+
+    # geom_sf(data = sf::st_transform(euboundary, crs=st_crs(habitat_stack)),  colour = "black", fill = NA)+
+    # geom_point(data=eu_occ, aes(x=decimalLongitude, y= decimalLatitude),  fill="green", shape = 22, colour = "black", size=3)+
+    # labs(x="Longitude", y="Latitude")+
+    # theme_bw()
+
     
     #--------------------------------------------
     #----- Clip biasgrid to European extent -----
