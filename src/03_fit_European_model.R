@@ -52,13 +52,8 @@ names(habitat_stack) <- c(
   "water_polygon_cover"          # <- from total_water_polygon_cover_proportion.tif
 )
 
-#--------------------------------------------
-#-------- Load European climate rasters -----
-#--------------------------------------------
-rmiclimrasters <- list.files((here("./data/external/climate/rmi_corrected")),pattern='tif',full.names = T) 
-rmiclimrasters 
-rmiclimpreds<-terra::rast(rmiclimrasters) 
-rmiclimpreds<-terra::crop(rmiclimpreds, ext(habitat_stack))
+#Scale habitat rasters
+habitat_stack <- terra::scale(habitat_stack, center = TRUE, scale = TRUE)
 
 
 #---------------------------------------------
