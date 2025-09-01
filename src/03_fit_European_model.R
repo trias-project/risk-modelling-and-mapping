@@ -623,19 +623,21 @@ with_progress({
     #--------------------------------------------
     #- Save best model, european occurrences, and layers for Belgium -
     #--------------------------------------------
-    eumodel <-list(species = species,
-                   taxonkey = taxonkey, 
-                   euocc1 = euocc1, #sf dataset with coordinates of presences (geometry format)
-                   bestModel=bestModel, #Best ensemble model
-                   variable_importance = variableImportance_bestmodel, #Variable importance in each separate model and overall
-                   occ.full.data.forCaret = occ.full.data.forCaret, #Data used to fit best model
-                   eu_presabs.coord = eu_presabs.coord, #XY coordinates of presences and pseudoabsences
-                   model_performance = model_performance, #Performance of best model
-                   model_correlation = Model.cor #Correlation between separate models underlying best ensemble model
+    eumodel <- list(species = species,
+                    taxonkey = taxonkey,
+                    eu_occ = eu_occ,  # sf of filtered EU occurrences
+                    eu_presabs = eu_presabs,    # sf of presence + pseudoabsence data
+                    occ_full_df = occ.full.data.df, # presabs data and their habitat values
+                    prevalence_ratio = prev_ratio,  # used for favourability scaling
+                    eu_5pct_threshold = threshold_5pct,# 5% min training presence threshold from EU model
+                    eu_1pct_threshold = threshold_1pct, # 1% min training presence threshold from EU model
+                    final_boyce = boyce_val,
+                    boyce_result = boyce_result           # full object from ecospat.boyce()
     )
    
     #Save eumodel as .qs file
-    qs::qsave(eumodel, paste0("./data/projects/",projectname,"/",first_two_words,"_",taxonkey,"/EU_model_",first_two_words,"_",taxonkey,".qs")) 
+    qs::qsave(eumodel, 
+              here::here(species_folder, paste0("EU_model_",first_two_words,"_",taxonkey,".qs"))) 
     
     
     #--------------------------------------------
