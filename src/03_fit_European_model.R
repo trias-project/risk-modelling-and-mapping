@@ -677,8 +677,8 @@ with_progress({
     #--------------------------------------------
     #-------- End of loop -----------------------
     #--------------------------------------------
-    print(paste("European model has been created for", species))
-    rm(list = setdiff(ls(), c("p", "factorVars","accuracyStats", "findThresh", "projectname", "generate_pseudoabs", "create_folder", "country_name", "country_ext", "country_vector", "euboundary", "habitat_stack", "rmiclimpreds", "accepted_taxonkeys", "taxa_info", "key", "add.occ", "confidenceMaps", "classConformalPrediction","extractVals","GetLength","get.confidence", "exportPDF")))
+    print(paste("European model has been created for", species_title))
+    rm(list = setdiff(ls(), c("p", "projectname",  "create_folder",  "euboundary", "habitat_stack",  "accepted_taxonkeys", "taxa_info", "key", "exportPDF", "remove_duplicates", "wwf_eco_biome", "remove_nodata_occurrences", "favourability_from_prob")))
   }
 })
 
