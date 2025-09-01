@@ -230,6 +230,9 @@ with_progress({
       method = "bilinear" 
     )
     
+    #Mask biasgrid with habitat raster (so no PA can be selected in cells that are NA in habitat rasters)
+    biasgrid_aligned <- terra::mask(biasgrid_aligned, habitat_stack[[1]])
+  
     
     #--------------------------------------------
     #----------- Visualize biasgrid  ------------
