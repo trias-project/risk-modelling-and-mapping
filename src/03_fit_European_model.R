@@ -223,8 +223,12 @@ with_progress({
     #--------------------------------------------
     #----- Clip biasgrid to European extent -----
     #--------------------------------------------
-    ecoregions_eu<-terra::crop(biasgrid_sub, euboundary)
-    biasgrid_eu <- terra::project(ecoregions_eu, rmiclimpreds) #reproject the ecoregions raster to match the spatial properties of rmi climpreds
+    # Reproject biasgrid_sub to match CRS, extent, and resolution of habitat_stack
+    biasgrid_aligned <- terra::project(
+      biasgrid_sub,
+      habitat_stack[[1]],
+      method = "bilinear" 
+    )
     
     
     #--------------------------------------------
