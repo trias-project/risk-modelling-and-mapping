@@ -154,13 +154,11 @@ with_progress({
     #--------------------------------------------
     #------------ Define folder paths -----------
     #--------------------------------------------
-    raster_folder <- file.path("./data/projects", projectname, paste0(first_two_words, "_", taxonkey), "Rasters")
-    raster_EU_folder <- file.path(raster_folder, "Europe")
-    PDF_folder <- file.path("./data/projects", projectname, paste0(first_two_words, "_", taxonkey), "PDFs")
-    PDF_EU_folder <- file.path(PDF_folder, "Europe")
-    PNG_folder<-file.path("./data/projects", projectname, paste0(first_two_words, "_", taxonkey), "PNGs")
-    PNG_EU_folder <- file.path(PNG_folder, "Europe")
-    
+    PDF_folder <- here::here("data", "projects", projectname, paste0(first_two_words, "_", taxonkey), "PDFs")
+    PNG_folder <- here::here("data","projects", projectname, paste0(first_two_words, "_", taxonkey), "PNGs")
+    raster_EU_folder <- here::here("data", "projects", projectname, paste0(first_two_words, "_", taxonkey), "Rasters", "Europe")
+
+
     
     #-------------------------------------------------
     #--------------- Create EU folders ---------------
@@ -168,9 +166,8 @@ with_progress({
     # Define the folder paths
     folder_paths<-list(list("path"= raster_EU_folder,
                             "name"= "Rasters/Europe"),
-                       list("path"= PDF_EU_folder,
-                            "name"= "PDF/Europe"),
-                       list("path"= PNG_EU_folder,
+                       list("path"= here::here(PDF_folder, "Europe"),
+                            "name"= here::here(PNG_folder, "Europe"),
                             "name"= "PNG/Europe"))
     
     # Check and create each folder if necessary
