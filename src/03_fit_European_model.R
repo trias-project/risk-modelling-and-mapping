@@ -36,9 +36,21 @@ euboundary<-sf::st_read(here("./data/external/GIS/Europe/EUROPE.shp"))
 #--------------------------------------------
 #-------- Load European habitat rasters -----
 #--------------------------------------------
-habitat<-list.files((here("./data/external/habitat")),pattern='tif',full.names = T)
-habitat_stack<-terra::rast(habitat[c(1:5,7)]) #Distance to water (layer 6) has another extent and we're not sure if this layer is correct: leave it out
+# Load all habitat rasters
+habitat_files <- list.files(here("./data/external/habitat"), pattern = 'tif$', full.names = TRUE)
+habitat_stack <- terra::rast(habitat_files)
 
+# Assign meaningful and unique names (based on file order)
+names(habitat_stack) <- c(
+  "corine_perAgriculture",
+  "corine_perConiferous",
+  "corine_perdeciduous",
+  "corine_pergrass",
+  "dist_to_water_log1p",         # <- from distance_to_water_masked_log1p.tif
+  "esm_index",
+  "water_line_log1p",            # <- from total_water_length_log1p.tif
+  "water_polygon_cover"          # <- from total_water_polygon_cover_proportion.tif
+)
 
 #--------------------------------------------
 #-------- Load European climate rasters -----
