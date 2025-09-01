@@ -310,15 +310,21 @@ with_progress({
     eu_presabs <- rbind(eu_occ, global_points_sf)
 
     
+    #-----------------------------------------------------------
+    #--Remove highly correlated predictors from training data --
+    #-----------------------------------------------------------
+    # Extract raster values at eu_presabs points
+    presabs_df <- terra::extract(habitat_stack, terra::vect(eu_presabs), ID = FALSE)
     
-    #--------------------------------------------
-    #Prepare presence-absence dataset for modelling
-    #--------------------------------------------
-    # extract data from environmental predictors for each list of absences
-    pseudoabs_pts1<-lapply(pseudoabs_pts, function(x) terra::extract(rmiclimpreds,x, ID=FALSE))
+    # Compute correlation matrix
+    cor_matrix <- cor(presabs_df, use = "complete.obs")
     
-    # add occ column with value 0 (indicating absences)
-    pseudoabs_pts2<-lapply(pseudoabs_pts1, function(x) add.occ(x,0))
+    # Identify highly correlated variables
+    drop_vars <- caret::findCorrelation(cor_matrix, cutoff = 0.7, exact = TRUE, names = TRUE)
+    
+    # Subset fullstack to keep only uncorrelated predictors
+    fullstack <- subset(habitat_stack, !(names(habitat_stack) %in% drop_vars))
+
     
     # extract environmental data for eu presences and add presence indicator (1)
     presence<-as.data.frame(euocc)
