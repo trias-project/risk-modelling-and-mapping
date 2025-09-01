@@ -234,16 +234,15 @@ with_progress({
     biasgrid_aligned <- terra::mask(biasgrid_aligned, habitat_stack[[1]])
   
     
-    #--------------------------------------------
-    #----------- Visualize biasgrid  ------------
-    #--------------------------------------------
-    #ggplot()+ 
-     # geom_sf(data = euboundary,  colour = "black", fill = NA)+
-      #geom_spatraster(data=biasgrid_eu)+
-      #scale_fill_continuous(na.value = "transparent",low = "blue", high = "orange")+
-      #labs(x="Longitude", y="Latitude")+
-      #theme_bw()
+    #-------------------------------------------
+    #------- Select invaded WWF ecoregions------
+    #-------------------------------------------
+    # Identify which polygons contain at least one occurrence
+    polygons_with_points <- lengths(sf::st_intersects(wwf_eco_biome, eu_occ)) > 0
     
+    # Subset only those polygons
+    wwf_eco_biome_filtered <- wwf_eco_biome[polygons_with_points, ]
+   # plot(wwf_eco_biome_filtered[4], key.pos = NULL)
     
     #----------------------------------------------
     #------- Mask with environmental layers -------
