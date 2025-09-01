@@ -141,47 +141,47 @@ zen4R::download_zenodo(doi="https://doi.org/10.5281/zenodo.7841324",
 #Store future CHELSA layers at global level
 options(timeout = 600) #set time-out to 10 min 
 
-for(i in c("01", "04", "05", "06","07", "12","13","14","15")){
+for(i in c("1", "4", "5", "6","7", "12","13","14","15")){
   
   # Remove leading zeros during download
   i_download <- as.integer(i)
   
   # Define CHELSA layer name
   layer_name <- switch(i,
-                       "01" = "meantemp",
-                       "04" = "temp_seasonality",
-                       "05" = "maxTmpWarmestMon",
-                       "06"= "minTmpColdestMon",
-                       "07"="temp_annRange",
+                       "1" = "meantemp",
+                       "4" = "temp_seasonality",
+                       "5" = "maxTmpWarmestMon",
+                       "6"= "minTmpColdestMon",
+                       "7"="temp_annRange",
                        "12"="annPrecip",
                        "13"="precipWettestMon",
                        "14"="precipDriestMon",
                        "15"="precipSeasonality")
   
   if(grepl("windows", Sys.getenv("OS"), ignore.case = TRUE)) {
-    download.file(url = paste0("https://os.zhdk.cloud.switch.ch/chelsav1/cmip5/2041-2060/bio/CHELSA_bio_mon_MPI-ESM-LR_rcp26_r1i1p1_g025.nc_",i_download,"_2041-2060_V1.2.tif"),
+    download.file(url = paste0("https://os.zhdk.cloud.switch.ch/chelsav2/GLOBAL/climatologies/2041-2070/GFDL-ESM4/ssp126/bio/CHELSA_bio",i_download,"_2041-2070_gfdl-esm4_ssp126_V.2.1.tif"),
                   mode = "wb",
                   destfile = here::here(rcp26_globalmodel_folder,paste0("CHELSA_",layer_name,"_",i,".tif")))
   }else{
-    download.file(url = paste0("https://os.zhdk.cloud.switch.ch/chelsav1/cmip5/2041-2060/bio/CHELSA_bio_mon_MPI-ESM-LR_rcp26_r1i1p1_g025.nc_",i_download,"_2041-2060_V1.2.tif"),
+    download.file(url = paste0("https://os.zhdk.cloud.switch.ch/chelsav2/GLOBAL/climatologies/2041-2070/GFDL-ESM4/ssp126/bio/CHELSA_bio",i_download,"_2041-2070_gfdl-esm4_ssp126_V.2.1.tif"),
                   destfile = here::here(rcp26_globalmodel_folder,paste0("CHELSA_",layer_name,"_",i,".tif")))
   }
   
   if(grepl("windows", Sys.getenv("OS"), ignore.case = TRUE)) {
-    download.file(url = paste0("https://os.zhdk.cloud.switch.ch/chelsav1/cmip5/2041-2060/bio/CHELSA_bio_mon_MPI-ESM-LR_rcp45_r1i1p1_g025.nc_",i_download,"_2041-2060_V1.2.tif"),
+    download.file(url = paste0("https://os.zhdk.cloud.switch.ch/chelsav2/GLOBAL/climatologies/2041-2070/GFDL-ESM4/ssp370/bio/CHELSA_bio",i_download,"_2041-2070_gfdl-esm4_ssp370_V.2.1.tif"),
                   mode = "wb",
-                  destfile = here::here(rcp45_globalmodel_folder,paste0("CHELSA_",layer_name,"_",i,".tif")))
+                  destfile = here::here(rcp70_globalmodel_folder,paste0("CHELSA_",layer_name,"_",i,".tif")))
   }else{
-    download.file(url = paste0("https://os.zhdk.cloud.switch.ch/chelsav1/cmip5/2041-2060/bio/CHELSA_bio_mon_MPI-ESM-LR_rcp45_r1i1p1_g025.nc_",i_download,"_2041-2060_V1.2.tif"),
-                  destfile = here::here(rcp45_globalmodel_folder,paste0("CHELSA_",layer_name,"_",i,".tif")))
+    download.file(url = paste0("https://os.zhdk.cloud.switch.ch/chelsav2/GLOBAL/climatologies/2041-2070/GFDL-ESM4/ssp370/bio/CHELSA_bio",i_download,"_2041-2070_gfdl-esm4_ssp370_V.2.1.tif"),
+                  destfile = here::here(rcp70_globalmodel_folder,paste0("CHELSA_",layer_name,"_",i,".tif")))
   }
   
   if(grepl("windows", Sys.getenv("OS"), ignore.case = TRUE)) {
-    download.file(url = paste0("https://os.zhdk.cloud.switch.ch/chelsav1/cmip5/2041-2060/bio/CHELSA_bio_mon_MPI-ESM-LR_rcp85_r1i1p1_g025.nc_",i_download,"_2041-2060_V1.2.tif"),
+    download.file(url = paste0("https://os.zhdk.cloud.switch.ch/chelsav2/GLOBAL/climatologies/2041-2070/GFDL-ESM4/ssp585/bio/CHELSA_bio",i_download,"_2041-2070_gfdl-esm4_ssp585_V.2.1.tif"),
                   mode = "wb",
                   destfile = here::here(rcp85_globalmodel_folder,paste0("CHELSA_",layer_name,"_",i,".tif")))
   }else{
-    download.file(url = paste0("https://os.zhdk.cloud.switch.ch/chelsav1/cmip5/2041-2060/bio/CHELSA_bio_mon_MPI-ESM-LR_rcp85_r1i1p1_g025.nc_",i_download,"_2041-2060_V1.2.tif"),
+    download.file(url = paste0("https://os.zhdk.cloud.switch.ch/chelsav2/GLOBAL/climatologies/2041-2070/GFDL-ESM4/ssp585/bio/CHELSA_bio",i_download,"_2041-2070_gfdl-esm4_ssp585_V.2.1.tif"),
                   destfile = here::here(rcp85_globalmodel_folder,paste0("CHELSA_",layer_name,"_",i,".tif")))
   }
 }
