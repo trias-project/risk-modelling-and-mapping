@@ -55,6 +55,29 @@ remove_duplicates <- function(occurrences, rast_template){
 
 
 #-----------------------------------------------------------------------------------
+# Remove occurrences that fall in grid cells with NA values
+#-----------------------------------------------------------------------------------
+remove_nodata_occurrences <- function(occurrences, rast_template, crs){
+ 
+   #Store number of initial occurrences
+  initial_occurrences<-nrow(occurrences)
+  
+  #Remove occurrences in NA cells and convert to sf
+  occurrences <- terra::extract(rast_template, occurrences, xy = T, ID = F) %>%
+    dplyr::filter(rowSums(is.na(.[, 1:(ncol(.) - 2)])) == 0) %>% 
+    dplyr::select(c(x,y)) %>%
+    dplyr::rename(decimalLongitude = x,
+                  decimalLatitude = y) %>%
+ sf::st_as_sf(coords = c("decimalLongitude", "decimalLatitude"), crs = crs, remove = FALSE)
+  
+  #Print how many occurrences were removed
+  print(paste(initial_occurrences - nrow(occurrences), "occurrence records in grid cells with NAs removed."))
+  
+  return(occurrences)
+}
+
+
+#-----------------------------------------------------------------------------------
 #Divide occurrence column with either y=0 (absences) or y=1 (presences)
 #-----------------------------------------------------------------------------------
 add.occ<-function(x,y){
