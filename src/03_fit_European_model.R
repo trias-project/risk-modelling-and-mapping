@@ -339,21 +339,26 @@ with_progress({
     
     
     #--------------------------------------------
-    #--Remove highly correlated predictors from training data --
+    #-- Run models with climate and habitat data -
     #--------------------------------------------
-    # convert eu data to dataframe
-    eu_presabs.pts.df<-lapply(eu_presabs.pts,function(x) as.data.frame(x))
+    #Define prevalence ratio
+    n1 <- occ_counts["present"]   # presences
+    n0 <- occ_counts["absent"]    # pseudoabsences 
+    prev_ratio <- n1 / n0
     
-    # find attributes that are highly corrected 
-    highlyCorrelated_climate <-lapply(eu_presabs.pts.df, function(df) as.data.frame(cor(df[, 1:13], use = "complete.obs")))
+    #define methods and data
+    eu_presabs <- eu_presabs %>%
+      dplyr::mutate(species = ifelse(species == "present", 1, 0))
     
-    #Calculate the mean correlation over the 10 datsets and identify highly correlated variables
-    mean_correlation_matrix <- Reduce("+", highlyCorrelated_climate) / length(highlyCorrelated_climate)
-    drop_climate<-caret::findCorrelation(as.matrix(mean_correlation_matrix), cutoff=0.7,exact=TRUE,names=TRUE)
+    sdm_data <- sdm::sdmData(species~.,train=vect(eu_presabs),predictors= fullstack ) 
+    methods <- c("glm", "gam", "bioclim", "brt", "rf", "glmpoly", "mars", "maxent", "fda","cart")
     
-    #Only keep layers that are not highly correlated
-    rmiclimpreds_uncor <- subset(rmiclimpreds, !(names(rmiclimpreds) %in% drop_climate))
-    
+    #run model
+    model <- sdm(
+      species ~ ., data = sdm_data,
+      methods = methods  # 10 models
+    )
+  
     
     #--------------------------------------------
     #- Add habitat and anthropogenic predictors -
