@@ -31,6 +31,7 @@ source("./src/helper_functions.R")
 #------------ Define folder paths -----------
 #--------------------------------------------
 habitat_folder <- here::here("data","external","habitat")
+country_folder <- here::here("data","external","GIS","Country")
 Belgium_folder <- here::here("data","external","GIS","Belgium")
 Europe_folder <- here::here("data","external","GIS","Europe")
 Ecoregions_folder <- here::here("data","external","GIS")
@@ -38,11 +39,11 @@ rcp26_belgium_eumodel_folder <- here::here("data","external","climate","byEEA_fi
 rcp45_belgium_eumodel_folder <- here::here("data","external","climate","byEEA_finalRCP","belgium_rcps","rcp45")
 rcp85_belgium_eumodel_folder <- here::here("data","external","climate","byEEA_finalRCP","belgium_rcps","rcp85")
 chelsa_eu_folder <- here::here("data","external","climate","chelsa_eu_clips")
-rcp26_belgium_globalmodel_folder <- here::here("data","external","climate","Global_finalRCP","belgium_rcps","rcp26")
-rcp45_belgium_globalmodel_folder <- here::here("data","external","climate","Global_finalRCP","belgium_rcps","rcp45")
-rcp85_belgium_globalmodel_folder <- here::here("data","external","climate","Global_finalRCP","belgium_rcps","rcp85")
+rcp26_country_globalmodel_folder <- here::here("data","external","climate","Global_finalRCP","country_rcps","rcp26")
+rcp70_country_globalmodel_folder <- here::here("data","external","climate","Global_finalRCP","country_rcps","rcp70")
+rcp85_country_globalmodel_folder <- here::here("data","external","climate","Global_finalRCP","country_rcps","rcp85")
 rcp26_globalmodel_folder <- here::here("data","external","climate","Global_finalRCP","rcp26")
-rcp45_globalmodel_folder <- here::here("data","external","climate","Global_finalRCP","rcp45")
+rcp70_globalmodel_folder <- here::here("data","external","climate","Global_finalRCP","rcp70")
 rcp85_globalmodel_folder <- here::here("data","external","climate","Global_finalRCP","rcp85")
 eu_climate_folder <- here::here("data","external","climate","rmi_corrected")
 global_climate_folder <- here::here("data","external","climate","trias_CHELSA")
@@ -55,6 +56,8 @@ biasgrids_folder <- here::here("data","external","bias_grids","final","trias")
 # Define the folder paths
 folder_paths<-list(list("path"= habitat_folder,
                         "name"= "habitat"),
+                   list("path"= country_folder,
+                        "name"= "Country"),
                    list("path"= Belgium_folder,
                         "name"= "Belgium"),
                    list("path"= Europe_folder,
@@ -69,16 +72,16 @@ folder_paths<-list(list("path"= habitat_folder,
                         "name"= "rcp85"),
                    list("path"= chelsa_eu_folder,
                         "name"= "chelsa_eu_clips"),
-                   list("path"= rcp26_belgium_globalmodel_folder,
+                   list("path"= rcp26_country_globalmodel_folder,
                         "name"= "rcp26"),
-                   list("path"= rcp45_belgium_globalmodel_folder,
-                        "name"= "rcp45"),
-                   list("path"= rcp85_belgium_globalmodel_folder,
+                   list("path"= rcp70_country_globalmodel_folder,
+                        "name"= "rcp70"),
+                   list("path"= rcp85_country_globalmodel_folder,
                         "name"= "rcp85"),
                    list("path"= rcp26_globalmodel_folder,
                         "name"= "rcp26"),
-                   list("path"= rcp45_globalmodel_folder,
-                        "name"= "rcp45"),
+                   list("path"= rcp70_globalmodel_folder,
+                        "name"= "rcp70"),
                    list("path"= rcp85_globalmodel_folder,
                         "name"= "rcp85"),
                    list("path"=eu_climate_folder,
