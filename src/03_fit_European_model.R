@@ -72,9 +72,9 @@ wwf_eco_biome <- sf::st_read(here("./data/external/GIS/official/wwf_terr_ecos.sh
 #--------------------------------------------
 #------------- Load species data -----------
 #--------------------------------------------
-taxa_info<-read.csv2(paste0("./data/projects/",projectname,"/",projectname,"_taxa_info.csv"))
-accepted_taxonkeys<-taxa_info%>%
-  dplyr::pull(speciesKey)%>%
+taxa_info <- read.csv2(paste0("./data/projects/",projectname,"/",projectname,"_taxa_info.csv"))
+accepted_taxonkeys <- taxa_info %>%
+  dplyr::pull(speciesKey) %>%
   unique()
 
 
