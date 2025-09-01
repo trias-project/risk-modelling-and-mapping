@@ -281,14 +281,23 @@ global<-global %>%
 #--------------------------------------------
 #------------------Save data-----------------
 #--------------------------------------------
+# Number of unique taxa
+unique_keys <- unique(global$acceptedTaxonKey)
+unique_names <- unique(global$acceptedScientificName)
+n <- length(unique_keys)
+
 #Create dataset taxa_info containing scientific name, canonical name, taxonkeys, gbif download key,...
-taxa_info<-data.frame(speciesKey=unique(global$speciesKey),
-                      acceptedScientificName=unique(global$species),
-                      year_begin=metadata[["request"]][["predicate"]][["predicates"]][[3]][["value"]],
-                      year_end=metadata[["request"]][["predicate"]][["predicates"]][[4]][["value"]],
-                      gbif_download_key = gbif_download_key,
-                      gbif_download_created = format(strptime(metadata$created, "%Y-%m-%dT%H:%M:%S"), "%Y-%m-%d %H:%M:%S"),
-                      project = project)
+taxa_info <- data.frame(speciesKey = unique_keys,
+                        acceptedScientificName = unique_names,
+                        year_begin = rep_len(metadata[["request"]][["predicate"]][["predicates"]][[3]][["value"]], n),
+                        year_end = rep_len(metadata[["request"]][["predicate"]][["predicates"]][[4]][["value"]], n),
+                        gbif_download_key = rep_len(gbif_download_key, n),
+                        gbif_download_created = rep_len(format(
+                          strptime(metadata$created, "%Y-%m-%dT%H:%M:%S"),
+                          "%Y-%m-%d %H:%M:%S"
+                        ), n),
+                        project = rep_len(project, n)
+)
 
 #Save occurrence data as .qs file and taxa info as .csv
 qs::qsave(global, paste0("./data/projects/",project,"/",project,"_occurrences.qs"))
