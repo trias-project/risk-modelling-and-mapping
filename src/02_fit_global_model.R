@@ -287,24 +287,18 @@ with_progress({
     
     
     #--------------------------------------------
-    #------ Remove duplicates per grid cell -----
+    #------ Process occurrence data -----
     #--------------------------------------------
-    global.occ.LL.cleaned$cell<-terra::cellFromXY( globalclimpreds_terra, global.occ.LL.cleaned) #Indicate for each occurrence point in which cell of the raster it falls
-    global.occ.LL.cleaned<-global.occ.LL.cleaned[!is.na(global.occ.LL.cleaned$cell),]
-    unique_occurrences <- !duplicated(global.occ.LL.cleaned$cell)# Identify unique occurrences
-    global.occ.LL.cleaned <- global.occ.LL.cleaned[unique_occurrences, 1:2] # Subset the occurrence points to keep only one occurrence per raster cell 
+    #Keep only one occurrence per grid cell
+    global.occ.LL.cleaned <- remove_duplicates(occurrences = global.occ.LL.cleaned, rast_template = globalclimpreds_terra)
     
-    global.occ.LL.cleaned<- terra::extract(globalclimpreds_terra, global.occ.LL.cleaned, xy = T, ID=F)%>%
-      dplyr::filter(rowSums(is.na(.[, 1:(ncol(.) - 2)])) == 0)%>% #Keep rows that do not have any NA values in column 1- 3rd last 
-      dplyr::select(c(x,y))%>%
-      dplyr::rename(decimalLongitude=x,
-                    decimalLatitude=y) #Extract climatic values of occurrence points from each raster layer and remove occurrence points that fall in cells with NA values in at least one rasterlayer
+    #Remove occurrences within grid cells with NA values
+    global.occ.sf <- remove_nodata_occurrences(occurrences = global.occ.LL.cleaned, rast_template=globalclimpreds_terra, crs=4326)
     
-    #Convert to sf dataframe
-    global.occ.LL.cleaned$species<- rep(1,length(global.occ.LL.cleaned$decimalLongitude)) #adds columns indicating species presence (1) needed for modeling
-    global.occ.sf<-sf::st_as_sf(global.occ.LL.cleaned, coords=c("decimalLongitude", "decimalLatitude"), crs=4326, remove= FALSE)
-    
+    #add column indicating species presence (1) for modeling
+    global.occ.sf$species <- rep(1, nrow(global.occ.sf)) 
    
+    
     #-------------------------------------------------------
     #-Don't fit model if less than 20 global presences -----
     #-------------------------------------------------------   
