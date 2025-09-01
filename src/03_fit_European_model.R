@@ -423,81 +423,57 @@ with_progress({
       }
     
     
+    #---------------------------------------------
+    #--------CREATE ENSEMBLE USING PCAm method----
+    #---------------------------------------------
+    # List favourability rasters
+    fav_rasters_list <- lapply(modeloutput, function(x) x$fav_raster)
     
-    # Remove highly correlated predictors from rasterlayers
-    fullstack <- subset(fullstack, !(names(fullstack) %in% highlyCorrelated_vec))
+    # Combine into a SpatRaster stack
+    fav_stack <- terra::rast(fav_rasters_list)
+    
+    # Assign layer names based on model methods
+    names(fav_stack) <- names(modeloutput)
+    
+    #make PCA
+    pca_result <- rasterPCA(fav_stack, nSamples = NULL, spca = FALSE, maskCheck = TRUE)
+    
+    
+    #-----------------GET TOP 5 variance models----------------
+    # Step 1: Recover original raster stack used in rasterPCA
+    fav_stack <- eval(pca_result$call$img)
+    
+    # Step 2: Extract PC1 loadings from princomp object
+    loadings <- pca_result$model$loadings[, 1]  # Comp.1 = PC1
+    names(loadings) <- rownames(pca_result$model$loadings)
+    
+    # Step 3: Convert raster stack to matrix (rows = pixels, cols = models)
+    fav_matrix <- as.matrix(fav_stack)
+    
+    # Step 4: Calculate variance along PC1 for each model
+    model_variances <- setNames(numeric(nlyr(fav_stack)), names(fav_stack))
+    
+    for (lyr in 1:nlyr(fav_stack)) {
+      model_vals <- fav_matrix[, lyr]
+      centered <- model_vals - mean(model_vals, na.rm = TRUE)
+      projection <- centered * loadings[lyr]
+      model_variances[lyr] <- var(projection, na.rm = TRUE)
+    }
+    
+    # Step 5: Select top 5 models with highest variance on PC1
+    top5_models <- names(sort(model_variances, decreasing = TRUE))[1:5]
+    cat("Top 5 models by variance along PC1:\n")
+    print(top5_models)
+    
+    # Step 6: Subset fav_stack to top 5 layers
+    top5_stack <- subset(fav_stack, top5_models)
+    
+    # Step 7: Compute pixel-wise median = consensus model
+    consensus_habitat <- app(top5_stack, median)
+    
+    # Step 8: Plot result
+    plot(consensus_habitat, main = "Consensus (Median of Top 5 Models by Variance on PC1)")
 
-    
-    #--------------------------------------------
-    #--- Remove near-zero variance predictors ---
-    #--------------------------------------------
-    # identify low variance predictors
-    nzv_preds<-lapply(names(occ.full.data),function(x) caret::nearZeroVar(occ.full.data[[x]],names=TRUE))
-    nzv_preds.vec<-unique(unlist(nzv_preds))
-    
-    # remove near zero variance predictors. They don't contribute to the model.
-    occ.full.data<-sapply(names(occ.full.data),function (x) occ.full.data[[x]][,!(colnames(occ.full.data[[x]]) %in% nzv_preds.vec)],simplify=FALSE)
-  
-    #remove them from fullstack
-    fullstack <- fullstack%>%
-      subset(!names(fullstack) %in% nzv_preds.vec)
-    
-    
-    #--------------------------------------------
-    #-------- Prepare data for modelling --------
-    #--------------------------------------------
-    #Convert to dataframe
-    occ.full.data.df<-lapply(occ.full.data, function(x) as.data.frame(x))
-    
-    #Add column with occurrence data (occ)
-    occ.full.data.df<- sapply(names(occ.full.data.df), function (x) cbind(occ.full.data.df[[x]],occ=eu_presabs.pts.df[[x]]$occ, deparse.level=0),simplify=FALSE)
-    
-    #Recode factor levels of column 'occ' to absent (0) and present(1), and set present as the reference level
-    occ.full.data.forCaret<-sapply(names(occ.full.data.df), function (x) factorVars(occ.full.data.df[[x]], "occ"),simplify=FALSE)
-    
-    
-    #--------------------------------------------
-    #- Run models with climate and habitat data -
-    #--------------------------------------------
-    control <- caret::trainControl(method="cv",
-                              number=4,
-                              savePredictions="final", 
-                              preProc=c("center","scale"),
-                              classProbs=TRUE)
-   
-    mylist<-list(
-      glm =caretEnsemble::caretModelSpec(method = "glm",maxit=100),
-      gbm= caretEnsemble::caretModelSpec(method = "gbm"),
-      rf = caretEnsemble::caretModelSpec(method = "rf", importance = TRUE),
-      earth= caretEnsemble::caretModelSpec(method = "earth"))
-    
-    set.seed(167)
-    eu_models<-sapply(names(occ.full.data.forCaret), function(x) model_train_habitat <- caretEnsemble::caretList(
-      occ~., 
-      data= occ.full.data.forCaret[[x]],
-      trControl=control,
-      tuneList=mylist), 
-      simplify=FALSE)
-    
-    
-    #--------------------------------------------
-    #---- Display model evaluation statistics----
-    #--------------------------------------------
-    EU_ModelResults1<-sapply(names(eu_models), function(x) caret::resamples(eu_models[[x]]),simplify=FALSE)
-    Results.summary<-sapply(names(EU_ModelResults1), function(x) summary(EU_ModelResults1[[x]]),simplify=FALSE)
-  
-    #show_euModel_correlation
-    Model.cor<-sapply(names(eu_models), function(x) caret::modelCor(resamples(eu_models[[x]])),simplify=FALSE)
- 
-    
-    #--------------------------------------------
-    #---------- Create ensemble model -----------
-    #--------------------------------------------
-    #9 folds (e.g., 90 records) will be used for training, and 1 fold (e.g., 10 records) will be used for validation.
-    control <- caret::trainControl(method="cv",
-                              number=10,
-                              savePredictions="final", 
-                              classProbs=TRUE)
     
     set.seed(458)
     lm_ens_hab<-sapply(names(eu_models), function (x) caretEnsemble::caretEnsemble(eu_models[[x]],trControl= control), simplify=FALSE)
