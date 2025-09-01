@@ -60,15 +60,8 @@ habitat_stack <- terra::scale(habitat_stack, center = TRUE, scale = TRUE)
 #----- Remove NA pixels from predictors ------
 #---------------------------------------------
 #This is to avoid that some layers have NA while others have values in certain pixels
-#First mask pixels in the rasterstack where at least one layer has NA
-na_mask_rmiclimpreds <- app(rmiclimpreds, function(x) any(is.na(x)))
-na_mask_habitat_stack<- app(habitat_stack, function(x) any(is.na(x)))
-rmiclimpreds<- terra::mask(rmiclimpreds, na_mask_rmiclimpreds, maskvalue=1)
-habitat_stack<- terra::mask(habitat_stack, na_mask_habitat_stack, maskvalue=1)
-
-#Second mask rmiclimpreds with habitat_stack and vice versa
-rmiclimpreds<-terra::mask(rmiclimpreds, habitat_stack[[1]])
-habitat_stack<-terra::mask(habitat_stack, rmiclimpreds[[1]])
+na_mask_habitat_stack <- anyNA(habitat_stack)
+habitat_stack <- terra::mask(habitat_stack, na_mask_habitat_stack, maskvalue=1)
 
 
 #--------------------------------------------
