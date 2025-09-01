@@ -63,7 +63,7 @@ identificationVerificationStatus_to_discard <- c( "unverified",
 #Reasoning: there are several invasive species datasets with default uncertainty of 5km
 global.occ<-global %>%
   dplyr::filter(speciesKey%in%accepted_taxonkeys) %>%   
-  dplyr::filter(is.na(coordinateUncertaintyInMeters)| coordinateUncertaintyInMeters<= 5000) %>% 
+  dplyr::filter(is.na(coordinateUncertaintyInMeters)| coordinateUncertaintyInMeters <= 5000) %>% 
   dplyr::filter(!str_to_lower(identificationVerificationStatus) %in% identificationVerificationStatus_to_discard)
 
 #Remove coordinates that for both lon and lat values, have less than 4 decimal places
@@ -124,6 +124,14 @@ cleaned<-global.occ.LL%>%
   CoordinateCleaner::cc_gbif(buffer=100)%>% #remove around GBIF headquarters in Copenhagen (buffer 100m), default 100m
   CoordinateCleaner::cc_zero() #Remove around the 0/0 point (buffer 0.5 degrees)
 
+
+#---------------------------------------------
+#--- Prepare data at 1km coord uncertainty ---
+#---------------------------------------------
+#These data will be used for the European model
+cleaned_1km<-cleaned%>%
+  filter(is.na(coordinateUncertaintyInMeters)| coordinateUncertaintyInMeters <= 1000)
+ 
 
 #--------------------------------------------
 #--------Load global climate rasters --------
