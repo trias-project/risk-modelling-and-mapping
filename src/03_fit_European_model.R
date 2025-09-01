@@ -259,12 +259,14 @@ with_progress({
     
     
     #--------------------------------------------
-    #-------- Plot pseudosampling area ----------
+    #----------- Visualize biasgrid  ------------
     #--------------------------------------------
-    #brks <- seq(0, 1, by=0.1) 
-    #nb <- length(brks)-1 
-    # Generate Viridis palette
-    #viridis_palette <- viridis(nb)
+    # ggplot()+
+    # geom_sf(data = sf::st_transform(euboundary, crs=st_crs(habitat_stack)),  colour = "black", fill = NA)+
+    # geom_spatraster(data=biasgrid_eu)+
+    # scale_fill_continuous(na.value = "transparent",low = "blue", high = "orange")+
+    # labs(x="Longitude", y="Latitude")+
+    # theme_bw()
     
     #ggplot()+ 
      # geom_spatraster(data=global_masked_proj)+
