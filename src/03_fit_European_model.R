@@ -571,15 +571,55 @@ with_progress({
                 LabelName="Boyce index")
     }
     
+
+    #------------------------------------------
+    #------------ Create binary map -----------
+    #------------------------------------------
+    binary_maps <- list(
+      "0.05" = list(
+        binary_raster = clim_hab_binary_5pct,
+        EU_sensitivity = final_sensitivity_5pct,
+        boyce = boyce_val,
+        mtp_pct = "5%"
+      ),
+      "0.01" = list(
+        binary_raster = clim_hab_binary_1pct,
+        EU_sensitivity = final_sensitivity_1pct,
+        boyce = boyce_val,
+        mtp_pct = "1%"
+      )
+    )
     
-    #--------------------------------------------
-    #- Store layers used to create best model for country
-    #--------------------------------------------
-    # create a rasterstack for Belgium in this case
-    fullstack_crop<-terra::crop(fullstack,country_ext)
-    fullstack_be<-terra::mask(fullstack_crop,country_vector)
+    for (pct in seq_along(binary_maps)){
+      
+      binary_map_pct <- binary_maps[[pct]]$binary_raster
+      EU_sensitivity <- binary_maps[[pct]]$EU_sensitivity
+      mtp_pct <- binary_maps[[pct]]$mtp_pct
+      #boyce_ind <- binary_maps[[pct]]$boyce
+      
+      # export as PDF and PNG with and without occurrences plotted and return as PNG
+      for (occs in list(NULL, eu_occ)){
+        exportPDF(predictions = binary_map_pct,
+                  taxonName = first_two_words,
+                  nameExtension= rest_of_name,
+                  dataType = "Binary",
+                  taxonNameTitle = species_title,
+                  taxonKey = taxonkey,
+                  scenario = "hist",
+                  regionName = "EU",
+                  returnPredictions = FALSE,
+                  returnPNG = FALSE,
+                  occ_data=occs,
+                  exportPNG=TRUE,
+                  LabelValue= mtp_pct,
+                  LabelName="MTP threshold",
+                  Label2Value=round(EU_sensitivity,3),
+                  Label2Name="Sensitivity")
+      }
     
+    }
     
+
     #--------------------------------------------
     #- Save best model, european occurrences, and layers for Belgium -
     #--------------------------------------------
