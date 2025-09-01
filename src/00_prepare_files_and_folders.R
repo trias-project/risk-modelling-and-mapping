@@ -13,14 +13,12 @@ for(package in packages) {
 #--------------------------------------------
 #---  Install and load rnaturalearthhires  --
 #--------------------------------------------
-
 if ("rnaturalearthhires" %in% rownames(installed.packages())) {
   library(rnaturalearthhires)
 } else {
   devtools::install_github("ropensci/rnaturalearthhires")
   library(rnaturalearthhires)
 }
-
 
 
 #--------------------------------------------
@@ -131,85 +129,6 @@ for(i in c("01", "04", "05", "06","07", "12","13","14","15")){
 #-------------------------------------------------
 zen4R::download_zenodo(doi="https://doi.org/10.5281/zenodo.7841324", 
                        path=habitat_folder, 
-                       quiet=FALSE)
-
-
-#-------------------------------------------------
-#- Store climate layers for the European model  --
-#-------------------------------------------------
-zen4R::download_zenodo(doi="https://doi.org/10.5281/zenodo.15102496", 
-                       path=eu_climate_folder, 
-                       files=list("var10_30yrMeanAnnualCumulatedGDDAbove5degreesC_historical_1971_2005_Europe.tif",
-                                  "var11_AnnualMeanPotentialEvapotranspiration_historical_1971_2005_Europe.tif",
-                                  "var12_AnnualMeanSolarRadiation_historical_1971_2005_Europe.tif",
-                                  "var13_AnnualVariationSolarRadiation_historical_1971_2005_Europe.tif",
-                                  "var1_AnnualMeanTemperature_historical_1971_2005_Europe.tif",
-                                  "var2_AnnualAmountPrecipitation_historical_1971_2005_Europe.tif",
-                                  "var3_AnnualVariationPrecipitation_historical_1971_2005_Europe.tif",
-                                  "var4_AnnualVariationTemperature_historical_1971_2005_Europe.tif",
-                                  "var5_MaximumTemperatureWarmestMonth_historical_1971_2005_Europe.tif",
-                                  "var6_MinimumTemperatureColdestMonth_historical_1971_2005_Europe.tif",
-                                  "var7_TemperatureAnnualRange_historical_1971_2005_Europe.tif",
-                                  "var8_PrecipitationWettestMonth_historical_1971_2005_Europe.tif",
-                                  "var9_PrecipitationDriestMonth_historical_1971_2005_Europe.tif"), 
-                       quiet=FALSE)
-
-
-#-------------------------------------------------------
-#- Store future climate layers of Belgium (EU model)  --
-#-------------------------------------------------------
-#RCP 2.6
-zen4R::download_zenodo(doi="https://doi.org/10.5281/zenodo.15102496", 
-                       path=rcp26_belgium_eumodel_folder, 
-                       files=list("var10_30yrMeanAnnualCumulatedGDDAbove5degreesC_rcp26_2041_2070_Belgium.tif",
-                                  "var11_AnnualMeanPotentialEvapotranspiration_rcp26_2041_2070_Belgium.tif",
-                                  "var12_AnnualMeanSolarRadiation_rcp26_2041_2070_Belgium.tif",
-                                  "var13_AnnualVariationSolarRadiation_rcp26_2041_2070_Belgium.tif",
-                                  "var1_AnnualMeanTemperature_rcp26_2041_2070_Belgium.tif",
-                                  "var2_AnnualAmountPrecipitation_rcp26_2041_2070_Belgium.tif",
-                                  "var3_AnnualVariationPrecipitation_rcp26_2041_2070_Belgium.tif",
-                                  "var4_AnnualVariationTemperature_rcp26_2041_2070_Belgium.tif",
-                                  "var5_MaximumTemperatureWarmestMonth_rcp26_2041_2070_Belgium.tif",
-                                  "var6_MinimumTemperatureColdestMonth_rcp26_2041_2070_Belgium.tif",
-                                  "var7_TemperatureAnnualRange_rcp26_2041_2070_Belgium.tif",
-                                  "var8_PrecipitationWettestMonth_rcp26_2041_2070_Belgium.tif",
-                                  "var9_PrecipitationDriestMonth_rcp26_2041_2070_Belgium.tif"), 
-                       quiet=FALSE)
-
-#RCP 4.5
-zen4R::download_zenodo(doi="https://doi.org/10.5281/zenodo.15102496", 
-                       path=rcp45_belgium_eumodel_folder, 
-                       files=list("var10_30yrMeanAnnualCumulatedGDDAbove5degreesC_rcp45_2041_2070_Belgium.tif",
-                                  "var11_AnnualMeanPotentialEvapotranspiration_rcp45_2041_2070_Belgium.tif",
-                                  "var12_AnnualMeanSolarRadiation_rcp45_2041_2070_Belgium.tif",
-                                  "var13_AnnualVariationSolarRadiation_rcp45_2041_2070_Belgium.tif",
-                                  "var1_AnnualMeanTemperature_rcp45_2041_2070_Belgium.tif",
-                                  "var2_AnnualAmountPrecipitation_rcp45_2041_2070_Belgium.tif",
-                                  "var3_AnnualVariationPrecipitation_rcp45_2041_2070_Belgium.tif",
-                                  "var4_AnnualVariationTemperature_rcp45_2041_2070_Belgium.tif",
-                                  "var5_MaximumTemperatureWarmestMonth_rcp45_2041_2070_Belgium.tif",
-                                  "var6_MinimumTemperatureColdestMonth_rcp45_2041_2070_Belgium.tif",
-                                  "var7_TemperatureAnnualRange_rcp45_2041_2070_Belgium.tif",
-                                  "var8_PrecipitationWettestMonth_rcp45_2041_2070_Belgium.tif",
-                                  "var9_PrecipitationDriestMonth_rcp45_2041_2070_Belgium.tif"), 
-                       quiet=FALSE)
-
-#RCP 8.5
-zen4R::download_zenodo(doi="https://doi.org/10.5281/zenodo.15102496", 
-                       path=rcp85_belgium_eumodel_folder, 
-                       files=list("var10_30yrMeanAnnualCumulatedGDDAbove5degreesC_rcp85_2041_2070_Belgium.tif",
-                                  "var11_AnnualMeanPotentialEvapotranspiration_rcp85_2041_2070_Belgium.tif",
-                                  "var12_AnnualMeanSolarRadiation_rcp85_2041_2070_Belgium.tif",
-                                  "var13_AnnualVariationSolarRadiation_rcp85_2041_2070_Belgium.tif",
-                                  "var1_AnnualMeanTemperature_rcp85_2041_2070_Belgium.tif",
-                                  "var2_AnnualAmountPrecipitation_rcp85_2041_2070_Belgium.tif",
-                                  "var3_AnnualVariationPrecipitation_rcp85_2041_2070_Belgium.tif",
-                                  "var4_AnnualVariationTemperature_rcp85_2041_2070_Belgium.tif",
-                                  "var5_MaximumTemperatureWarmestMonth_rcp85_2041_2070_Belgium.tif",
-                                  "var6_MinimumTemperatureColdestMonth_rcp85_2041_2070_Belgium.tif",
-                                  "var7_TemperatureAnnualRange_rcp85_2041_2070_Belgium.tif",
-                                  "var8_PrecipitationWettestMonth_rcp85_2041_2070_Belgium.tif",
-                                  "var9_PrecipitationDriestMonth_rcp85_2041_2070_Belgium.tif"), 
                        quiet=FALSE)
 
 
@@ -365,53 +284,3 @@ zen4R::download_zenodo(doi="https://doi.org/10.5281/zenodo.15102496",
                        quiet=FALSE)
 
 
-#-------------------------------------------------
-#--  Rename climate layers for European model  --
-#-------------------------------------------------
-
-folders<- list(rcp26_belgium_eumodel_folder,
-               rcp45_belgium_eumodel_folder,
-               rcp85_belgium_eumodel_folder,
-               eu_climate_folder)
-
-file_mapping <- list(
-  "var1_AnnualMeanTemperature" = "anntemp_eea.tif"  ,
-  "var10_30yrMeanAnnualCumulatedGDDAbove5degreesC" = "anngdd100.tif",
-  "var2_AnnualAmountPrecipitation" = "annprecip_eea.tif",
-  "var3_AnnualVariationPrecipitation" = "annpvarrecip_eea.tif",
-  "var9_PrecipitationDriestMonth" = "dristprec.tif",
-  "var5_MaximumTemperatureWarmestMonth" = "maxtemp.tif",
-  "var6_MinimumTemperatureColdestMonth" = "mintemp.tif",
-  "var11_AnnualMeanPotentialEvapotranspiration" = "pet100.tif",
-  "var12_AnnualMeanSolarRadiation" = "SolRad100.tif",
-  "var7_TemperatureAnnualRange" = "temprang.tif",
-  "var4_AnnualVariationTemperature" = "tempseas.tif",
-  "var13_AnnualVariationSolarRadiation" = "varSolRad100.tif",
-  "var8_PrecipitationWettestMonth" = "wettprec.tif")
-
-for (folder in folders){
-  
-  files<-list.files (folder, pattern = "\\.tif$", full.names = TRUE)
-  
-  # Rename files 
-  for (file in files) {
-    filename <- basename(file)
-    
-    for (prefix in names(file_mapping)) {
-      if (startsWith(filename, prefix)) {
-        
-        # Define new filename
-        new_filename <- file_mapping[[prefix]]
-        
-        # Define full new file path
-        new_filepath <- here::here(folder, new_filename)
-        
-        # Rename the file
-        file.rename(file, new_filepath)
-        
-        print(paste("Renamed", filename, "to", new_filename))
-        break  # Stop checking other prefixes once a match is found
-      }
-    }
-  }
-}
