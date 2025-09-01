@@ -143,14 +143,14 @@ with_progress({
     #------------ Import raster layers ----------
     #--------------------------------------------
     #Define file paths
-    biasgrid_file<- file.path("./data/projects",projectname,paste0(first_two_words,"_",taxonkey),"Rasters","Interim",paste0("Biasgrid_",first_two_words,"_",taxonkey,".tif"))
-    global_model_file<- file.path("./data/projects",projectname,paste0(first_two_words,"_",taxonkey),"Rasters","Global",paste0("Global_model_",first_two_words,"_",taxonkey,".tif"))
+    biasgrid_file <- here::here("data", "projects",projectname, paste0(first_two_words,"_",taxonkey),"Rasters","Interim",paste0("Biasgrid_",first_two_words,"_",taxonkey,".tif"))
+    global_model_file <- here::here("data","projects",projectname,paste0(first_two_words,"_",taxonkey),"Rasters","Global",paste0("Ensemble_median_",first_two_words,"_",taxonkey,".tif"))
     
     #Load rasterlayers
-    biasgrid_sub<-terra::rast(biasgrid_file)
-    global_model<-terra::rast(global_model_file)
-    
-    
+    biasgrid_sub <- terra::rast(biasgrid_file)
+    global_model <- terra::rast(global_model_file)
+
+        
     #--------------------------------------------
     #------------ Define folder paths -----------
     #--------------------------------------------
