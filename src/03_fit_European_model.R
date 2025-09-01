@@ -116,9 +116,11 @@ with_progress({
     #--------------------------------------------
     #-- Define file path of global model file  --
     #--------------------------------------------  
-    global_model_file<-file.path("./data/projects",projectname, paste0(first_two_words,"_",taxonkey),paste0("Global_model_",first_two_words,"_",taxonkey,".qs"))
-   
-   
+    species_folder <- here::here("data", "projects", projectname, paste0(first_two_words,"_",taxonkey))
+    global_model_file <- here::here(species_folder,
+                                  paste0("Global_model_",first_two_words,"_",taxonkey,".qs"))
+    
+    
     #--------------------------------------------
     #-Check if global model exists, if not, skip-
     #--------------------------------------------
