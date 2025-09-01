@@ -26,6 +26,34 @@ divide10<-function(x){
   return(value)
 }
 
+
+#-----------------------------------------------------------------------------------
+# Only keep one occurrence point per grid cell of a spatRaster
+#-----------------------------------------------------------------------------------
+remove_duplicates <- function(occurrences, rast_template){
+  #Initial dataset
+  initial_occurrences<-nrow(occurrences)
+  
+  #Indicate for each occurrence point in which cell of the raster it falls
+  occurrences$cell <- terra::cellFromXY( rast_template, occurrences) 
+  
+  #Remove occurrences that don't fall in any cell of the raster
+  occurrences <- occurrences[!is.na(occurrences$cell),]
+  
+  # Create a vector indicating which occurrences are unique (TRUE) and which ones are duplicates (FALSE)
+  unique_occurrences <- !duplicated(occurrences$cell)
+  
+  # Subset the occurrence points to keep only one occurrence per raster cell 
+  occurrences <- occurrences[unique_occurrences, 1:2] 
+  
+  #Print how many occurrences were removed
+  print(paste(initial_occurrences - nrow(occurrences), "duplicate occurrence records removed."))
+  
+  return(occurrences)
+  
+}
+
+
 #-----------------------------------------------------------------------------------
 #Divide occurrence column with either y=0 (absences) or y=1 (presences)
 #-----------------------------------------------------------------------------------
