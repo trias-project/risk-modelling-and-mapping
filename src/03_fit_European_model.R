@@ -545,13 +545,31 @@ with_progress({
     }
     
     
+    #------------------------------------------------------------    
+    #---------- Create map with ensemble suitability ------------
+    #------------------------------------------------------------
     
+    #Prepare title and species extension
+    species_title <- gsub("_", " ", first_two_words)
+    rest_of_name <- if (grepl("^\\S+\\s+\\S+$", species)) "" else sub("^\\S+\\s+\\S+\\s+", "", species)
     
-    #--------------------------------------------
-    #- Store datasets linked to best Model
-    #--------------------------------------------
-    eu_presabs.coord<-eu_presabs.coord[[bestmodelname]]
-    occ.full.data.forCaret<-occ.full.data.forCaret[[bestmodelname]]
+    # Export PDFs with and without occurrences plotted
+    for (occs in list(NULL, eu_occ)){
+      exportPDF(predictions = clim_hab,
+                taxonName = first_two_words,
+                nameExtension= rest_of_name,
+                dataType = "Suit",
+                taxonNameTitle = species_title,
+                taxonKey = taxonkey,
+                scenario = "hist",
+                regionName = "EU",
+                returnPredictions = FALSE,
+                returnPNG = FALSE,
+                occ_data=occs,
+                exportPNG=TRUE,
+                LabelValue= boyce_val,
+                LabelName="Boyce index")
+    }
     
     
     #--------------------------------------------
