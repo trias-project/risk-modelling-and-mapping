@@ -130,8 +130,8 @@ with_progress({
       globalmodels <- qs::qread(global_model_file)
       
       #Extract different data objects stored in globalmodels
-      global.occ.sf<-globalmodels$occurrences
-      model_accuracy<-globalmodels$model_accuracy
+      global.occ.sf <- globalmodels$occurrences1km %>% # FULL occurrence per km²
+        sf::st_as_sf(.,coords = c("decimalLongitude", "decimalLatitude"), crs=4326)
       
     }else{
       warning(paste0("Skipping species ", species, " because no global model could be fitted"))
