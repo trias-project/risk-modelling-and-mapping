@@ -506,71 +506,45 @@ with_progress({
     plot(clim_hab_binary_5pct, main = "Binary Map (5% Threshold)")
     
     
+    #------------------------------------------------------------    
+    #---------- Calculate sensitivity and Boyce Index -----------
+    #------------------------------------------------------------
     
-    #--------------------------------------------
-    #---------Select best ensemble model --------
-    #--------------------------------------------
-    # select best model based on highest PCC, and, in case there are multiple rows with the same PCC, the highest AUC
-    bestmodelname <- thresholds.comb %>%
-      dplyr::filter(PCC == max(PCC)) %>%      
-      dplyr::slice_max(AUC, n = 1)%>%
-      rownames()
+    #SENSITIVITY
+    vals_1pct <- terra::extract(clim_hab_binary_1pct, eu_occ, ID = FALSE)
+    FN_1pct <- sum(vals_1pct$class == "Absent")#Counts false negatives
+    TP_1pct <- sum(vals_1pct$class == "Present") #Counts true positives
+    final_sensitivity_1pct <- TP_1pct / (TP_1pct + FN_1pct)
     
-    bestModel<-lm_ens_hab[[bestmodelname]]
-  
-    #Get performance of best model
-    model_performance<-thresholds.comb%>%
-      dplyr::filter(rownames(.) == bestmodelname)
-    
-    #Get correlation between separate models of best model
-    Model.cor<-Model.cor[[bestmodelname]]
-     
-   
-    #--------------------------------------------
-    #--Store variable importance of best model --
-    #--------------------------------------------
-    variableImportance_bestmodel<-caret::varImp(bestModel)
+    vals_5pct <- terra::extract(clim_hab_binary_5pct, eu_occ, ID = FALSE)
+    FN_5pct <- sum(vals_5pct$class == "Absent") #Counts false negatives
+    TP_5pct  <- sum(vals_5pct$class == "Present") #Counts true positives
+    final_sensitivity_5pct <- TP_5pct / (TP_5pct + FN_5pct)
     
     
-    #--------------------------------------------
-    #-Create European predictions using best model -
-    #--------------------------------------------
-    ens_pred_hab_eu1<-terra::predict(fullstack,lm_ens_hab[[bestmodelname]],type="prob", na.rm = TRUE)
+    #BOYCE
+    #Extract all raster values (excluding NAs)
+    pred_vals <- values(clim_hab)
+    pred_vals <- pred_vals[!is.na(pred_vals)]
     
-  
-    #-----------------------------------------------------------------------------
-    #---------- Create a confidence map of the best model at EU level ------------
-    #-----------------------------------------------------------------------------
-    set.seed(792)  
-    pvalsdf_hist_eu<-classConformalPrediction(bestModel,ens_pred_hab_eu1)
-    hist.conf.map.eu<-confidenceMaps(x=pvalsdf_hist_eu,original_raster=ens_pred_hab_eu1, taxonKey=taxonkey,taxonName=first_two_words,taxonNameTitle=species_title, nameExtension=rest_of_name, scenario="hist", regionName="Europe", folder=raster_EU_folder)
+    #Extract suitability values at occurrence locations
+    obs_vals <- terra::extract(clim_hab, eu_occ, ID = FALSE) 
+    obs_vals <- obs_vals[!is.na(obs_vals)]
+    
+    #Calculate Boyce index
+    boyce_result <- ecospat::ecospat.boyce(
+      fit = pred_vals,
+      obs = obs_vals,
+      nclass = 0  # continuous Boyce Index
+    )
+    
+    if (exists("boyce_result") && !is.null(boyce_result$cor)) {
+      boyce_val <- round(boyce_result$cor, 3)
+    } else {
+      boyce_val <- NA
+    }
     
     
-    #--------------------------------------------
-    #- Create sf df with occurrences for plotting -
-    #--------------------------------------------
-    euocc1<-sf::st_as_sf(as.data.frame(euocc), coords=c("X","Y"),crs=st_crs(rmiclimpreds))
-  
-    
-    #--------------------------------------------
-    #- Export Eu predictions as raster and PDF --
-    #-------------------------------------------
-    #---------------Export raster-------------
-    terra::writeRaster(ens_pred_hab_eu1,
-                filename=file.path(raster_EU_folder,paste(first_two_words,"_",taxonkey,"_hist_EU.tif",sep="")),
-                overwrite=TRUE)
-    
-    #---------------Export PDF----------------
-    exportPDF(predictions=ens_pred_hab_eu1,
-              taxonName=first_two_words,
-              nameExtension=rest_of_name,
-              dataType="",
-              taxonNameTitle=species_title,
-              taxonKey=taxonkey,
-              scenario="hist",
-              regionName="EU",
-              returnPredictions=FALSE,
-              returnPNG=FALSE)
     
     
     #--------------------------------------------
