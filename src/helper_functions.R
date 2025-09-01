@@ -36,6 +36,19 @@ add.occ<-function(x,y){
 
 
 #-----------------------------------------------------------------------------------
+#Define the favourability transformation function
+#-----------------------------------------------------------------------------------
+favourability_from_prob <- function(prob_raster, prev_ratio) {
+  odds <- prob_raster / (1 - prob_raster)
+  fav <- odds / (prev_ratio + odds)
+  fav[is.infinite(fav)] <- NA
+  fav[fav < 0] <- 0
+  fav[fav > 1] <- 1
+  return(fav)
+}
+
+
+#-----------------------------------------------------------------------------------
 #Function to return threshold where sens=spec from caret results 
 #-----------------------------------------------------------------------------------
 findThresh<-function(df){
