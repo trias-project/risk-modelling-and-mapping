@@ -1,10 +1,4 @@
 #--------------------------------------------
-#-----  TO DO: define country of interest----
-#--------------------------------------------
-country_of_interest <- "Belgium"
-
-
-#--------------------------------------------
 #-----------  Load packages  ----------------
 #--------------------------------------------
 packages <- c("curl", "zen4R", "here", "sf", "terra", "rnaturalearth", "devtools")
@@ -28,9 +22,10 @@ if ("rnaturalearthhires" %in% rownames(installed.packages())) {
 
 
 #--------------------------------------------
-#--------- Source helper functions ----------
+#-Source helper functions and configurations-
 #--------------------------------------------
-source("./src/helper_functions.R")
+source(here::here("src", "helper_functions.R"))
+source(here::here("src", "Configurations.R"))
 
 
 #--------------------------------------------

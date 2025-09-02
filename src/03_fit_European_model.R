@@ -1,11 +1,4 @@
 #--------------------------------------------
-#-----------To do: specify project ----------
-#--------------------------------------------
-#specify project name
-projectname <-"PA prob & Alternative Treshold & Ensemble Boyce"
-
-
-#--------------------------------------------
 #-----------    Load packages      ----------
 #--------------------------------------------
 options("rgdal_show_exportToProj4_warnings"="none")
@@ -22,9 +15,10 @@ sdm::installAll()
 
 
 #--------------------------------------------
-#------- Source helper fucntions     --------
+#- Load helper functions and configurations -
 #--------------------------------------------
-source("./src/helper_functions.R")
+source(here::here("src", "helper_functions.R"))
+source(here::here("src", "Configurations.R"))
 
 
 #--------------------------------------------

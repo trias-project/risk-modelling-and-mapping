@@ -1,37 +1,4 @@
 #--------------------------------------------
-#----To do: specify project and species------
-#--------------------------------------------
-#specify project name
-project <- "PA prob & Alternative Treshold & Ensemble Boyce"
-
-# specify the scientific name of the species to be modelled; see an example below
-species <- c("Cabomba caroliniana",
-           "Cipangopaludina chinensis",
-           "Salvinia ×molesta",
-           "Xenopus laevis",
-           "Apalone ferox",
-           "Muntiacus reevesi",
-           "Myriophyllum aquaticum",
-           "Vaccinium corymbosum",
-           "Alternanthera philoxeroides",
-           "Mustela vison",
-           "Procyon lotor",
-           "Faxonius virilis",
-           "Faxonius immunis",
-           "Obama nungara",
-           "Procambarus clarkii",
-           "Pacifastacus leniusculus",
-           "Crassula helmsii",
-           "Neogobius melanostomus",
-           "Pseudorasbora parva",
-           "Elaphe taeniura",
-           "Heracleum mantegazzianum",
-           "Ambrosia artemisiifolia",
-           "Vespa velutina",
-           "Vespa mandarinia")
-
-
-#--------------------------------------------
 #-----------------Load packages--------------
 #--------------------------------------------
 packages <- c("rgbif", "dplyr", "purrr", "assertthat", "readr", "here", "qs", "retry")
@@ -44,9 +11,10 @@ for (package in packages) {
 
 
 #--------------------------------------------
-#---------Load helper functions--------------
+#- Load helper functions and configurations -
 #--------------------------------------------
-source("./src/helper_functions.R")
+source(here::here("src", "helper_functions.R"))
+source(here::here("src", "Configurations.R"))
 
 
 #--------------------------------------------
@@ -68,10 +36,10 @@ lapply(folder_paths, function(folder){
 #-----------Retrieve GBIF taxonkeys----------
 #--------------------------------------------
 # Match species names with the GBIF backbone, retrieve taxon keys from GBIF when a match is found
-taxon_df <- as.data.frame(species)
+taxon_df <- as.data.frame(species_to_model)
 
 mapped_taxa <- purrr::map_dfr(
-  taxon_df$species,
+  taxon_df$species_to_model,
   ~ {
     tryCatch(
       {
@@ -97,9 +65,9 @@ mapped_taxa <- mapped_taxa %>%
 
 #Make sure that all species were mapped to the GBIF backbone, if not an error will appear indicating which species are missing
 assertthat::assert_that(
-  nrow(mapped_taxa) == length(species),
+  nrow(mapped_taxa) == length(species_to_model),
   msg = paste0("The following species could not be found in the GBIF backbone taxonomy: ",
-               paste(species[!sapply(species, function(x) any(grepl(x, mapped_taxa$scientificName)))], collapse = ", "))
+               paste(species_to_model[!sapply(species_to_model, function(x) any(grepl(x, mapped_taxa$scientificName)))], collapse = ", "))
 )
 
 not_accepted <- mapped_taxa %>%
