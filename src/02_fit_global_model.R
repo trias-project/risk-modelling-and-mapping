@@ -135,7 +135,7 @@ cleaned_1km<-cleaned%>%
  
 
 #--------------------------------------------
-#--------Load global climate rasters --------
+#------- Load global climate rasters --------
 #--------------------------------------------
 # Only include files that start with "scaled_layer_" and end with .tif: TODO: NEED TO CREATE THEM FIRST!
 scaled_files <- list.files(
@@ -156,7 +156,7 @@ print(globalclimpreds_terra)
 #--------------------------------------------
 #--------Load European climate rasters-------
 #--------------------------------------------
-euboundary<-sf::st_read(here("./data/external/GIS/Europe/EUROPE.shp")) 
+euboundary<-sf::st_read(here::here("data", "external", "GIS", "Europe", "EUROPE.shp")) 
 # Convert sf boundary to SpatVector
 euboundary_vect <- terra::vect(euboundary)
 
