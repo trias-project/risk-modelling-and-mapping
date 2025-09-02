@@ -128,14 +128,6 @@ for(i in c("1", "4", "5", "6","7", "12","13","14","15")){
 }
 
 
-#-------------------------------------------------
-#-- Store habitat layers for the European model --
-#-------------------------------------------------
-zen4R::download_zenodo(doi="https://doi.org/10.5281/zenodo.7841324", 
-                       path=habitat_folder, 
-                       quiet=FALSE)
-
-
 #---------------------------------------------------------
 #---------- Store future climate layers (CHELSA) ---------
 #---------------------------------------------------------
@@ -239,10 +231,12 @@ for (i in 1:nlyr(fullstack45)) {
   terra::writeRaster(fullstack45[[i]], filename = here::here(rcp45_belgium_globalmodel_folder, paste0(names(fullstack45[[i]]), ".tif")), overwrite=TRUE)
 }
 
-#RCP 8.5
-for (i in 1:nlyr(fullstack85)) {
-  terra::writeRaster(fullstack85[[i]], filename = here::here(rcp85_belgium_globalmodel_folder, paste0(names(fullstack85[[i]]), ".tif")), overwrite=TRUE)
-}
+#-------------------------------------------------
+#-- Store habitat layers for the European model --
+#-------------------------------------------------
+zen4R::download_zenodo(doi="https://doi.org/10.5281/zenodo.7841324", 
+                       path=habitat_folder, 
+                       quiet=FALSE)
 
 
 #-------------------------------------------------
