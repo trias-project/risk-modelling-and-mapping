@@ -288,55 +288,44 @@ for (list_name in list_names) {
 
 
 #------------------------------------------------------------------------
-#------Create future climate layers for Belgium (global model)  ---------
+#--Create future climate layers for a specific country (global model)  --
 #------------------------------------------------------------------------
-#Crop and mask layers to Belgium, this may take some time!
-#If you'd like to predict for another country, change the country name
-belgium<-rnaturalearth::ne_countries(country="Belgium", scale=10)[1]
-belgium_ext<-terra::ext(belgium) 
-belgium_vector <- terra::vect(belgium) #Convert to a SpatVector, used for masking
+#This may take some time!
+country <- rnaturalearth::ne_countries(country=country_of_interest, scale=10)[1]
+country_vector <- terra::vect(country) #Convert to a SpatVector, used for masking
+country_ext <- terra::ext(country_vector) 
 
 #List files
-be26 <- list.files(here("data/external/climate/Global_finalRCP/rcp26"), pattern = 'tif', full.names = TRUE)
-be45 <- list.files(here("data/external/climate/Global_finalRCP/rcp45"), pattern = 'tif', full.names = TRUE)
-be85 <- list.files(here("data/external/climate/Global_finalRCP/rcp85"), pattern = 'tif', full.names = TRUE)
+country26 <- list.files(rcp26_globalmodel_folder , pattern = 'tif', full.names = TRUE)
+country70 <- list.files(rcp70_globalmodel_folder , pattern = 'tif', full.names = TRUE)
+country85 <- list.files(rcp85_globalmodel_folder , pattern = 'tif', full.names = TRUE)
 
 # List scenarios to iterate through
 set.seed(123)
-list_names <- c("be26", "be45", "be85")
+list_names <- c("country26", "country70", "country85")
 
 # Iterate over the list names
 for (list_name in list_names) {
-  # get the list (be26, be45, and be85)
+  # get the list ("country26", "country70", "country85")
   current_list <- get(list_name)
+  
+  #Define folder to store the rasters in
+  rcp_folder <- switch(list_name,
+                       "country26" = rcp26_country_globalmodel_folder,
+                       "country70" = rcp70_country_globalmodel_folder,
+                       "country85" = rcp85_country_globalmodel_folder)
   
   fullstack <- lapply(current_list, function(f) {
     r <- terra::rast(f)
-    r[r==-32768]<-NA #Set marine pixels to NA
-    r <- terra::crop(r, belgium_ext)
-    r <- terra::mask(r, belgium_vector)
-    r<- r/10 #Divide by 10 to comply with predictors in global model framework
-    return(r)
+    r <- terra::crop(r, country_ext)
+    r <- terra::mask(r, country_vector)
+    terra::writeRaster(r, filename = here::here(rcp_folder, basename(f)), overwrite=TRUE)
+
   })
+}
   
-  # Combine 
-  fullstack <- do.call(c, fullstack)  
-  
-  # Assign the processed fullstack to a variable dynamically (e.g., fullstack26, fullstack45, fullstack85)
-  assign(paste0("fullstack", substr(list_name, 3, 4)), fullstack)
-}
 
-#--------------- Export rasters -------------
 
-#RCP 2.6 
-for (i in 1:nlyr(fullstack26)) {
-  terra::writeRaster(fullstack26[[i]], filename = here::here(rcp26_belgium_globalmodel_folder, paste0(names(fullstack26[[i]]), ".tif")), overwrite=TRUE)
-}
-
-#RCP 4.5
-for (i in 1:nlyr(fullstack45)) {
-  terra::writeRaster(fullstack45[[i]], filename = here::here(rcp45_belgium_globalmodel_folder, paste0(names(fullstack45[[i]]), ".tif")), overwrite=TRUE)
-}
 
 #-------------------------------------------------
 #-- Store habitat layers for the European model --
