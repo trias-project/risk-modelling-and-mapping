@@ -325,6 +325,10 @@ for (list_name in list_names) {
 }
   
 
+#-------------------------------------------------
+#----- Store the country boundary shapefile  -----
+#-------------------------------------------------
+sf::write_sf(country, here::here(country_folder,"country.shp"))
 
 
 #-------------------------------------------------
