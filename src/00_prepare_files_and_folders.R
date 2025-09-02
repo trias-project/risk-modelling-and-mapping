@@ -47,6 +47,8 @@ rcp26_globalmodel_folder <- here::here("data","external","climate","Global_final
 rcp70_globalmodel_folder <- here::here("data","external","climate","Global_finalRCP","rcp70")
 rcp85_globalmodel_folder <- here::here("data","external","climate","Global_finalRCP","rcp85")
 global_climate_folder <- here::here("data","external","climate","trias_CHELSA")
+chelsa_mask_folder <- here::here("data","external","climate","chelsa_mask")
+scaled_layers_folder <- here::here("data","external","climate","scaled_layers")
 biasgrids_folder <- here::here("data","external","bias_grids","final","trias")
 
 
