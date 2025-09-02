@@ -180,6 +180,23 @@ for(i in c("1", "4", "5", "6","7", "12","13","14","15")){
 }
 
 
+#-------------------------------------------------
+#----- Store the European boundary shapefile  ----
+#-------------------------------------------------
+zen4R::download_zenodo(doi="https://doi.org/10.5281/zenodo.15102496", 
+                       path=Europe_folder, 
+                       files=list("EUROPE.shp", 
+                                  "EUROPE.dbf",
+                                  "EUROPE.shx",
+                                  "EUROPE.prj",
+                                  "EUROPE.sbn",
+                                  "EUROPE.sbx",
+                                  "EUROPE.shp.xml"), 
+                       quiet=FALSE)
+
+euboundary_vect <- sf::st_read(here::here(Europe_folder,"EUROPE.shp")) %>%
+  terra::vect()
+
 #------------------------------------------------------------------------
 #------Create future climate layers for Belgium (global model)  ---------
 #------------------------------------------------------------------------
@@ -251,34 +268,4 @@ zen4R::download_zenodo(doi="https://doi.org/10.5281/zenodo.7556851",
                                   "plants_1deg_min5.tif",
                                   "reptiles_1deg_min5.tif"), 
                        quiet=FALSE)
-
-#-------------------------------------------------
-#----- Store the Belgium boundary shapefile  -----
-#-------------------------------------------------
-zen4R::download_zenodo(doi="https://doi.org/10.5281/zenodo.15102496", 
-                       path=Belgium_folder, 
-                       files=list("belgium_boundary.shp", 
-                                  "belgium_boundary.dbf",
-                                  "belgium_boundary.shx",
-                                  "belgium_boundary.prj",
-                                  "belgium_boundary.sbn",
-                                  "belgium_boundary.sbx",
-                                  "belgium_boundary.shp.xml"), 
-                       quiet=FALSE)
-
-
-#-------------------------------------------------
-#----- Store the European boundary shapefile  ----
-#-------------------------------------------------
-zen4R::download_zenodo(doi="https://doi.org/10.5281/zenodo.15102496", 
-                       path=Europe_folder, 
-                       files=list("EUROPE.shp", 
-                                  "EUROPE.dbf",
-                                  "EUROPE.shx",
-                                  "EUROPE.prj",
-                                  "EUROPE.sbn",
-                                  "EUROPE.sbx",
-                                  "EUROPE.shp.xml"), 
-                       quiet=FALSE)
-
 
