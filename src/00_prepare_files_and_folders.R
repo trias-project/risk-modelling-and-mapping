@@ -129,8 +129,9 @@ for(i in c("1", "4", "5", "6","7", "12","13","14","15")){
 
 
 #---------------------------------------------------------
-#---------- Store future climate layers (CHELSA) ---------
+#---------- Store future CHELSA layers  ---------
 #---------------------------------------------------------
+#Note that there are values missing in all future layers of Precipitation driest month bio14, this should not be a problem though as they fall outside of the EU!
 #Store future CHELSA layers at global level
 options(timeout = 600) #set time-out to 10 min 
 
@@ -180,6 +181,22 @@ for(i in c("1", "4", "5", "6","7", "12","13","14","15")){
 }
 
 
+#--------------------------------------------------------------------
+#----- Store CHELSA v1 layer as mask template for marine pixels  ----
+#--------------------------------------------------------------------
+#Download a V1 chelsa layer (check for marine pixels: none seem to be present)
+if(grepl("windows", Sys.getenv("OS"), ignore.case = TRUE)) {
+  download.file(url = paste0("https://os.zhdk.cloud.switch.ch/chelsav1/climatologies/bio/CHELSA_bio10_01.tif"),
+                mode = "wb",
+                destfile = here::here(chelsa_mask_folder,paste0("CHELSA_meantemp1.tif")))
+}else{
+  download.file(url = paste0("https://os.zhdk.cloud.switch.ch/chelsav1/climatologies/bio/CHELSA_bio10_",i,".tif"),
+                destfile = here::here(chelsa_mask_folder,paste0("CHELSA_meantemp1.tif")))
+}
+
+chelsa_mask <- terra::rast(here::here(chelsa_mask_folder,paste0("CHELSA_meantemp1.tif")))
+
+
 #-------------------------------------------------
 #----- Store the European boundary shapefile  ----
 #-------------------------------------------------
@@ -196,6 +213,79 @@ zen4R::download_zenodo(doi="https://doi.org/10.5281/zenodo.15102496",
 
 euboundary_vect <- sf::st_read(here::here(Europe_folder,"EUROPE.shp")) %>%
   terra::vect()
+
+
+#-------------------------------------------------
+#-------- Scale and mask CHELSA layers  ----------
+#-------------------------------------------------
+#List files
+chelsa_current_climate <- list.files(here::here(global_climate_folder), pattern = 'tif', full.names = TRUE)
+
+chelsa_climate_rcp26 <- list.files(here::here(rcp26_globalmodel_folder), pattern = 'tif', full.names = TRUE)
+
+chelsa_climate_rcp70 <- list.files(here::here(rcp70_globalmodel_folder), pattern = 'tif', full.names = TRUE)
+  
+chelsa_climate_rcp85 <- list.files(here::here(rcp85_globalmodel_folder), pattern = 'tif', full.names = TRUE)
+
+list_names <- c("chelsa_current_climate", "chelsa_climate_rcp26", "chelsa_climate_rcp70", "chelsa_climate_rcp85")
+ 
+# Iterate over the list names
+for (list_name in list_names) {
+  # get the list 
+  current_list <- get(list_name)
+  
+  #Define folder to store the rasters in
+  rcp_folder <- switch(list_name,
+                       "chelsa_current_climate" = global_climate_folder,
+                       "chelsa_climate_rcp26" = rcp26_globalmodel_folder,
+                       "chelsa_climate_rcp70" = rcp70_globalmodel_folder,
+                       "chelsa_climate_rcp85" = rcp85_globalmodel_folder)
+  
+  for (file in current_list){
+    
+  #Open climate layer as spatRaster
+  rast_file <- terra::rast(file)
+  
+  #Mask marine pixels
+  rast_file <- terra::mask(rast_file, chelsa_mask)
+  
+  # #Convert units of temp seasonality layer to °C: not necessary when you scale afterwards
+  # if(names(rast_file) == "CHELSA_temp_seasonality_4"){
+  #   rast_file <- rast_file/100
+  #   print("Converted the unit of layer bio 4 (temperature seasonality) to °C") 
+  # }
+  
+  #Scale layer
+  rast_file <- terra::scale(rast_file, center=TRUE, scale=TRUE)
+  
+  # Create output filename
+  out_name <- here::here(rcp_folder, paste0("scaled_layer_", basename(file)))
+  
+  #Write raster to scaled_layers folder
+  terra::writeRaster(rast_file, filename = out_name, overwrite = TRUE)
+  
+  #Print write statement
+  print(paste0("Created rasterlayer ", basename(out_name)," in folder ", basename(rcp_folder)))
+  
+  #Store current EU layers
+  if(list_name == "chelsa_current_climate"){
+    
+    #Mask current rasters with europe shape
+    rast_file_eu <- terra::crop(rast_file, ext(-18.69139, 36.5828, 29.80069, 76.13302))
+    rast_file_eu <- terra::mask(rast_file_eu, euboundary_vect)
+    
+    # Create output filename
+    out_name <- here::here(chelsa_eu_folder, paste0("scaled_eu_layer_", basename(file)))
+    
+    #Write raster to scaled_layers folder
+    terra::writeRaster(rast_file_eu, filename = out_name, overwrite = TRUE)
+    print(paste0("Created rasterlayer ", basename(out_name)," in folder ", basename(chelsa_eu_folder)))
+  }
+  
+  rm(rast_file, rast_file_eu)
+}
+}
+
 
 #------------------------------------------------------------------------
 #------Create future climate layers for Belgium (global model)  ---------
