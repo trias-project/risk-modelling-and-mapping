@@ -1,8 +1,7 @@
 #--------------------------------------------
 #-----------  Load packages  ----------------
 #--------------------------------------------
-packages <- c("viridis", "geoR","ape","dplyr", "grid", "here", "qs","terra", "sf", "purrr", "progressr", "caret",
-              "ggplot2","RColorBrewer","magick","patchwork","tidyterra", "gbm","kableExtra", "rnaturalearth"
+packages <- c("viridis", "geoR","ape","dplyr", "grid", "here", "qs","terra", "sf", "purrr", "progressr", "caret", "ggplot2","RColorBrewer","magick","patchwork","tidyterra", "gbm","kableExtra", "rnaturalearth"
 )
 
 for(package in packages) {
@@ -26,43 +25,8 @@ library(moranfast)
 
 
 #--------------------------------------------
-#---  Load right version of caretEnsemble  --
+#- Load helper functions and configurations -
 #--------------------------------------------
-desired_version <- "2.0.3"
-
-# Check if caretEnsemble is installed
-if ("caretEnsemble" %in% rownames(installed.packages())) {
-  # Get the current version of caretEnsemble
-  current_version <- packageVersion("caretEnsemble")
-  # Compare current version with the desired version
-  if (as.character(current_version) != desired_version) {
-    # Uninstall the current version if it's not the desired version
-    remove.packages("caretEnsemble")
-    # Install the specific version
-    devtools::install_github("zachmayer/caretEnsemble@2.0.3")
-    # Load 
-    library(caretEnsemble)
-  } else {
-    library(caretEnsemble)
-  }
-  
-} else {
-  # If caretEnsemble is not installed, install the specific version
-  devtools::install_github("zachmayer/caretEnsemble@2.0.3")
-  # Load 
-  library(caretEnsemble)
-  rm(current_version, desired_version)
-}
-
-
-#--------------------------------------------
-#----------  To do: specify country  --------
-#--------------------------------------------
-#If you'd like to predict for another country, change the shapefile
-country_name<-"Belgium"
-country<-sf::st_read(here("./data/external/GIS/Belgium/belgium_boundary.shp"))
-country_ext<-terra::ext(country) 
-country_vector <- terra::vect(country) #Convert to a SpatVector, used for masking
 
 
 #--------------------------------------------
