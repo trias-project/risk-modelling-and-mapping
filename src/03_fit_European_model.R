@@ -324,7 +324,7 @@ with_progress({
     occ.full.data.df <- terra::extract(fullstack, terra::vect(eu_presabs), ID = FALSE) %>%
       dplyr::mutate(occ = eu_presabs$species) 
     
-    if (anyNA(occ.full.data.df)) warning("Some pseudoabsence points fall within NA grid cells")
+    if (anyNA(occ.full.data.df)) warning("Some pseudoabsence points or occurrences fall within NA grid cells")
     
     occ_counts <- table(occ.full.data.df$occ)
     
@@ -358,7 +358,7 @@ with_progress({
     # Get model info
     info <- sdm::getModelInfo(model)
     
-    #Get presence data and their associated climatological values
+    #Get presence data and their associated habitat values
     pres_features <- occ.full.data.df %>%
       dplyr::filter(occ == "present") %>%
       dplyr::select(-occ)
@@ -366,7 +366,7 @@ with_progress({
     #Create empty list to store models in
     modeloutput<-list()
     
-    #Around 22min for one species
+    #Around 22 min for one species
       for(modelmethod in methods){
         
         print(modelmethod)

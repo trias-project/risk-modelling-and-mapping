@@ -343,7 +343,7 @@ with_progress({
       biasgrid <- terra::rast(bias_grid_paths[[speciesgroup]])
       if(speciesgroup %in% c("Amphibians", "Molluscs", "Mammals", "Reptiles","Birds","Plants","Fish","Malacostraca","Insects")){
         # Resample biasgrid to match the resolution of globalclimpreds_terra
-        biasgrid<- terra::resample(biasgrid, globalclimpreds_terra[[1]], method="bilinear")
+        biasgrid <- terra::resample(biasgrid, globalclimpreds_terra[[1]], method="bilinear")
       }
     } else {
       stop("No bias grid available for this species. Species has to be one of the following: Amphibians, Molluscs, Mammals, Reptiles, Birds, Plants, Fish, Malacostraca, or Insects.")
@@ -493,7 +493,7 @@ with_progress({
     
     #define methods and data
     sdm_data <- sdm::sdmData(species~.,train=vect(global_presabs),predictors=globalclimpreds_terra_selection) 
-    methods <- c("glm", "gam", "bioclim", "brt", "rf", "glmpoly", "mars", "maxent", "fda", "cart") #, "fda","cart" do not work!!
+    methods <- c("glm", "gam", "bioclim", "brt", "rf", "glmpoly", "mars", "maxent", "fda", "cart") 
     
     #run model
     model <- sdm(
