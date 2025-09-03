@@ -27,7 +27,7 @@ source(here::here("src", "Configurations.R"))
 global<-qs::qread( paste0("./data/projects/",projectname,"/",projectname,"_occurrences.qs"))
 taxa_info<-read.csv2(paste0("./data/projects/",projectname,"/",projectname,"_taxa_info.csv"))
 accepted_taxonkeys<-taxa_info%>%
-  dplyr::pull(speciesKey)%>%
+  dplyr::pull(acceptedTaxonKey)%>%
   unique()
 
 
@@ -56,7 +56,7 @@ identificationVerificationStatus_to_discard <- c( "unverified",
 #enter value for max coordinate uncertainty in meters, default = 5000
 #Reasoning: there are several invasive species datasets with default uncertainty of 5km
 global.occ<-global %>%
-  dplyr::filter(speciesKey%in%accepted_taxonkeys) %>%   
+  dplyr::filter(acceptedTaxonKey%in%accepted_taxonkeys) %>%   
   dplyr::filter(is.na(coordinateUncertaintyInMeters)| coordinateUncertaintyInMeters <= 5000) %>% 
   dplyr::filter(!str_to_lower(identificationVerificationStatus) %in% identificationVerificationStatus_to_discard)
 
@@ -104,7 +104,7 @@ global.occ <- global.occ %>%
 #--------------------------------------------
 global.occ.LL<-global.occ%>%
   rename(species= acceptedScientificName)%>%
-  dplyr::select(decimalLongitude, decimalLatitude, species, speciesKey, Group, coordinateUncertaintyInMeters) 
+  dplyr::select(decimalLongitude, decimalLatitude, species, acceptedTaxonKey, Group, coordinateUncertaintyInMeters) 
 rm(global.occ, global)
 
 
@@ -247,12 +247,12 @@ with_progress({
     print(species)
     first_two_words <- sub("^(\\w+)\\s+(\\w+).*", "\\1_\\2", species)  # Extract first two words of species name
     global.occ.LL.cleaned<-split_df[[i]]
-    taxonkey<-unique(global.occ.LL.cleaned$speciesKey)
+    taxonkey<-unique(global.occ.LL.cleaned$acceptedTaxonKey)
     speciesgroup<-unique(global.occ.LL.cleaned$Group)
     global.occ.LL.cleaned<-global.occ.LL.cleaned %>%
       dplyr::select(c(decimalLongitude,decimalLatitude))
     global.occ_1KM<-cleaned_1km %>%
-      filter(speciesKey == taxonkey)
+      filter(acceptedTaxonKey == taxonkey)
     
     #Generate file for informing PA selection containing all occurrences (no thinning, in case we thinned split_df)
     for_PA_selection <- split_df_all_occs[[i]] %>%

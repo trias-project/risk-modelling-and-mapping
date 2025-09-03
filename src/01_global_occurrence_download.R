@@ -255,7 +255,7 @@ unique_names <- unique(global$acceptedScientificName)
 n <- length(unique_keys)
 
 #Create dataset taxa_info containing scientific name, canonical name, taxonkeys, gbif download key,...
-taxa_info <- data.frame(speciesKey = unique_keys,
+taxa_info <- data.frame(acceptedTaxonKey = unique_keys,
                         acceptedScientificName = unique_names,
                         year_begin = rep_len(metadata[["request"]][["predicate"]][["predicates"]][[3]][["value"]], n),
                         year_end = rep_len(metadata[["request"]][["predicate"]][["predicates"]][[4]][["value"]], n),
