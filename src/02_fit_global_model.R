@@ -131,10 +131,10 @@ cleaned_1km<-cleaned%>%
 #--------------------------------------------
 #------- Load global climate rasters --------
 #--------------------------------------------
-# Only include files that start with "scaled_layer_" and end with .tif: TODO: NEED TO CREATE THEM FIRST!
+# Only include files that start with "scaled_layer_" and end with .tif: 
 scaled_files <- list.files(
-  here::here("data/external/climate/scaled_layers"),
-  pattern = "^scaled_layer_\\d+\\.tif$",
+  here::here("data/external/climate/trias_CHELSA"),
+  pattern = "^scaled_layer.*\\.tif$",
   full.names = TRUE)
 
 # Load and stack
@@ -142,9 +142,6 @@ globalclimpreds_terra <- terra::rast(scaled_files)
 
 #Decrease resolution to match coordinate uncertainty of global occurrences: use around 5km at equator by averaging
 globalclimpreds_terra<- aggregate(globalclimpreds_terra, fact=5, fun=mean, na.rm=TRUE)
-
-# Optional: check
-print(globalclimpreds_terra)
 
 
 #--------------------------------------------
@@ -198,16 +195,17 @@ wwf_eco_biome<-sf::st_read(here::here("./data/external/GIS/official/newRealms.sh
 #--------------------------------------------
 #-------Load file paths to bias grids -------
 #--------------------------------------------
+bias_grid_folder<-here::here("data","external", "bias_grids")
 bias_grid_paths <- list(
-  Plants = here::here("./data/external/bias_grids/final/trias/plants_10km_bias_layer_log.tif"), #0-13.24
-  Amphibians = here::here("./data/external/bias_grids/final/trias/amphibians_10km_bias_layer_log.tif"),#0-12.06
-  Birds = here::here("./data/external/bias_grids/final/trias/birds_1deg_min5.tif"),#5-1703018
-  Mammals = here::here("./data/external/bias_grids/final/trias/mammals_10km_bias_layer_log.tif"), #0-13.36
-  Molluscs = here::here("./data/external/bias_grids/final/trias/mollusca_10km_bias_layer_log.tif"),#0-12.48
-  Reptiles = here::here("./data/external/bias_grids/final/trias/reptiles_10km_bias_layer_log.tif"), #0-11.34
-  Fish = here::here("./data/external/bias_grids/final/trias/fish_10km_bias_layer_log.tif"),#0-14.67
-  Malacostraca = here::here("./data/external/bias_grids/final/trias/malacostraca_10km_bias_layer_log.tif"),#0-13.12
-  Insects = here::here("./data/external/bias_grids/final/trias/insects_10km_bias_layer_log.tif")) #0-15.78
+  Plants = here::here(bias_grid_folder, "plants_10km_bias_layer_log.tif"), #0-13.24
+  Amphibians = here::here(bias_grid_folder, "amphibians_10km_bias_layer_log.tif"),#0-12.06
+  Birds = here::here(bias_grid_folder, "birds_1deg_min5.tif"),#5-1703018
+  Mammals = here::here(bias_grid_folder, "mammals_10km_bias_layer_log.tif"), #0-13.36
+  Molluscs = here::here(bias_grid_folder, "mollusca_10km_bias_layer_log.tif"),#0-12.48
+  Reptiles = here::here(bias_grid_folder, "reptiles_10km_bias_layer_log.tif"), #0-11.34
+  Fish = here::here(bias_grid_folder, "fish_10km_bias_layer_log.tif"),#0-14.67
+  Malacostraca = here::here(bias_grid_folder, "malacostraca_10km_bias_layer_log.tif"),#0-13.12
+  Insects = here::here(bias_grid_folder, "insects_10km_bias_layer_log.tif")) #0-15.78
 
 
 #--------------------------------------------
@@ -389,11 +387,6 @@ with_progress({
     #---------- Generate pseudoabsences ---------
     #--------------------------------------------
     
-    # #Create alternative raster consisting of ecoregions without biasgrid mask (for when not enough PA can be generated)
-    # ecoregions_crop<-terra::crop(globalclimpreds_terra[[1]], wwf_ecoSub1_ext) #Crop one of the climate rasters to extent ecoregions
-    # ecoregions_raster<-terra::mask(ecoregions_crop,wwf_ecoSub1_vector) #Mask with ecoregions vector
-    # 
-    
     #LIMIT TO AREA OF 100KM AROUND OCCURRENCES
     #global.occ.sf_buffer_100km <- st_buffer(global.occ.sf, dist = 100000)
     #global.occ.sf_buffer_100km <- vect(st_union(global.occ.sf_buffer_100km))
@@ -422,7 +415,7 @@ with_progress({
       size = 10000,
       method = "weights",     # weighted random sampling
       as.points = TRUE,       # return SpatVector of points
-      na.rm = TRUE # ignore NA pixels: DOES NOT WORK, CHECK THIS
+      na.rm = TRUE            # ignore NA pixels
     )
     
     
