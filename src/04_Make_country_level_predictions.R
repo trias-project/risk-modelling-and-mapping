@@ -44,7 +44,7 @@ country_vector <- terra::vect(country)
 #--------------------------------------------
 taxa_info<-read.csv2(paste0("./data/projects/",project,"/",project,"_taxa_info.csv"))
 accepted_taxonkeys<-taxa_info%>%
-  dplyr::pull(speciesKey)%>%
+  dplyr::pull(acceptedTaxonKey)%>%
   unique()
 
 
