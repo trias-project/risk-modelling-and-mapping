@@ -57,16 +57,18 @@ habitat_stack <- terra::scale(habitat_stack, center = TRUE, scale = TRUE)
 na_mask_habitat_stack <- anyNA(habitat_stack)
 habitat_stack <- terra::mask(habitat_stack, na_mask_habitat_stack, maskvalue=1)
 
+
 #---------------------------------------------
 #--------- Load WWF ecoregions file ----------
 #---------------------------------------------
 wwf_eco_biome <- sf::st_read(here("./data/external/GIS/official/wwf_terr_ecos.shp")) %>%
   sf::st_transform(crs = st_crs(habitat_stack))
 
+
 #--------------------------------------------
 #------------- Load species data -----------
 #--------------------------------------------
-taxa_info <- read.csv2(paste0("./data/projects/",projectname,"/",projectname,"_taxa_info.csv"))
+taxa_info <- read.csv2(paste0("./data/projects/",project,"/",project,"_taxa_info.csv"))
 accepted_taxonkeys <- taxa_info %>%
   dplyr::pull(speciesKey) %>%
   unique()
@@ -110,7 +112,7 @@ with_progress({
     #--------------------------------------------
     #-- Define file path of global model file  --
     #--------------------------------------------  
-    species_folder <- here::here("data", "projects", projectname, paste0(first_two_words,"_",taxonkey))
+    species_folder <- here::here("data", "projects", project, paste0(first_two_words,"_",taxonkey))
     global_model_file <- here::here(species_folder,
                                   paste0("Global_model_",first_two_words,"_",taxonkey,".qs"))
     
@@ -137,8 +139,8 @@ with_progress({
     #------------ Import raster layers ----------
     #--------------------------------------------
     #Define file paths
-    biasgrid_file <- here::here("data", "projects",projectname, paste0(first_two_words,"_",taxonkey),"Rasters","Interim",paste0("Biasgrid_",first_two_words,"_",taxonkey,".tif"))
-    global_model_file <- here::here("data","projects",projectname,paste0(first_two_words,"_",taxonkey),"Rasters","Global",paste0("Ensemble_median_",first_two_words,"_",taxonkey,".tif"))
+    biasgrid_file <- here::here("data", "projects",project, paste0(first_two_words,"_",taxonkey),"Rasters","Interim",paste0("Biasgrid_",first_two_words,"_",taxonkey,".tif"))
+    global_model_file <- here::here("data","projects",project,paste0(first_two_words,"_",taxonkey),"Rasters","Global",paste0("Ensemble_median_",first_two_words,"_",taxonkey,".tif"))
     
     #Load rasterlayers
     biasgrid_sub <- terra::rast(biasgrid_file)
@@ -148,9 +150,9 @@ with_progress({
     #--------------------------------------------
     #------------ Define folder paths -----------
     #--------------------------------------------
-    PDF_folder <- here::here("data", "projects", projectname, paste0(first_two_words, "_", taxonkey), "PDFs")
-    PNG_folder <- here::here("data","projects", projectname, paste0(first_two_words, "_", taxonkey), "PNGs")
-    raster_EU_folder <- here::here("data", "projects", projectname, paste0(first_two_words, "_", taxonkey), "Rasters", "Europe")
+    PDF_folder <- here::here("data", "projects", project, paste0(first_two_words, "_", taxonkey), "PDFs")
+    PNG_folder <- here::here("data","projects", project, paste0(first_two_words, "_", taxonkey), "PNGs")
+    raster_EU_folder <- here::here("data", "projects", project, paste0(first_two_words, "_", taxonkey), "Rasters", "Europe")
 
 
     
@@ -672,7 +674,7 @@ with_progress({
     #-------- End of loop -----------------------
     #--------------------------------------------
     print(paste("European model has been created for", species_title))
-    rm(list = setdiff(ls(), c("p", "projectname",  "create_folder",  "euboundary", "habitat_stack",  "accepted_taxonkeys", "taxa_info", "key", "exportPDF", "remove_duplicates", "wwf_eco_biome", "remove_nodata_occurrences", "favourability_from_prob")))
+    rm(list = setdiff(ls(), c("p", "project",  "create_folder",  "euboundary", "habitat_stack",  "accepted_taxonkeys", "taxa_info", "key", "exportPDF", "remove_duplicates", "wwf_eco_biome", "remove_nodata_occurrences", "favourability_from_prob")))
   }
 })
 

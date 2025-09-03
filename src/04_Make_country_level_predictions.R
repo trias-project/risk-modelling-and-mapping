@@ -1,11 +1,4 @@
 #--------------------------------------------
-#-----------To do: specify project-----------
-#--------------------------------------------
-#specify project name
-projectname<-"Project_Frédérique"
-
-
-#--------------------------------------------
 #-----------  Load packages  ----------------
 #--------------------------------------------
 packages <- c("viridis", "geoR","ape","dplyr", "grid", "here", "qs","terra", "sf", "purrr", "progressr", "caret",
@@ -84,7 +77,7 @@ belgium_vector <- terra::vect(belgium) #Convert to a SpatVector, used for maskin
 #--------------------------------------------
 #----------- Load taxa info  ----------------
 #--------------------------------------------
-taxa_info<-read.csv2(paste0("./data/projects/",projectname,"/",projectname,"_taxa_info.csv"))
+taxa_info<-read.csv2(paste0("./data/projects/",project,"/",project,"_taxa_info.csv"))
 accepted_taxonkeys<-taxa_info%>%
   dplyr::pull(speciesKey)%>%
   unique()
