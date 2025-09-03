@@ -44,7 +44,7 @@ rcp85_globalmodel_folder <- here::here("data","external","climate","Global_final
 global_climate_folder <- here::here("data","external","climate","trias_CHELSA")
 chelsa_mask_folder <- here::here("data","external","climate","chelsa_mask")
 scaled_layers_folder <- here::here("data","external","climate","scaled_layers")
-biasgrids_folder <- here::here("data","external","bias_grids","final","trias")
+biasgrids_folder <- here::here("data","external","bias_grids")
 
 
 #-------------------------------------------------
