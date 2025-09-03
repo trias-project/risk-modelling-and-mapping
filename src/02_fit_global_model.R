@@ -363,13 +363,9 @@ with_progress({
     
     #Mask biasgrid with biomes with occurrences
     wwf_ecoSub1_ext<-terra::ext(wwf_ecoSub1) 
-    wwf_ecoSub1_vector <- terra::vect(wwf_ecoSub1) #Convert wwf_ecoSub1 to a SpatVector that can be used for masking
-    biasgrid_crop <- terra::crop(biasgrid, wwf_ecoSub1_ext) #Crop biasgrid to extent wwf_ecoSub1
-    biasgrid_sub <- terra::mask(biasgrid_crop, wwf_ecoSub1_vector)#Mask cropped biasgrid with SpatVector
-    
-    #Mask biasgrid with one of the climatic layers, to make sure it doesn't extend beyond them
-    climategrid_rast<-terra::crop(globalclimpreds_terra[[1]], wwf_ecoSub1_ext)
-    biasgrid_sub<-terra::mask(biasgrid_sub, climategrid_rast) 
+    wwf_ecoSub1_vector <- terra::vect(wwf_ecoSub1) 
+    biasgrid_crop <- terra::crop(biasgrid, wwf_ecoSub1_ext) 
+    biasgrid_sub <- terra::mask(biasgrid_crop, wwf_ecoSub1_vector)
     
     
     #--------------------------------------------
