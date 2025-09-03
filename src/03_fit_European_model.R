@@ -163,7 +163,8 @@ with_progress({
     folder_paths<-list(list("path"= raster_EU_folder,
                             "name"= "Rasters/Europe"),
                        list("path"= here::here(PDF_folder, "Europe"),
-                            "name"= here::here(PNG_folder, "Europe"),
+                            "name"= "PDF/Europe"),
+                       list("path"= here::here(PNG_folder, "Europe"),
                             "name"= "PNG/Europe"))
     
     # Check and create each folder if necessary
