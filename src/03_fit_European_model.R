@@ -281,12 +281,6 @@ with_progress({
     #--------------------------------------------
     #--- Create presence-pseudoabsence dataset ---
     #--------------------------------------------
-    # Ensure CRS match
-    if (!st_crs(eu_occ) == st_crs(euboundary)) {
-      euboundary <- st_transform(euboundary, st_crs(eu_occ))
-      print("transforming CRS of euboundary")
-    }
-    
     # Format presence data (eu_occ)
     eu_occ <- eu_occ %>%
       dplyr::mutate(species = "present") %>%
