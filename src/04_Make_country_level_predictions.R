@@ -34,10 +34,9 @@ source(here::here("src", "Configurations.R"))
 #--------------------------------------------
 #------------ Load country shape ------------
 #--------------------------------------------
-#Only used when no EU model could be fitted
-belgium<-rnaturalearth::ne_countries(country="Belgium", scale=10)[1]
-belgium_ext<-terra::ext(belgium) 
-belgium_vector <- terra::vect(belgium) #Convert to a SpatVector, used for masking
+country <- rnaturalearth::ne_countries(country=country_of_interest, scale=10)[1]
+country_ext <- terra::ext(country) 
+country_vector <- terra::vect(country)
 
 
 #--------------------------------------------
