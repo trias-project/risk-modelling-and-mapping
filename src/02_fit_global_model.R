@@ -351,6 +351,10 @@ with_progress({
       stop("No bias grid available for this species. Species has to be one of the following: Amphibians, Molluscs, Mammals, Reptiles, Birds, Plants, Fish, Malacostraca, or Insects.")
     }
 
+    
+    #--------------------------------------------
+    #------------ Process  bias grid ------------
+    #--------------------------------------------
     #Mask biasgrid with climate layers (no PA can be selected in NA climate pixels)
     biasgrid_log <- terra::mask(biasgrid, globalclimpreds_terra[[1]])
     
@@ -359,10 +363,7 @@ with_progress({
     max_val <- global(biasgrid_log, fun = "max", na.rm = TRUE)[[1]]
     biasgrid <- ((biasgrid_log - min_val) / (max_val - min_val)) * 19 + 1
     
-    
-    #--------------------------------------------
-    #Mask biasgrid by ecoregions with occurrences 
-    #--------------------------------------------
+    #Mask biasgrid with biomes with occurrences
     wwf_ecoSub1_ext<-terra::ext(wwf_ecoSub1) 
     wwf_ecoSub1_vector <- terra::vect(wwf_ecoSub1) #Convert wwf_ecoSub1 to a SpatVector that can be used for masking
     biasgrid_crop <- terra::crop(biasgrid, wwf_ecoSub1_ext) #Crop biasgrid to extent wwf_ecoSub1
@@ -809,6 +810,7 @@ with_progress({
   }
 
 })
+
 
 #--------------------------------------------
 #---------- Clean R environment--------------

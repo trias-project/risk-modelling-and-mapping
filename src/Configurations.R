@@ -1,5 +1,5 @@
 #--------------------------------------------
-#-----  Define country of interest ----------
+#-------  Define wiSDM configurations -------
 #--------------------------------------------
 project <- "PA prob & Alternative Treshold & Ensemble Boyce"
 
