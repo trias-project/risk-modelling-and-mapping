@@ -27,6 +27,8 @@ library(moranfast)
 #--------------------------------------------
 #- Load helper functions and configurations -
 #--------------------------------------------
+source(here::here("src", "helper_functions.R"))
+source(here::here("src", "Configurations.R"))
 
 
 #--------------------------------------------
