@@ -262,22 +262,7 @@ for (list_name in list_names) {
   #Print write statement
   print(paste0("Created rasterlayer ", basename(out_name)," in folder ", basename(rcp_folder)))
   
-  #Store current EU layers
-  if(list_name == "chelsa_current_climate"){
-    
-    #Mask current rasters with europe shape
-    rast_file_eu <- terra::crop(rast_file, ext(-18.69139, 36.5828, 29.80069, 76.13302))
-    rast_file_eu <- terra::mask(rast_file_eu, euboundary_vect)
-    
-    # Create output filename
-    out_name <- here::here(chelsa_eu_folder, paste0("scaled_eu_layer_", basename(file)))
-    
-    #Write raster to scaled_layers folder
-    terra::writeRaster(rast_file_eu, filename = out_name, overwrite = TRUE)
-    print(paste0("Created rasterlayer ", basename(out_name)," in folder ", basename(chelsa_eu_folder)))
-  }
-  
-  rm(rast_file, rast_file_eu)
+  rm(rast_file)
 }
 }
 
