@@ -422,19 +422,18 @@ with_progress({
     coords <- terra::crds(global_points)
     
     # Add coordinates and convert
-    global_pseudoAbs <- global_points %>%
+    global_pseudoAbs <- coords %>%
       as.data.frame() %>%
-      mutate(x = coords[, 1],
-             y = coords[, 2],
-             species = 0) %>%
-      sf::st_as_sf(coords = c("x", "y"), crs = 4326, remove = FALSE) %>%
+      mutate(species = 0) %>%
       rename(decimalLongitude = x,
              decimalLatitude = y) %>%
-      dplyr::select(decimalLongitude, decimalLatitude, species, geometry)
+      sf::st_as_sf(coords = c("decimalLongitude", "decimalLatitude"), crs = 4326, remove = F) 
     
-    
+    #Combine with presence data
     global_presabs <- rbind(global.occ.sf, global_pseudoAbs)
-    #rm(global_points)
+    
+    #Clean up
+    rm(global_points, global_pseudoAbs)
     
     
     #--------------------------------------------
