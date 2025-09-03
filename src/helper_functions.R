@@ -432,7 +432,7 @@ exportPDF <- function(predictions=NULL,taxonName, nameExtension,taxonNameTitle, 
              size = 4.8,
              color = "#636363",
              fontface = "bold")+
-    theme(aspect.ratio=0.9)
+    theme(aspect.ratio=0.95)
   
   if(!is.null(occ_data)){
     crs_value<-st_crs(occ_data)
