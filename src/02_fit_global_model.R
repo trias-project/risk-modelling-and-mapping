@@ -24,8 +24,8 @@ source(here::here("src", "Configurations.R"))
 #--------------------------------------------
 #--- Load global occurrences and taxa info---
 #--------------------------------------------
-global<-qs::qread( paste0("./data/projects/",projectname,"/",projectname,"_occurrences.qs"))
-taxa_info<-read.csv2(paste0("./data/projects/",projectname,"/",projectname,"_taxa_info.csv"))
+global<-qs::qread( paste0("./data/projects/",project,"/",project,"_occurrences.qs"))
+taxa_info<-read.csv2(paste0("./data/projects/",project,"/",project,"_taxa_info.csv"))
 accepted_taxonkeys<-taxa_info%>%
   dplyr::pull(acceptedTaxonKey)%>%
   unique()
@@ -265,13 +265,13 @@ with_progress({
     #-------------Create folders-----------------
     #--------------------------------------------
     # Define the folder paths
-    folder_paths<-list(list("path"=file.path("./data/projects", projectname, paste0(first_two_words, "_", taxonkey), "Rasters", "Interim"),
+    folder_paths<-list(list("path"=here::here("data", "projects", project, paste0(first_two_words, "_", taxonkey), "Rasters", "Interim"),
                             "name"= "Rasters/Interim"),
-                       list("path"=file.path("./data/projects", projectname, paste0(first_two_words, "_", taxonkey), "Rasters", "Global"),
+                       list("path"=here::here("data", "projects", project, paste0(first_two_words, "_", taxonkey), "Rasters", "Global"),
                             "name"= "Rasters/Global"),
-                       list("path"=file.path("./data/projects", projectname, paste0(first_two_words, "_", taxonkey), "PDFs", "Global"),
+                       list("path"=here::here("data", "projects", project, paste0(first_two_words, "_", taxonkey), "PDFs", "Global"),
                             "name"= "PDFs"),
-                       list("path"=file.path("./data/projects", projectname, paste0(first_two_words, "_", taxonkey), "PNGs", "Global"),
+                       list("path"=here::here("data", "projects", project, paste0(first_two_words, "_", taxonkey), "PNGs", "Global"),
                             "name"= "PNGs"))
     
     # Check and create each folder if necessary
@@ -660,8 +660,8 @@ with_progress({
     rest_of_name <- if (grepl("^\\S+\\s+\\S+$", species)) "" else sub("^\\S+\\s+\\S+\\s+", "", species)
     
     #Define PNG and PDF folders
-    PDF_folder <- file.path("./data/projects", projectname, paste0(first_two_words, "_", taxonkey), "PDFs")
-    PNG_folder<-file.path("./data/projects", projectname, paste0(first_two_words, "_", taxonkey), "PNGs")
+    PDF_folder <- file.path("./data/projects", project, paste0(first_two_words, "_", taxonkey), "PDFs")
+    PNG_folder<-file.path("./data/projects", project, paste0(first_two_words, "_", taxonkey), "PNGs")
     
     for (occs in list(NULL, global.occ.sf)){
       # Export PDFs with and without occurrences plotted
@@ -786,15 +786,15 @@ with_progress({
                         global_EU_sensitivity_5pct_threshold =  binary_maps$`5%`$EU_sensitivity,
                         global_EU_sensitivity_1pct_threshold =  binary_maps$`1%`$EU_sensitivity)
                         
-    qs::qsave(globalmodels, paste0("./data/projects/",projectname,"/",first_two_words,"_",taxonkey,"/Global_model_",first_two_words,"_",taxonkey,".qs"))
+    qs::qsave(globalmodels, paste0("./data/projects/",project,"/",first_two_words,"_",taxonkey,"/Global_model_",first_two_words,"_",taxonkey,".qs"))
     
     
     #--------------------------------------------
     #--Export raster layers in folder "rasters"--
     #--------------------------------------------
     #We don't store them in .qs file as some important metadate would be stored in a temp folder, which would be removed after a while 
-    biasgrid_file<- file.path("./data/projects",projectname,paste0(first_two_words,"_",taxonkey),"Rasters","Interim",paste0("Biasgrid_",first_two_words,"_",taxonkey,".tif"))
-    ensemble_median_file <- file.path( "./data/projects", projectname, paste0(first_two_words, "_", taxonkey),"Rasters", "Global", paste0("Ensemble_median_", first_two_words, "_", taxonkey, ".tif"))
+    biasgrid_file<- file.path("./data/projects",project,paste0(first_two_words,"_",taxonkey),"Rasters","Interim",paste0("Biasgrid_",first_two_words,"_",taxonkey,".tif"))
+    ensemble_median_file <- file.path( "./data/projects", project, paste0(first_two_words, "_", taxonkey),"Rasters", "Global", paste0("Ensemble_median_", first_two_words, "_", taxonkey, ".tif"))
     
     terra::writeRaster(biasgrid_sub, filename = biasgrid_file, overwrite = TRUE)
     terra::writeRaster(consensus_median, filename = ensemble_median_file, overwrite = TRUE)
