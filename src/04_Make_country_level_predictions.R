@@ -122,16 +122,16 @@ for(key in accepted_taxonkeys){
   #--------------------------------------------
   #----- Specify folder and file paths --------
   #--------------------------------------------
-  raster_folder <- file.path("./data/projects", projectname, paste0(first_two_words, "_", taxonkey), "Rasters")
-  raster_country_folder<-file.path(raster_folder, country_name)
-  PDF_folder <- file.path("./data/projects", projectname, paste0(first_two_words, "_", taxonkey), "PDFs")
-  PDF_country_folder<-file.path(PDF_folder, country_name)
-  PNG_folder <- file.path("./data/projects", projectname, paste0(first_two_words, "_", taxonkey), "PNGs")
-  PNG_country_folder <- file.path(PNG_folder, country_name)
-  VarImp_folder <-file.path("./data/projects", projectname, paste0(first_two_words, "_", taxonkey), "Variable_importance")
-  RC_folder<-file.path("./data/projects", projectname, paste0(first_two_words, "_", taxonkey), "Response_curves")
-  eu_model_file<-file.path("./data/projects",projectname,paste0(first_two_words,"_",taxonkey), paste0("EU_model_",first_two_words,"_",taxonkey,".qs"))
-  global_model_file<-file.path("./data/projects",projectname, paste0(first_two_words,"_",taxonkey),paste0("Global_model_",first_two_words,"_",taxonkey,".qs"))
+  raster_folder <- here::here("data", "projects", project, paste0(first_two_words, "_", taxonkey), "Rasters")
+  raster_country_folder <- here::here(raster_folder, country_of_interest)
+  PDF_folder <- here::here("data", "projects", project, paste0(first_two_words, "_", taxonkey), "PDFs")
+  PDF_country_folder <- here::here(PDF_folder, country_of_interest)
+  PNG_folder <- here::here("data","projects", project, paste0(first_two_words, "_", taxonkey), "PNGs")
+  PNG_country_folder <- here::here(PNG_folder, country_of_interest)
+  VarImp_folder <- here::here("data", "projects", project, paste0(first_two_words, "_", taxonkey), "Variable_importance")
+  RC_folder <- here::here("data", "projects", project, paste0(first_two_words, "_", taxonkey), "Response_curves")
+  eu_model_file <- here::here("data", "projects",project,paste0(first_two_words,"_",taxonkey), paste0("EU_model_",first_two_words,"_",taxonkey,".qs"))
+  global_model_file <- here::here("data", "projects",project, paste0(first_two_words,"_",taxonkey),paste0("Global_model_",first_two_words,"_",taxonkey,".qs"))
   
   
   #-----------------------------------------------------------------------------------
