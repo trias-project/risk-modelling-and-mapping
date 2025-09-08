@@ -50,13 +50,8 @@ accepted_taxonkeys<-taxa_info%>%
 #-------------------------------------------------
 #---------- Load habitat raster data -------------
 #-------------------------------------------------
-#ONE LAYER HAS A SLIGHTLY DIFFERENT EXTENT: CUT ALL OTHERS TO THIS EXTENT
-habitat<-list.files((here("./data/external/habitat")),pattern='tif',full.names = T)
-habitat_stack<-terra::rast(habitat[c(1:5,7)]) #Distance to water (layer 6) has another extent and we're not sure whether it is correct: leave it out!
-#habitat_stack2<-rast(habitat[6])
-
-#habitat_stack1<-crop(habitat_stack1, ext(habitat_stack2))
-#habitat_stack<-c(habitat_stack1, habitat_stack2)
+habitat <- list.files((here("./data/external/habitat")),pattern = 'tif',full.names = T)
+habitat_stack <- terra::rast(habitat) 
 
 
 #-------------------------------------------------
