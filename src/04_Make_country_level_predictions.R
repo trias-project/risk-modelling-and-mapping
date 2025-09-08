@@ -163,12 +163,11 @@ for(key in accepted_taxonkeys){
     
     #-------Read in eu model object that was stored as part of  script 03_fit_European_model and load data-------
     eumodel<-qs::qread(eu_model_file)
-    euocc<-eumodel$euocc1
-    bestModel<-eumodel$bestModel
-    eu_presabs.coord<-eumodel$eu_presabs.coord
-    occ.full.data.forCaret<-eumodel$occ.full.data.forCaret
-    model_correlation<-eumodel$model_correlation
-    available_models <- rownames(model_correlation)
+    euocc<-eumodel$eu_occ
+    #bestModel<-eumodel$bestModel
+    eu_presabs.coord<-eumodel$eu_presabs
+    occ.full.data.df<-eumodel$occ.full.data.df
+    #available_models <- rownames(model_correlation)
     Final_model<-"EU model"
     
     #---------Load raster with EU predictions using the best model------------
@@ -192,7 +191,7 @@ for(key in accepted_taxonkeys){
     euocc<-globalmodels$occurrences
     bestModel<-globalmodels$global_ensemble_model
     eu_presabs.coord<-globalmodels$global_presabs
-    occ.full.data.forCaret<-globalmodels$global_data_df_uncor
+    occ.full.data.df<-globalmodels$global_data_df_uncor
     model_accuracy<-globalmodels$model_accuracy
     model_correlation<-globalmodels$model_correlation
     available_models <- rownames(model_correlation)
@@ -525,7 +524,7 @@ for(key in accepted_taxonkeys){
   hab.res<-stdres(obs.numeric,predEns1$present)
   
   # Load coordinates of presences and absences used to fit the best model (stored in eu_presabs.coord) and combine with explanatory data
-  res.best.coords1<-cbind(eu_presabs.coord,occ.full.data.forCaret)
+  res.best.coords1<-cbind(eu_presabs.coord,occ.full.data.df)
   
   #Remove rows with NAs (in explanatory data)
   removedNAs.coords<-na.omit(res.best.coords1)
