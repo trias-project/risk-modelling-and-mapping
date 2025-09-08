@@ -62,12 +62,6 @@ resampling_raster<-terra::rast(here::here("data","external","climate","byEEA_fin
 
 
 #--------------------------------------------
-#--------Source helper functions-------------
-#--------------------------------------------
-source("./src/helper_functions.R")
-
-
-#--------------------------------------------
 #------ Create start df for model info-------
 #--------------------------------------------
 model_info<-taxa_info%>%
