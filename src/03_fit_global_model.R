@@ -346,7 +346,7 @@ with_progress({
         biasgrid <- terra::resample(biasgrid, globalclimpreds_terra[[1]], method="bilinear")
       }
     } else {
-      stop("No bias grid available for this species. Species has to be one of the following: Amphibians, Molluscs, Mammals, Reptiles, Birds, Plants, Fish, Malacostraca, or Insects.")
+      next("No bias grid available for this species. Species has to be one of the following: Amphibians, Molluscs, Mammals, Reptiles, Birds, Plants, Fish, Malacostraca, or Insects.")
     }
 
     
