@@ -71,7 +71,7 @@ source("./src/helper_functions.R")
 #------ Create start df for model info-------
 #--------------------------------------------
 model_info<-taxa_info%>%
-  dplyr::select(speciesKey, acceptedScientificName)%>%
+  dplyr::select(acceptedTaxonKey, acceptedScientificName)%>%
   dplyr::mutate(Final_model=NA,
          n_presences = NA,
          Threshold= NA,
@@ -102,7 +102,7 @@ for(key in accepted_taxonkeys){
   #-------  Extract species data   ------------
   #--------------------------------------------
   species<-taxa_info%>%
-    dplyr::filter(speciesKey==key)%>%
+    dplyr::filter(acceptedTaxonKey==key)%>%
     dplyr::pull(acceptedScientificName)%>%
     unique()
   
