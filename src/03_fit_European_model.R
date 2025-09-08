@@ -70,7 +70,7 @@ wwf_eco_biome <- sf::st_read(here("./data/external/GIS/official/wwf_terr_ecos.sh
 #--------------------------------------------
 taxa_info <- read.csv2(paste0("./data/projects/",project,"/",project,"_taxa_info.csv"))
 accepted_taxonkeys <- taxa_info %>%
-  dplyr::pull(speciesKey) %>%
+  dplyr::pull(acceptedTaxonKey) %>%
   unique()
 
 
@@ -92,7 +92,7 @@ with_progress({
     #--------------------------------------------
     #Extract species name
     species<-taxa_info%>%
-      dplyr::filter(speciesKey==key)%>%
+      dplyr::filter(acceptedTaxonKey==key)%>%
       dplyr::pull(acceptedScientificName)%>%
       unique()
     
