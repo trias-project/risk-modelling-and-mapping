@@ -82,13 +82,8 @@ model_info<-taxa_info%>%
          Kappa =NA,
          Morans_I_method=NA,
          Morans_I = NA,
-         Pvalue_Morans_I= NA,
-         correlation_glm_gbm=NA,
-         correlation_glm_rf=NA,
-         correlation_glm_earth=NA,
-         correlation_gbm_rf=NA,
-         correlation_gbm_earth=NA,
-         correlation_rf_earth=NA)
+         Pvalue_Morans_I= NA)
+
 
 #--------------------------------------------
 #-----------  Start loop   ------------------
