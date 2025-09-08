@@ -18,19 +18,9 @@ source(here::here("src", "00_configurations.R"))
 
 
 #--------------------------------------------
-#-------------Create folders-----------------
+#--------- Create project folder ------------
 #--------------------------------------------
-# Define the folder paths
-folder_paths <- list(list("path" = file.path("./data/projects",project),
-                        "name" = project),
-                   list("path" = file.path("./data/raw"),
-                        "name" = "raw")
-)
-
-# Check and create each folder if necessary
-lapply(folder_paths, function(folder){
-  create_folder(folder$path, folder$name)
-})
+create_folder(here::here("data", "projects", project), project)
 
 
 #--------------------------------------------
@@ -143,14 +133,14 @@ rgbif::occ_download_wait(gbif_download_key)#Check download status
 #--------------------------------------------
 #--------------Retrieve download-------------
 #--------------------------------------------
-rgbif::occ_download_get(gbif_download_key, path = here::here("data","raw"), overwrite = TRUE)
+rgbif::occ_download_get(gbif_download_key, path = here::here("data"), overwrite = TRUE)
 metadata <- rgbif::occ_download_meta(key = gbif_download_key)
 gbif_download_key <- metadata$key
 
 #extract_GBIF_occurrence
-raw.path <- here::here("data", "raw", gbif_download_key)
-unzip(paste0(raw.path,".zip"),exdir = raw.path, overwrite = TRUE)
-global <- as.data.frame(data.table::fread(paste0(raw.path,"/occurrence.txt"),header = TRUE))
+data.path <- here::here("data", gbif_download_key)
+unzip(paste0(data.path,".zip"),exdir = data.path, overwrite = TRUE)
+global <- as.data.frame(data.table::fread(paste0(data.path,"/occurrence.txt"),header = TRUE))
   
 global <- dplyr::select(global, c(acceptedTaxonKey,acceptedScientificName, decimalLatitude, decimalLongitude, kingdom, phylum, class,order, genus, coordinateUncertaintyInMeters, identificationVerificationStatus))
 
@@ -269,10 +259,10 @@ write.csv2(taxa_info, paste0("./data/projects/",project,"/",project,"_taxa_info.
 #---- Clean up environment and local disk----
 #--------------------------------------------
 # Remove the zipped folder
-suppressWarnings(file.remove(paste0(raw.path, ".zip"), full.names = TRUE))
+suppressWarnings(file.remove(paste0(data.path, ".zip"), full.names = TRUE))
 
 # Remove the unzipped folder 
-unlink(raw.path, recursive = TRUE)
+unlink(data.path, recursive = TRUE)
 
 # Clean R environment
 rm(list = ls())
