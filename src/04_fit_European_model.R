@@ -18,7 +18,7 @@ sdm::installAll()
 #- Load helper functions and configurations -
 #--------------------------------------------
 source(here::here("src", "helper_functions.R"))
-source(here::here("src", "Configurations.R"))
+source(here::here("src", "00_configurations.R"))
 
 
 #--------------------------------------------
