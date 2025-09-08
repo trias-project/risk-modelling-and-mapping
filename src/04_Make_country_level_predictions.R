@@ -143,11 +143,11 @@ for(key in accepted_taxonkeys){
                      list("path"= RC_folder,
                           "name"= "Response_curves"),
                      list("path"= raster_country_folder,
-                          "name"= paste0("Rasters/",country_name)),
+                          "name"= paste0("Rasters/",country_of_interest)),
                      list("path"= PDF_country_folder,
-                          "name"= paste0("PDF/",country_name)),
+                          "name"= paste0("PDF/",country_of_interest)),
                      list("path"= PNG_country_folder,
-                          "name"= paste0("PNG/",country_name)))
+                          "name"= paste0("PNG/",country_of_interest)))
   
   # Check and create each folder if necessary
   lapply(folder_paths, function(folder){
