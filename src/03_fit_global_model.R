@@ -323,7 +323,7 @@ with_progress({
     # Keep only biome polygons that intersect at least one occurrence point
     has_occurrence <- lengths(sf::st_intersects(wwf_eco_biome, global.occ.sf)) > 0
     wwf_ecoSub1 <- wwf_eco_biome[has_occurrence, ]
-    sf_use_s2(TRUE)
+    sf::sf_use_s2(TRUE)
     
     #--------------------------------------------
     #------------- Plot ecoregions --------------
