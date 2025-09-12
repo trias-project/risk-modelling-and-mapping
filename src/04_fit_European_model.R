@@ -31,20 +31,18 @@ euboundary<-sf::st_read(here("./data/external/GIS/Europe/EUROPE.shp"))
 #-------- Load European habitat rasters -----
 #--------------------------------------------
 # Load all habitat rasters
-habitat_files <- list.files(here("./data/external/habitat"), pattern = 'tif$', full.names = TRUE)
-habitat_stack <- terra::rast(habitat_files)
+habitat_files <- list.files(here::here("./data/external/habitat"), pattern = 'tif$', full.names = TRUE)
+habitat_rasters <- lapply(habitat_files, terra::rast)
 
-# Assign meaningful and unique names (based on file order)
-names(habitat_stack) <- c(
-  "corine_perAgriculture",
-  "corine_perConiferous",
-  "corine_perdeciduous",
-  "corine_pergrass",
-  "dist_to_water_log1p",         # <- from distance_to_water_masked_log1p.tif
-  "esm_index",
-  "water_line_log1p",            # <- from total_water_length_log1p.tif
-  "water_polygon_cover"          # <- from total_water_polygon_cover_proportion.tif
-)
+# compute common intersection extent across all rasters
+common_ext <- Reduce(intersect, lapply(habitat_rasters, ext))
+
+# Crop all rasters to the common (smallest) extent
+habitat_rasters <- lapply(habitat_rasters, terra::crop, common_ext)
+
+# Combine into raster stack 
+habitat_stack <- terra::rast(habitat_rasters)
+rm(habitat_rasters)
 
 #Scale habitat rasters
 habitat_stack <- terra::scale(habitat_stack, center = TRUE, scale = TRUE)
