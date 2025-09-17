@@ -605,7 +605,12 @@ with_progress({
     # Step 5: Select top 5 models with highest variance on PC1
     top5_models <- names(sort(model_variances, decreasing = TRUE))[1:5]
     cat("Top 5 models by variance along PC1:\n")
-    print(top5_models)
+    
+    # Get model IDs
+    top_ids <- info$modelID[info$method %in% top5_models]
+    
+    # Subset using those IDs
+    top5models <- model[[top_ids]]  
     
     # Step 6: Subset fav_stack to top 5 layers
     top5_stack <- subset(fav_stack, top5_models)
@@ -858,7 +863,8 @@ with_progress({
                         global_EU_sensitivity_5pct_threshold =  binary_maps$`5%`$EU_sensitivity,
                         global_EU_sensitivity_1pct_threshold =  binary_maps$`1%`$EU_sensitivity,
                         response_df = response_df,
-                        varimp_df = varimp_df)
+                        varimp_df = varimp_df,
+                        top5models = top5models)
                         
     qs::qsave(globalmodels, paste0("./data/projects/",project,"/",first_two_words,"_",taxonkey,"/Global_model_",first_two_words,"_",taxonkey,".qs"))
     
