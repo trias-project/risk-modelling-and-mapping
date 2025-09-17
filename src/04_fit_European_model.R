@@ -145,13 +145,13 @@ with_progress({
     global_climate_for_eu <- terra::rast(global_model_file)%>%
       terra::project( habitat_stack)
         
+    
     #--------------------------------------------
     #------------ Define folder paths -----------
     #--------------------------------------------
     PDF_folder <- here::here("data", "projects", project, paste0(first_two_words, "_", taxonkey), "PDFs")
     PNG_folder <- here::here("data","projects", project, paste0(first_two_words, "_", taxonkey), "PNGs")
     raster_EU_folder <- here::here("data", "projects", project, paste0(first_two_words, "_", taxonkey), "Rasters", "Europe")
-
 
     
     #-------------------------------------------------
@@ -464,6 +464,90 @@ with_progress({
     plot(consensus_habitat, main = "Consensus (Median of Top 5 Models by Variance on PC1)")
 
     
+    #---------------------------------------------
+    #-- Get response curves of 5 selected models -
+    #---------------------------------------------
+    response_list<-list()
+    varimp_list<-list()
+    
+    for(topmethod in top5_models){
+      # Get model id
+      id <- info$modelID[info$method == topmethod]
+      
+      #Get response curve
+      response_curves<-sdm::getResponseCurve(model,id)@response
+      
+      #Get variable importance
+      varimp<-sdm::getVarImp(model,id)@varImportance
+      
+      #Store
+      response_list[[topmethod]]<-response_curves
+      varimp_list[[topmethod]]<-varimp
+    }
+    
+    # Convert list to a dataframe
+    response_df <- imap_dfr(response_list, function(model_list, model_name) {
+      imap_dfr(model_list, function(df, var_name) {
+       response_df <- df %>%
+          setNames(c("Predictor_value", "Response"))%>%
+          mutate( Algorithm = model_name,
+                  Predictor = var_name)})
+    }) %>%
+      dplyr::select(Algorithm,Predictor, Predictor_value, Response)
+    
+    
+    varimp_df <- imap_dfr(varimp_list, function(df, model_name) {
+      df %>%
+        setNames(c("Predictor", "corTest" , "AUCtest"))%>%
+        dplyr::mutate(Algorithm = model_name)
+    })%>%
+      dplyr::select(Algorithm,Predictor, corTest, AUCtest)
+    
+    
+    # Plot response curves
+    response_plot <- ggplot(response_df, aes(x = Predictor_value,
+                                           y = Response, 
+                                           color = Algorithm)) +
+      geom_line(size=0.8) +
+      facet_wrap(~ Predictor, scales = "free_x")+
+      labs(title= "Habitat response curves" ,x= "Predictor value")+
+      theme_bw()
+    
+    # Plot variable importance 
+    varimp_plot <- ggplot(varimp_df, aes(x = variables, y = corTest)) +
+      geom_col(fill = "steelblue") +
+      coord_flip() +  #horizontal bars
+      facet_wrap(~ Algorithm) +  
+      geom_hline(yintercept = 0, color = "black") + 
+      labs(
+        x = "Variable",
+        y = "Importance",
+        title = "Variable importance per model"
+      ) +
+      theme_bw()
+    
+    #Write ggplots to pngs
+    PNG_folder_Europe<-here::here(PNG_folder, "Europe")
+    
+    for(plot in c("varimp_plot", "response_plot")){
+      
+      #Define filename
+      type <- switch(plot,
+                   "varimp_plot" = "variable_importance",
+                   "response_plot" =  "response_curves")
+      PNG_file <- paste(first_two_words, "_", taxonkey,"_",type, "_Europe.png", sep = "")
+      
+      #Get plot
+      gg_plot<-get(plot)
+      
+      #Save plot
+      ggplot2::ggsave(filename = PNG_file, plot = gg_plot, 
+                    device = "png", width =8.27 , height = 5.845, path= PNG_folder_Europe )
+      #Print
+      print(paste(PNG_file," has been created.", sep="")) 
+    }
+    
+    
     #------------------------------------------------------------    
     #-- Create final predictions combining habitat and climate --
     #------------------------------------------------------------
@@ -607,7 +691,7 @@ with_progress({
       }
     
     }
-    
+
 
     #--------------------------------------------
     #- Save best model, european occurrences, and layers for Belgium -
@@ -621,7 +705,9 @@ with_progress({
                     eu_5pct_threshold = threshold_5pct,# 5% min training presence threshold from EU model
                     eu_1pct_threshold = threshold_1pct, # 1% min training presence threshold from EU model
                     final_boyce = boyce_val,
-                    boyce_result = boyce_result           # full object from ecospat.boyce()
+                    boyce_result = boyce_result,# full object from ecospat.boyce()
+                    response_df = response_df,
+                    varimp_df = varimp_df
     )
    
     #Save eumodel as .qs file
