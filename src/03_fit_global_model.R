@@ -919,7 +919,66 @@ with_progress({
     rm(binary_map_pct)
     }
     
-
+    
+    #--------------------------------------------
+    #--- Create maps with future projections ----
+    #--------------------------------------------
+    for (period in c("2041-2070","2071-2100")){
+      for(scenario in c("ssp126", "ssp370", "ssp585")){
+        
+    # Keep relevant predictors in the raster stack
+        future_rast<-get(paste0(scenario, "_", period))
+        
+    eu_future_selection <- future_rast %>%
+      subset(names(eu_climpreds.10_selection))
+    
+    # Project each of the top 5 models
+    future_modeloutput <- list()
+    for(modelmethod in top5_models){
+      print(paste("[FUTURE] Projecting:", modelmethod))
+      pred_raster_future <- terra::predict(model,
+                                    newdata = eu_future_selection,
+                                    method = modelmethod)
+      fav_raster_future <- favourability_from_prob(pred_raster_future, prev_ratio)
+      future_modeloutput[[modelmethod]] <- fav_raster_future
+      rm(fav_raster_future, pred_raster_future)
+    }
+    
+    # Create Ensemble predictions for future
+    future_fav_stack <- terra::rast(future_modeloutput)
+    future_consensus_median <- app(future_fav_stack, median)
+    
+    # Export future ensemble raster and single-model rasters
+    ensemble_median_future_file <- here::here("data", "projects", project,
+                                             paste0(first_two_words, "_", taxonkey), "Rasters", "Global", period, scenario,
+                                             paste0("Ensemble_median_",period,"_",scenario,"_", first_two_words, "_", taxonkey, ".tif"))
+    terra::writeRaster(future_consensus_median, filename = ensemble_median_future_file, overwrite = TRUE)
+    
+    for (mod in top5_models) {
+      singlemodfile <- here::here("data", "projects", project,
+                                 paste0(first_two_words, "_", taxonkey), "Rasters", "Global", period, scenario,
+                                 paste0("Favourability_", mod, "_",period,"_",scenario,"_", first_two_words, "_", taxonkey, ".tif"))
+      terra::writeRaster(future_fav_stack[[mod]], filename = singlemodfile, overwrite = TRUE)
+    }
+    
+    # #TODO: Make and save figures
+    # pdf_file <- file.path("./data/projects", project,
+    #                       paste0(first_two_words, "_", taxonkey), "PDFs", "Global",
+    #                       paste0("Ensemble_median_future_ssp126_", first_two_words, "_", taxonkey, ".pdf"))
+    # png_file <- file.path("./data/projects", project,
+    #                       paste0(first_two_words, "_", taxonkey), "PNGs", "Global",
+    #                       paste0("Ensemble_median_future_ssp126_", first_two_words, "_", taxonkey, ".png"))
+    # 
+    # pdf(pdf_file, width=7, height=7)
+    # plot(future_consensus_median, main = paste("Future Consensus (Median, ssp126) -", species))
+    # dev.off()
+    # png(png_file, width=700, height=700)
+    # plot(future_consensus_median, main = paste("Future Consensus (Median, ssp126) -", species))
+    # dev.off()
+      }
+    }
+    
+    
     #--------------------------------------------
     #-- Prepare global_presabs for export--------
     #--------------------------------------------  
