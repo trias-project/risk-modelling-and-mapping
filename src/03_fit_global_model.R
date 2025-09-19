@@ -172,6 +172,48 @@ eu_climpreds.10 <- terra::mask(eu_climpreds.10, euboundary_vect)
 
 
 #--------------------------------------------
+#------ Load future climate rasters ----------
+#--------------------------------------------
+
+for (period in c("2041-2070","2071-2100")){
+  for(scenario in c("ssp126", "ssp370", "ssp585")){
+    
+    # List future raster files
+    future_files<- list.files( here::here("data", "external", "climate", "chelsa_future", period,scenario), pattern = "\\.tif$", full.names = TRUE)
+    
+    #Stack them together
+    future_stack <- rast(future_files)
+    
+    #Aggregate at a resolution of 5km
+    future_stack<- aggregate(future_stack, fact=5, fun=mean, na.rm=TRUE)
+    
+    #Reproject future stack to match CRS and resolution of eu_climpreds.10
+    #TODO: Regenerate these rasters so this is not necessary
+    future_aligned <- terra::project(
+      future_stack,
+      eu_climpreds.10,
+      method = "bilinear")
+    
+    # Get mask from future stack NA structure
+    na_mask_future <- anyNA(future_aligned)
+    
+    # Mask future stack with its own NA structure
+    future_aligned_masked <- terra::mask(
+      future_aligned,
+      na_mask_future,
+      maskvalue = 1)  
+    
+    #Assign correct name to raster stack
+    assign(paste0(scenario,"_",period), future_aligned_masked)
+    
+    #Clean up
+    rm(future_aligned, future_aligned_masked, future_stack)
+    
+  }
+}
+
+
+#--------------------------------------------
 #--------- Load shape of the world ----------
 #--------------------------------------------
 world<-rnaturalearth::ne_countries(scale=50)
