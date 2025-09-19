@@ -195,6 +195,40 @@ with_progress({
       sf::st_coordinates()
     
     
+    #-----------------------------------------------
+    #------ Limit to 10,000 occupied grid cells ----
+    #-----------------------------------------------
+    if(nrow(euocc) > 10000){
+      if(occurrence_thinning_method == "random"){
+        
+        set.seed(101) 
+        euocc <- euocc[sample(nrow(euocc), 10000, replace=FALSE), ]
+        
+      }else if (occurrence_thinning_method == "kmeans_clustering"){
+        
+        #Extract environmental data in each occurrence grid cell
+        habitat_data <- terra::extract(habitat_stack, euocc, ID = FALSE)
+        
+        # K-means clustering
+        set.seed(101)
+        clust <- kmeans(habitat_data, centers = n_clusters,iter.max = 10, nstart = 1)$cluster
+        occ_habitat <- cbind(euocc, habitat_data, clust)
+        
+        # Sample within clusters
+        max_per_cluster <- 10000/n_clusters
+        row_sample <- sapply(1:10000, function(x) {
+          rowids <- which(clust == x)
+          sample(rowids, min(max_per_cluster, length(rowids)), replace = FALSE)
+        })
+        
+        #Get final dataframe
+        euocc <- occ_habitat[row_sample,] %>%
+          dplyr::select(decimalLongitude, decimalLatitude, geometry, species)
+        
+      }
+    }
+    
+    
     #------------------------------------------------
     #----- Check if at least 20 European records ----
     #------------------------------------------------

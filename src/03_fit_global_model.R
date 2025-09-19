@@ -133,7 +133,7 @@ cleaned_1km<-cleaned%>%
 #--------------------------------------------
 # Only include files that start with "scaled_layer_" and end with .tif: 
 scaled_files <- list.files(
-  here::here("data/external/climate/trias_CHELSA"),
+  here::here("data", "external","climate","trias_CHELSA"),
   pattern = "^scaled_layer.*\\.tif$",
   full.names = TRUE)
 
@@ -290,6 +290,37 @@ with_progress({
     #add column indicating species presence (1) for modeling
     global.occ.sf$species <- rep(1, nrow(global.occ.sf)) 
    
+    
+    #-----------------------------------------------
+    #------ Limit to 10,000 occupied grid cells ----
+    #-----------------------------------------------
+    if(nrow(global.occ.sf) > 10000){
+      if(occurrence_thinning_method == "random"){
+      set.seed(101) 
+      global.occ.sf <- global.occ.sf[sample(nrow(global.occ.sf), 10000, replace=FALSE), ]
+      }else if (occurrence_thinning_method == "kmeans_clustering"){
+        #Extract environmental data in each occurrence grid cell
+        env_data <- terra::extract(globalclimpreds_terra, global.occ.sf, ID = FALSE)
+        
+        # K-means clustering
+        set.seed(101)
+        clust <- kmeans(env_data, centers = n_clusters,iter.max = 10, nstart = 1)$cluster
+        occ_env <- cbind(global.occ.sf, env_data, clust)
+        
+        # Sample within clusters
+        max_per_cluster <- 10000/n_clusters
+        row_sample <- sapply(1:10000, function(x) {
+          rowids <- which(clust == x)
+          sample(rowids, min(max_per_cluster, length(rowids)), replace = FALSE)
+        })
+        
+        #Get final dataframe
+        global.occ.sf <- occ_env[row_sample,] %>%
+          dplyr::select(decimalLongitude, decimalLatitude, geometry, species)
+
+      }
+    }
+    
     
     #-------------------------------------------------------
     #-Don't fit model if less than 20 global presences -----
