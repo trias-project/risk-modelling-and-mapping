@@ -622,7 +622,7 @@ with_progress({
         #Apply the transformation to the raster
         fav_raster <- favourability_from_prob(pred_raster, prev_ratio)
         
-        #Get threshold
+        #Get favourability of fitted 
         fitted_model <- predict(method_model, newdata = pres_features, type = "response")
         fitted_favourability <- favourability_from_prob(fitted_model[[1]], prev_ratio)
         
@@ -1010,7 +1010,9 @@ with_progress({
                         global_EU_sensitivity_1pct_threshold =  binary_maps$`1%`$EU_sensitivity,
                         response_df = response_df,
                         varimp_df = varimp_df,
-                        top5models = top5models)
+                        top5models = top5models,
+                        selected_predictors = names(eu_future_selection),
+                        future_consensus_median = future_consensus_median)
                         
     qs::qsave(globalmodels, paste0("./data/projects/",project,"/",first_two_words,"_",taxonkey,"/Global_model_",first_two_words,"_",taxonkey,".qs"))
     
