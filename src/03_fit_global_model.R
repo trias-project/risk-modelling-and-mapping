@@ -535,8 +535,9 @@ with_progress({
     #--------------------------------------------
     #---- Extract climate data for modelling-----
     #--------------------------------------------
-    global.data.df <- sdm::sdmData(species~.,train=vect(global_presabs),predictors=globalclimpreds_terra)%>%
-      as.data.frame()
+    global.data.df <- sdm::sdmData(species~.,train=vect(global_presabs),
+                                   predictors=globalclimpreds_terra)%>%
+                      as.data.frame()
     
     
     #--------------------------------------------
@@ -546,7 +547,10 @@ with_progress({
     correlationMatrix <- cor(global.data.df[, -c(1, 2)])
     
     # Identify highly correlated variables (cutoff = 0.7)
-    highlyCorrelated <- caret::findCorrelation(correlationMatrix, cutoff = 0.7, exact = TRUE, names = TRUE)
+    highlyCorrelated <- caret::findCorrelation(correlationMatrix, 
+                                               cutoff = 0.7, 
+                                               exact = TRUE, 
+                                               names = TRUE)
     
     # Remove highly correlated predictors and rID, and prepare species factor
     global.data.df.uncor <- global.data.df %>%
