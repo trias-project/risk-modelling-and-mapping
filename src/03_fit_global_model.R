@@ -703,7 +703,7 @@ with_progress({
       theme_bw()
     
     # Plot variable importance 
-    varimp_plot <- ggplot(varimp_df, aes(x = variables, y = corTest)) +
+    varimp_plot <- ggplot(varimp_df, aes(x = Predictor, y = corTest)) +
       geom_col(fill = "steelblue") +
       coord_flip() +  #horizontal bars
       facet_wrap(~ Algorithm) +  
