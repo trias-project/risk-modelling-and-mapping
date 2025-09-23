@@ -492,17 +492,6 @@ with_progress({
     #---------- Generate pseudoabsences ---------
     #--------------------------------------------
     
-    #LIMIT TO AREA OF 100KM AROUND OCCURRENCES
-    #global.occ.sf_buffer_100km <- st_buffer(global.occ.sf, dist = 100000)
-    #global.occ.sf_buffer_100km <- vect(st_union(global.occ.sf_buffer_100km))
-    # Convert raster from 'raster' to 'terra' format if needed
-    #if (inherits(biasgrid_sub_raster, "Raster")) {
-    #  biasgrid_sub_raster <- rast(biasgrid_sub_raster)
-    #}
-    #biasgrid_sub_raster<-terra::mask(biasgrid_sub_raster,global.occ.sf_buffer_100km)
-    #biasgrid_sub_raster_raster <- raster::raster(biasgrid_sub_raster)
-    
-    
     #---------Mask cells that contain occurrences---------
     # Convert sf to terra-compatible vector
     for_PA_vect <- terra::vect(for_PA_selection)
