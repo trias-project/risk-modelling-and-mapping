@@ -300,6 +300,16 @@ with_progress({
       sf::st_as_sf(coords = c("decimalLongitude", "decimalLatitude"),
                    crs = 4326)
     
+    #---------------------------------------------
+    #-- Prepare filenames and titles for export --
+    #---------------------------------------------
+    #Prepare PDF title 
+    nameExtension<- if (grepl("^\\S+\\s+\\S+$", species)) "" else sub("^\\S+\\s+\\S+\\s+", "", species)
+    PDF_title<-bquote(italic(.(gsub("_", " ", speciesName))) ~ .(nameExtension) ~ "(" * .(taxonkey) * ")")
+    
+    #Prepare current and future basefile
+    basefile<-  paste0(speciesName, "_", taxonkey, "_Global_")
+    
     
     #--------------------------------------------
     #-------------Create folders-----------------

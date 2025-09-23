@@ -107,6 +107,16 @@ with_progress({
     taxonkey<- key
     
     
+    #---------------------------------------------
+    #-- Prepare filenames and titles for export --
+    #---------------------------------------------
+    #Prepare PDF title 
+    PDF_title<-bquote(italic(.(gsub("_", " ", speciesName))) ~ .(nameExtension) ~ "(" * .(taxonkey) * ")")
+    
+    #Prepare current and future basefile
+    basefile<-  paste0(speciesName, "_Europe_")
+    global_basefile<-  paste0(speciesName, "_", taxonkey, "_Global_")
+    
     #--------------------------------------------
     #-- Define file path of global model file  --
     #--------------------------------------------  
