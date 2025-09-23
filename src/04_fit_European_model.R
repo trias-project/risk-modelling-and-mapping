@@ -213,19 +213,18 @@ with_progress({
     #-----------------------------------------------
     #------ Limit to 10,000 occupied grid cells ----
     #-----------------------------------------------
-    if(nrow(euocc) > 10000){
+    if(nrow(eu_occ) > 10000){
       if(occurrence_thinning_method == "random"){
         set.seed(101) 
-        euocc <- euocc[sample(nrow(euocc), 10000, replace=FALSE), ]
-        
+        eu_occ <- eu_occ[sample(nrow(eu_occ), 10000, replace=FALSE), ]
       }else if (occurrence_thinning_method == "kmeans_clustering"){
         #Extract environmental data in each occurrence grid cell
-        habitat_data <- terra::extract(habitat_stack, euocc, ID = FALSE)
+        habitat_data <- terra::extract(habitat_stack, eu_occ, ID = FALSE)
         
         # K-means clustering
         set.seed(101)
         clust <- kmeans(habitat_data, centers = n_clusters,iter.max = 10, nstart = 1)$cluster
-        occ_habitat <- cbind(euocc, habitat_data, clust)
+        occ_habitat <- cbind(eu_occ, habitat_data, clust)
         
         # Sample within clusters
         max_per_cluster <- 10000/n_clusters
@@ -245,8 +244,8 @@ with_progress({
     #------------------------------------------------
     #----- Check if at least 20 European records ----
     #------------------------------------------------
-    if (nrow(euocc) < 20) {
-      warning(paste(nrow(euocc)," occurrences in Europe for species:", species, 
+    if (nrow(eu_occ) < 20) {
+      warning(paste(nrow(eu_occ)," occurrences in Europe for species:", species, 
                     "\n- European model cannot be constructed, skipping to the next species."))
       next  # Skip to the next species in the loop
     }
@@ -376,8 +375,8 @@ with_progress({
     #-- Run models with climate and habitat data -
     #--------------------------------------------
     #Define prevalence ratio
-    n1 <- occ_counts["present"]   # presences
-    n0 <- occ_counts["absent"]    # pseudoabsences 
+    n1 <- nrow(eu_occ)  # presences
+    n0 <- nrow(global_points_sf)   # pseudoabsences 
     prev_ratio <- n1 / n0
     
     #define methods and data
