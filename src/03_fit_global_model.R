@@ -3,7 +3,7 @@
 #--------------------------------------------
 options("rgdal_show_exportToProj4_warnings"="none")
 
-packages <- c( "dplyr", "stringr", "here", "qs","CoordinateCleaner","terra", "raster", "rnaturalearth", "rnaturalearthdata", "ggplot2","tidyterra", "dismo", "sdm", "caret", "viridisLite", "kableExtra","future", "future.apply","randomForest","earth", "progressr", "sf", "gbm", "PresenceAbsence","geosphere","arm", "RStoolbox", "ecospat", "viridis", "patchwork", "grid")
+packages <- c( "dplyr", "stringr", "here", "qs","CoordinateCleaner","terra", "raster", "rnaturalearth", "rnaturalearthdata", "ggplot2","tidyterra", "dismo", "sdm", "caret", "viridisLite", "kableExtra","future", "future.apply","randomForest","earth", "progressr", "sf", "gbm", "PresenceAbsence","geosphere","arm", "RStoolbox", "ecospat", "viridis", "patchwork", "grid", "purrr")
 
 for(package in packages) {
   print(package)
@@ -182,10 +182,10 @@ for (period in c("2041-2070","2071-2100")){
     future_files<- list.files( here::here("data", "external", "climate", "chelsa_future", period,scenario), pattern = "\\.tif$", full.names = TRUE)
     
     #Stack them together
-    future_stack <- rast(future_files)
+    future_stack <- terra::rast(future_files)
     
     #Aggregate at a resolution of 5km
-    future_stack<- aggregate(future_stack, fact=5, fun=mean, na.rm=TRUE)
+    future_stack<- terra::aggregate(future_stack, fact=5, fun=mean, na.rm=TRUE)
     
     #Reproject future stack to match CRS and resolution of eu_climpreds.10
     #TODO: Regenerate these rasters so this is not necessary
