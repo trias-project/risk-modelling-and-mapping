@@ -309,55 +309,29 @@ create_folder <- function(path, name) {
 #-----------------------------------------------------------------------------------
 #-------------------------Export PDF new function-----------------------------------
 #-----------------------------------------------------------------------------------
-exportPDF <- function(predictions=NULL,taxonName, nameExtension,taxonNameTitle, taxonKey, scenario, regionName, occ_data=NULL, dataType, returnPredictions=FALSE,returnPNG=FALSE, providedPNG=NULL, exportPNG=FALSE, LabelValue=NULL, LabelName=NULL, Label2Value=NULL, Label2Name=NULL){
+exportPDF <- function(predictions=NULL, period=NULL, scenario, occ_data=NULL, dataType, returnPredictions=FALSE,returnPNG=FALSE, providedPNG=NULL, exportPNG=FALSE, LabelValue=NULL, LabelName=NULL, Label2Value=NULL, Label2Name=NULL, PDF_title, PNG_folder=NULL, PDF_folder, filename){
  
   #Define scenario title
-  scenarioTitle<- switch(scenario,
+  scenarioTitle<- switch(paste0(period,scenario),
     "hist" = "Historical",
     "historical" = "Historical",
-    "rcp26" = "RCP 2.6",
-    "rcp45" = "RCP 4.5",
-    "rcp85" = "RCP 8.5",
-    "all" = "all"
+    "all" = "all",
+    "2041-2070ssp126" = "2041-2070: SSP1-2.6",
+    "2041-2070ssp370" = "2041-2070: SSP3-7.0",
+    "2041-2070ssp585" = "2041-2070: SSP5-8.5",
+    "2071-2100ssp126" = "2071-2100: SSP1-2.6",
+    "2071-2100ssp370" = "2071-2100: SSP3-7.0",
+    "2071-2100ssp585" = "2071-2100: SSP5-8.5"
   )
   
-  
-  # Define file name suffix and paths based on dataType
-  suffix <- switch(dataType,
-                   "Suit" = "",
-                   "Diff" = "_hist_diff",
-                   "Conf" = "_confidence",
-                   "Masked_Suit"= "_masked",
-                   "Binary"      = ifelse(grepl("MTP", LabelName),
-                                          paste0("_binary", substr(LabelValue, 1, 1), "pct"),
-                                          "_binary")
-  )
-  
- 
-  # Construct file names
-  if(!is.null(occ_data)){
-  PNG_file <- paste(taxonName, "_", taxonKey, "_", scenario, suffix, "_", regionName, "_occ.png", sep = "")
-  PDF_file <- paste(taxonName, "_", taxonKey, "_", scenario, suffix, "_", regionName, "_occ.pdf", sep = "")
-  }else{
-    PNG_file <- paste(taxonName, "_", taxonKey, "_", scenario, suffix, "_", regionName, ".png", sep = "")
-    PDF_file <- paste(taxonName, "_", taxonKey, "_", scenario, suffix, "_", regionName, ".pdf", sep = "")
-  }
-  
-  # Define folder paths
-  PNG_folder_path <- switch(regionName,
-                   "EU"= file.path(PNG_folder,"Europe"),
-                   "Global"= file.path(PNG_folder,"Global"),
-                   file.path(PNG_folder, regionName))# If not EU or Global
-  
-  PDF_folder_path <- switch(regionName,
-                          "EU"= file.path(PDF_folder,"Europe"),
-                          "Global"=file.path(PDF_folder,"Global"),
-                          file.path(PDF_folder, regionName))
+  PNG_filename <- paste0(filename, ".png")
+  PDF_filename <- paste0(filename, ".pdf")
   
   # Define file paths
-  plot_png_path <- file.path(PNG_folder_path, PNG_file)# If not EU or Global
-  
-  plot_pdf_path <- file.path(PDF_folder_path, PDF_file)
+  if(!is.null(PNG_folder)){
+  plot_png_path <- file.path(PNG_folder, PNG_filename)# If not EU or Global
+  }
+  plot_pdf_path <- file.path(PDF_folder, PDF_filename)
 
   
   #If png is not provided, create a PNG based on the input predictions
@@ -383,6 +357,7 @@ exportPDF <- function(predictions=NULL,taxonName, nameExtension,taxonNameTitle, 
   template<-mask(template, predictions)
   
   #Create plot
+  suppressMessages(
   country_plot <- ggplot() + 
     geom_spatraster(data=template)+
     geom_spatraster(data = predictions) +
@@ -395,9 +370,11 @@ exportPDF <- function(predictions=NULL,taxonName, nameExtension,taxonNameTitle, 
     theme(plot.margin = unit(c(0.2,0.2,0.2,0.2), "cm"))+
     coord_sf(xlim = c(exten[1], exten[2]), 
              ylim = c(exten[3], exten[4] + 2))
+  )
   
   }else{
     #Create plot
+    suppressMessages(
     country_plot <- ggplot() + 
       geom_spatraster(data = predictions) +
       scale_fill_manual(values = c("Absent" = "lightgrey", "Present" = "#085099"),
@@ -408,6 +385,7 @@ exportPDF <- function(predictions=NULL,taxonName, nameExtension,taxonNameTitle, 
       theme(plot.margin = unit(c(0.2,0.2,0.2,0.2), "cm"))+
       coord_sf(xlim = c(exten[1], exten[2]), 
                ylim = c(exten[3], exten[4] + 2))
+    )
   }
   # Define text label, fill label, and hjust based on dataType
   text_label <- ifelse(dataType=="Diff",paste(scenarioTitle, "- historical"), scenarioTitle)
@@ -489,18 +467,18 @@ exportPDF <- function(predictions=NULL,taxonName, nameExtension,taxonNameTitle, 
   #Create final plot
   plot_final<-country_plot /empty_plot 
   
-  # Save plot as a PNG file
-  ggplot2::ggsave(filename = PNG_file, plot = plot_final, 
-         device = "png", width =8.27 , height = 11.69, path= PNG_folder_path)
+  # Save plot temporarily as a PNG file
+  ggplot2::ggsave(filename = PNG_filename, plot = plot_final, 
+         device = "png", width =8.27 , height = 11.69, path= PDF_folder)
   
    }else{
-     # Save plot as a PDF file
-     ggplot2::ggsave(filename = PNG_file, plot =providedPNG, 
-            device = "png", width =8.27 , height = 11.69, path= PNG_folder_path)
+     # Save plot temporarily as a PNG file
+     ggplot2::ggsave(filename = PNG_filename, plot =providedPNG, 
+            device = "png", width =8.27 , height = 11.69, path= PDF_folder)
    }
   
   # Read the PNG image back in
-  img <- magick::image_read(plot_png_path)
+  img <- magick::image_read(here::here(PDF_folder, PNG_filename))
   
   # Start a PDF device for output
   pdf(plot_pdf_path, width = 8.27, height = 11.69)
@@ -510,7 +488,7 @@ exportPDF <- function(predictions=NULL,taxonName, nameExtension,taxonNameTitle, 
   
   # Add title at the top of the PDF
   grid.text(
-    label = bquote(italic(.(taxonNameTitle)) ~ .(nameExtension) ~ "(" * .(taxonKey) * ")"),
+    label = PDF_title,
     x = 0.5, y = 0.95, just = "center", gp = gpar(fontsize = 12, fontface = "bold")
   )
   
@@ -521,17 +499,17 @@ exportPDF <- function(predictions=NULL,taxonName, nameExtension,taxonNameTitle, 
   while (dev.cur() > 1) dev.off()
   
   #Print
-  print(paste(PDF_file," has been created.", sep=""))
+  print(paste(PDF_filename," has been created.", sep=""))
   
-  #Remove PNG file if you don't want to keep it (default)
-  if(!exportPNG){
-  file.remove(plot_png_path)
-  }else{
-    file.remove(plot_png_path)
-    ggplot2::ggsave(filename = PNG_file, plot = country_plot, 
-                    device = "png", width =8.27 , height = 5.845, path= PNG_folder_path)
+  #Remove PNG file in PDF folder
+  file.remove(here::here(PDF_folder, PNG_filename))
+  
+  #Store PNG file in PNG folder if exportPNG is TRUE
+ if(exportPNG){
+    ggplot2::ggsave(filename = PNG_filename, plot = country_plot, 
+                    device = "png", width =8.27 , height = 5.845, path= PNG_folder)
     #Print
-    print(paste(PNG_file," has been created.", sep="")) 
+    print(paste(PNG_filename," has been created.", sep="")) 
   }
   
   
