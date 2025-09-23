@@ -837,19 +837,99 @@ with_progress({
     # Keep relevant predictors in the raster stack
         future_rast<-get(paste0(scenario, "_", period))
         
-    eu_future_selection <- future_rast %>%
-      subset(names(eu_climpreds.10_selection))
-    
-    # Project each of the top 5 models
-    future_modeloutput <- list()
-    for(modelmethod in top5_models){
-      print(paste("[FUTURE] Projecting:", modelmethod))
-      pred_raster_future <- terra::predict(model,
-                                    newdata = eu_future_selection,
-                                    method = modelmethod)
-      fav_raster_future <- favourability_from_prob(pred_raster_future, prev_ratio)
-      future_modeloutput[[modelmethod]] <- fav_raster_future
-      rm(fav_raster_future, pred_raster_future)
+        # Keep relevant predictors in the raster stack
+        eu_future_selection <- future_rast %>%
+          subset(names(eu_climpreds.10_selection))
+        
+        # Project each of the top 5 models
+        future_modeloutput <- list()
+        for(modelmethod in top5_models){
+          pred_raster_future <- predict(model,
+                                        newdata = eu_future_selection,
+                                        method = modelmethod)
+          fav_raster_future <- favourability_from_prob(pred_raster_future, prev_ratio)
+          future_modeloutput[[modelmethod]] <- fav_raster_future
+          rm(fav_raster_future, pred_raster_future)
+        }
+        
+        # Create Ensemble predictions for future
+        future_fav_stack <- terra::rast(future_modeloutput)
+        future_consensus_median <- app(future_fav_stack, median)
+        
+        # Export future ensemble raster (favorability) 
+        future_folder <- here::here(base_dir, "Rasters", "Global", period, scenario)
+        ensemble_file <- here::here(future_folder, paste0(basefile, period,"_",scenario,"_ensemble.tif"))
+        terra::writeRaster(future_consensus_median, filename = ensemble_file, overwrite = TRUE)
+        
+        # Export future single-model rasters
+        for (mod in top5_models) {
+          singlemodfile <- here::here(future_folder,
+                                      paste0(basefile, period, "_",scenario,"_", mod, ".tif"))
+          terra::writeRaster(future_fav_stack[[mod]], filename = singlemodfile, overwrite = TRUE)
+        }
+        
+        # Export ensemble predictions as PDF and PNG with and without occurrences
+        base_file <- paste0(basefile, scenario,"_", period,"_ensemble")
+        
+        for (occs in list(NULL, global.occ.sf)){
+          filename <- ifelse(is.null(occs), base_file, paste0(base_file, "_occ"))
+          
+          exportPDF(predictions = future_consensus_median,
+                    dataType = "Suit",
+                    period = period,
+                    scenario = scenario,
+                    returnPredictions = FALSE,
+                    returnPNG = TRUE,
+                    occ_data=occs,
+                    exportPNG=TRUE,
+                    PDF_title=PDF_title,
+                    PNG_folder=here::here(base_dir, "PNGs", "Global", period, scenario),
+                    PDF_folder=here::here(base_dir, "PDFs", "Global", period, scenario),
+                    filename = filename)
+        }
+        
+        
+        # Create binarized ensemble predictions for future
+        for(MTP_threshold in c("1pct","5pct")){
+          
+          mtp_label <- switch(MTP_threshold,
+                              "5pct" = "5%",
+                              "1pct" = "1%")  
+          
+          #Get threshold value and apply to consensus predictions
+          threshold<-get(MTP_threshold)
+          binary_map_future <- future_consensus_median  >= threshold
+          binary_map_future <- as.factor( binary_map_future*1) #Convert TRUE/FALSE to 1/0 and then to Present/Absent
+          levels( binary_map_future) <- data.frame(ID = c(0, 1),
+                                                   class = c("Absent", "Present"))
+          
+          #Store raster
+          binary_file <- here::here (future_folder, paste0(basefile, period,"_",scenario,"_ensemble_binary",MTP_threshold,".tif"))
+          terra::writeRaster(binary_map_future, filename = binary_file, overwrite = TRUE)
+          
+          # Export binarized ensemble predictions as PDF and PNG with and without occurrences 
+          base_file <- paste0(basefile, period,"_", scenario, "_ensemble_binary",MTP_threshold)
+          
+          for (occs in list(NULL, global.occ.sf)){
+            
+            filename <- ifelse(is.null(occs), base_file, paste0(base_file, "_occ"))
+            exportPDF(predictions = binary_map_future,
+                      dataType = "Binary",
+                      period = period,
+                      scenario = scenario,
+                      occ_data=occs,
+                      returnPredictions = FALSE,
+                      returnPNG = TRUE,
+                      exportPNG=TRUE,
+                      LabelValue= mtp_label,
+                      LabelName="MTP threshold",
+                      PDF_title=PDF_title,
+                      PNG_folder=here::here(base_dir, "PNGs","Global", period, scenario),
+                      PDF_folder=here::here(base_dir, "PDFs", "Global",period, scenario),
+                      filename=filename)
+          }
+        }
+      }
     }
     
     # Create Ensemble predictions for future

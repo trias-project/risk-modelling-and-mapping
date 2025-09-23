@@ -647,6 +647,93 @@ with_progress({
     
     }
 
+    
+    #--------------------------------------------
+    #--- Create maps with future projections ----
+    #--------------------------------------------
+    for (period in c("2041-2070","2071-2100")){
+      for(scenario in c("ssp126", "ssp370", "ssp585")){
+        
+        print(paste("[FUTURE] Projecting:", period,scenario))
+        
+        #Get climate data for specific period and scenario
+        future_folder <- here::here(base_dir, "Rasters", "Global", period, scenario)
+        ensemble_file <- here::here(future_folder, paste0(global_basefile, period,"_",scenario,"_ensemble.tif"))
+        future_climate <- terra::rast(ensemble_file)%>%
+          terra::project(consensus_habitat)
+        
+        #Final ensemble predictions
+        final_ensemble<-sqrt(consensus_habitat * future_climate)
+        
+        # Export ensemble predictions as PDF and PNG with and without occurrences
+        base_file <- paste0(basefile, scenario,"_", period,"_final_ensemble")
+        
+        for (occs in list(NULL, eu_occ)){
+          filename <- ifelse(is.null(occs), base_file, paste0(base_file, "_occ"))
+          
+          exportPDF(predictions = final_ensemble,
+                    dataType = "Suit",
+                    period = period,
+                    scenario = scenario,
+                    returnPredictions = FALSE,
+                    returnPNG = TRUE,
+                    occ_data=occs,
+                    exportPNG=TRUE,
+                    PDF_title=PDF_title,
+                    PNG_folder=here::here(base_dir, "PNGs", "Europe", period, scenario),
+                    PDF_folder=here::here(base_dir, "PDFs", "Europe", period, scenario),
+                    filename = filename)
+        }
+        
+        
+        # Create binarized ensemble predictions for future
+        for(MTP_threshold in c("threshold_1pct","threshold_5pct")){
+          
+          mtp_label <- switch(MTP_threshold,
+                              "threshold_5pct" = "5%",
+                              "threshold_1pct" = "1%")  
+          mtp_thr <- switch(MTP_threshold,
+                              "threshold_5pct" = "5pct",
+                              "threshold_1pct" = "1pct")  
+          
+          #Get threshold value and apply to consensus predictions
+          threshold<-get(MTP_threshold)
+          binary_map_future <- final_ensemble  >= threshold
+          binary_map_future <- as.factor( binary_map_future*1) #Convert TRUE/FALSE to 1/0 and then to Present/Absent
+          levels( binary_map_future) <- data.frame(ID = c(0, 1),
+                                                   class = c("Absent", "Present"))
+          
+          #Store raster
+          future_europe_folder <- here::here(base_dir, "Rasters", "Europe", period, scenario)
+          binary_file <- here::here(future_europe_folder, paste0(basefile, period,"_",scenario,"_final_binary",mtp_thr,".tif"))
+          terra::writeRaster(binary_map_future, filename = binary_file, overwrite = TRUE)
+          
+          # Export binarized ensemble predictions as PDF and PNG with and without occurrences 
+          base_file <- paste0(basefile, period,"_", scenario, "_final_binary",mtp_thr)
+          
+          for (occs in list(NULL, eu_occ)){
+            
+            filename <- ifelse(is.null(occs), base_file, paste0(base_file, "_occ"))
+            exportPDF(predictions = binary_map_future,
+                      dataType = "Binary",
+                      period = period,
+                      scenario = scenario,
+                      occ_data = occs,
+                      returnPredictions = FALSE,
+                      returnPNG = FALSE,
+                      exportPNG = TRUE,
+                      LabelValue= mtp_label,
+                      LabelName="MTP threshold",
+                      PDF_title=PDF_title,
+                      PNG_folder=here::here(base_dir, "PNGs","Europe", period, scenario),
+                      PDF_folder=here::here(base_dir, "PDFs", "Europe",period, scenario),
+                      filename=filename)
+          }
+        }
+      }
+    }
+    
+    
     #---------------------------------------------
     #-- Get response curves of 5 selected models -
     #---------------------------------------------
