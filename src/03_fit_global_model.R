@@ -701,94 +701,7 @@ with_progress({
     # Step 7: Compute pixel-wise median = consensus model
     consensus_median <- app(top5_stack, median)
     
-    # Step 8: Plot result
-    plot(consensus_median, main = "Consensus (Median of Top 5 Models by Variance on PC1)")
-    
-    
-    #---------------------------------------------
-    #-- Get response curves of 5 selected models -
-    #---------------------------------------------
-    response_list<-list()
-    varimp_list<-list()
-    
-    for(topmethod in top5_models){
-      # Get model id
-      id <- info$modelID[info$method == topmethod]
-      
-      #Get response curve
-      response_curves<-sdm::getResponseCurve(model,id)@response
-      
-      #Get variable importance
-      varimp<-sdm::getVarImp(model,id)@varImportance
-      
-      #Store
-      response_list[[topmethod]]<-response_curves
-      varimp_list[[topmethod]]<-varimp
-    }
-    
-    # Convert list to a dataframe
-    response_df <- imap_dfr(response_list, function(model_list, model_name) {
-      imap_dfr(model_list, function(df, var_name) {
-        response_df <- df %>%
-          setNames(c("Predictor_value", "Response"))%>%
-          mutate( Algorithm = model_name,
-                  Predictor = var_name)})
-    }) %>%
-      dplyr::select(Algorithm,Predictor, Predictor_value, Response)
-    
-    
-    varimp_df <- imap_dfr(varimp_list, function(df, model_name) {
-      df %>%
-        setNames(c("Predictor", "corTest" , "AUCtest"))%>%
-        dplyr::mutate(Algorithm = model_name)
-    })%>%
-      dplyr::select(Algorithm,Predictor, corTest, AUCtest)
-    
-    
-    # Plot response curves
-    response_plot <- ggplot(response_df, aes(x = Predictor_value,
-                                             y = Response, 
-                                             color = Algorithm)) +
-      geom_line(size=0.8) +
-      facet_wrap(~ Predictor, scales = "free_x")+
-      labs(title= "Climatological response curves" ,x= "Predictor value")+
-      theme_bw()
-    
-    # Plot variable importance 
-    varimp_plot <- ggplot(varimp_df, aes(x = Predictor, y = corTest)) +
-      geom_col(fill = "steelblue") +
-      coord_flip() +  #horizontal bars
-      facet_wrap(~ Algorithm) +  
-      geom_hline(yintercept = 0, color = "black") + 
-      labs(
-        x = "Variable",
-        y = "Importance",
-        title = "Variable importance per model"
-      ) +
-      theme_bw()
-    
-    #Write ggplots to pngs
-    PNG_folder <- here::here("data","projects", project, paste0(first_two_words, "_", taxonkey), "PNGs")
-    
-    for(plot in c("varimp_plot", "response_plot")){
-      
-      #Define filename
-      type <- switch(plot,
-                     "varimp_plot" = "variable_importance",
-                     "response_plot" =  "response_curves")
-      PNG_file <- paste(first_two_words, "_", taxonkey,"_",type, "_global.png", sep = "")
-      
-      #Get plot
-      gg_plot<-get(plot)
-      
-      #Save plot
-      ggplot2::ggsave(filename = PNG_file, plot = gg_plot, 
-                      device = "png", width =8.27 , height = 5.845, path= PNG_folder )
-      #Print
-      print(paste(PNG_file," has been created.", sep="")) 
-    }
-    
-    
+
     #------------------------------------------
     #-- Create map with ensemble suitability --
     #------------------------------------------
@@ -956,23 +869,75 @@ with_progress({
       terra::writeRaster(future_fav_stack[[mod]], filename = singlemodfile, overwrite = TRUE)
     }
     
-    # #TODO: Make and save figures
-    # pdf_file <- file.path("./data/projects", project,
-    #                       paste0(first_two_words, "_", taxonkey), "PDFs", "Global",
-    #                       paste0("Ensemble_median_future_ssp126_", first_two_words, "_", taxonkey, ".pdf"))
-    # png_file <- file.path("./data/projects", project,
-    #                       paste0(first_two_words, "_", taxonkey), "PNGs", "Global",
-    #                       paste0("Ensemble_median_future_ssp126_", first_two_words, "_", taxonkey, ".png"))
-    # 
-    # pdf(pdf_file, width=7, height=7)
-    # plot(future_consensus_median, main = paste("Future Consensus (Median, ssp126) -", species))
-    # dev.off()
-    # png(png_file, width=700, height=700)
-    # plot(future_consensus_median, main = paste("Future Consensus (Median, ssp126) -", species))
-    # dev.off()
-      }
+    #-----------------------------------------------
+    #- Get response curves and variable importance -
+    #-----------------------------------------------
+    response_list<-list()
+    varimp_list<-list()
+    
+    for(topmethod in top5_models){
+      # Get model id
+      id <- info$modelID[info$method == topmethod]
+      
+      #Get response curve
+      response_curves<-sdm::getResponseCurve(model,id)@response
+      
+      #Get variable importance
+      varimp<-sdm::getVarImp(model,id)@varImportance
+      
+      #Store
+      response_list[[topmethod]]<-response_curves
+      varimp_list[[topmethod]]<-varimp
     }
     
+    # Convert list to a dataframe
+    response_df <- purrr::imap_dfr(response_list, function(model_list, model_name) {
+      purrr::imap_dfr(model_list, function(df, var_name) {
+        response_df <- df %>%
+          setNames(c("Predictor_value", "Response"))%>%
+          mutate( Algorithm = model_name,
+                  Predictor = var_name)})
+    }) %>%
+      dplyr::select(Algorithm,Predictor, Predictor_value, Response)
+    
+    
+    varimp_df <- purrr::imap_dfr(varimp_list, function(df, model_name) {
+      df %>%
+        setNames(c("Predictor", "corTest" , "AUCtest"))%>%
+        dplyr::mutate(Algorithm = model_name)
+    })%>%
+      dplyr::select(Algorithm,Predictor, corTest, AUCtest)
+    
+    
+    # Plot response curves
+    response_plot <- ggplot(response_df, aes(x = Predictor_value,
+                                             y = Response, 
+                                             color = Algorithm)) +
+      geom_line(linewidth=0.8) +
+      facet_wrap(~ Predictor, scales = "free_x")+
+      labs(title= "Climatological response curves" ,x= "Predictor value")+
+      theme_bw()
+    
+    # Plot variable importance 
+    varimp_plot <- ggplot(varimp_df, aes(x = Predictor, y = corTest)) +
+      geom_col(fill = "steelblue") +
+      coord_flip() +  #horizontal bars
+      facet_wrap(~ Algorithm) +  
+      geom_hline(yintercept = 0, color = "black") + 
+      labs(
+        x = "Variable",
+        y = "Importance",
+        title = "Variable importance per model"
+      ) +
+      theme_bw()
+    
+    #Save plot
+    PNG_folder <- here::here(base_dir, "PNGs", "Global")
+    
+    ggplot2::ggsave(filename = paste(basefile, "variable_importance.png"), plot = varimp_plot ,  device = "png", width =8.27 , height = 5.845, path= PNG_folder )
+    ggplot2::ggsave(filename = paste(basefile, "response_curves.png"), plot = response_plot,  device = "png", width =8.27 , height = 5.845, path= PNG_folder )
+
+
     
     #--------------------------------------------
     #-- Prepare global_presabs for export--------
