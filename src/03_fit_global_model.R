@@ -587,7 +587,6 @@ with_progress({
     #--------------------------------------------
     #--- Run multiple machine learning models ---
     #--------------------------------------------
-    
     #Define prevalence ratio
     n1 <- nrow(global.occ.sf)  # presences
     n0 <- 10000                # pseudoabsences (adjust to your setup if different)
@@ -610,10 +609,6 @@ with_progress({
     #-------------------------------------------- 
     # Get model info
     info <- sdm::getModelInfo(model)
-    
-    #Get presence data and their associated climatological values
-    pres_data <- subset(global.data.df.uncor, species == "present")
-    pres_features <- pres_data[, -which(names(pres_data) == "species")]
     
     #Create empty list to store models in
     modeloutput<-list()
@@ -639,18 +634,11 @@ with_progress({
         
         #Store
         modeloutput[[modelmethod]]<-list(fav_raster=fav_raster,
-                                         binary1pct=binary_1pct,
-                                         binary5pct=binary_5pct,
                                          model=method_model)
         
         rm(fav_raster, binary_1pct, binary_5pct, method_model)
       }
     })
-   
-    
-    #---------------------------------------------
-    #-- Create Ensemble model using PCAm method --
-    #---------------------------------------------
 
     # List favourability rasters
     fav_rasters_list <- lapply(modeloutput, function(x) x$fav_raster)
@@ -664,7 +652,6 @@ with_progress({
     #make PCA
     pca_result <- rasterPCA(fav_stack, nSamples = NULL, spca = FALSE, maskCheck = TRUE)
     
-    #-----------------GET TOP 5 variance models----------------
     # Step 1: Recover original raster stack used in rasterPCA
     fav_stack <- eval(pca_result$call$img)
     
@@ -705,8 +692,6 @@ with_progress({
     #------------------------------------------
     #-- Create map with ensemble suitability --
     #------------------------------------------
-    #Add EU occurrence points and EU Boyce-index value
-    
     #Extract all raster values (excluding NAs)
     all_suit_vals <- values(consensus_median)
     all_suit_vals <- all_suit_vals[!is.na(all_suit_vals)]
@@ -761,7 +746,6 @@ with_progress({
     predictors_only <- global.data.df.uncor%>%
       dplyr::filter(species=="present")%>%
       dplyr::select(-species)
-
     
     # Predict for top 5 models
     pred_vals <- list()
@@ -794,10 +778,7 @@ with_progress({
                                           class = c("Absent", "Present"))
 
     # Calculate sensitivity in Europe
-    occ_values <- terra::extract(binary_map_pct, vect(global.occ.sf))[,2]  # Extract raster values (2nd column) at occurrence locations
-    cat("Occurrences in suitable cells:", sum(occ_values == "Present", na.rm = TRUE), "\n")
-    cat("Occurrences in unsuitable cells:", sum(occ_values == "Absent", na.rm = TRUE), "\n")
-    cat("Occurrences in NA cells:", sum(is.na(occ_values)), "\n")
+    occ_values <- terra::extract(binary_map_pct, vect(global.occ.sf))[,2]  
     global_EU_sensitivity <- sum(occ_values == "Present", na.rm = TRUE) / sum(occ_values %in% c("Present", "Absent"), na.rm = TRUE)
     
     
@@ -932,22 +913,6 @@ with_progress({
       }
     }
     
-    # Create Ensemble predictions for future
-    future_fav_stack <- terra::rast(future_modeloutput)
-    future_consensus_median <- app(future_fav_stack, median)
-    
-    # Export future ensemble raster and single-model rasters
-    ensemble_median_future_file <- here::here("data", "projects", project,
-                                             paste0(first_two_words, "_", taxonkey), "Rasters", "Global", period, scenario,
-                                             paste0("Ensemble_median_",period,"_",scenario,"_", first_two_words, "_", taxonkey, ".tif"))
-    terra::writeRaster(future_consensus_median, filename = ensemble_median_future_file, overwrite = TRUE)
-    
-    for (mod in top5_models) {
-      singlemodfile <- here::here("data", "projects", project,
-                                 paste0(first_two_words, "_", taxonkey), "Rasters", "Global", period, scenario,
-                                 paste0("Favourability_", mod, "_",period,"_",scenario,"_", first_two_words, "_", taxonkey, ".tif"))
-      terra::writeRaster(future_fav_stack[[mod]], filename = singlemodfile, overwrite = TRUE)
-    }
     
     #-----------------------------------------------
     #- Get response curves and variable importance -

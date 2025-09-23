@@ -209,22 +209,16 @@ with_progress({
     #Remove occurrences within grid cells with NA values
     eu_occ <- remove_nodata_occurrences(occurrences = eu_occ, rast_template= habitat_stack, st_crs(habitat_stack))
     
-    # Keep XY coordinates
-    euocc<-eu_occ%>%
-      sf::st_coordinates()
-    
     
     #-----------------------------------------------
     #------ Limit to 10,000 occupied grid cells ----
     #-----------------------------------------------
     if(nrow(euocc) > 10000){
       if(occurrence_thinning_method == "random"){
-        
         set.seed(101) 
         euocc <- euocc[sample(nrow(euocc), 10000, replace=FALSE), ]
         
       }else if (occurrence_thinning_method == "kmeans_clustering"){
-        
         #Extract environmental data in each occurrence grid cell
         habitat_data <- terra::extract(habitat_stack, euocc, ID = FALSE)
         
@@ -377,8 +371,6 @@ with_progress({
     
     if (anyNA(occ.full.data.df)) warning("Some pseudoabsence points or occurrences fall within NA grid cells")
     
-    occ_counts <- table(occ.full.data.df$occ)
-    
     
     #--------------------------------------------
     #-- Run models with climate and habitat data -
@@ -409,11 +401,6 @@ with_progress({
     # Get model info
     info <- sdm::getModelInfo(model)
     
-    #Get presence data and their associated habitat values
-    pres_features <- occ.full.data.df %>%
-      dplyr::filter(occ == "present") %>%
-      dplyr::select(-occ)
-
     #Create empty list to store models in
     modeloutput<-list()
     
@@ -438,8 +425,6 @@ with_progress({
         
         #Store
         modeloutput[[modelmethod]]<-list(fav_raster=fav_raster,
-                                         binary1pct=binary_1pct,
-                                         binary5pct=binary_5pct,
                                          model=method_model)
         
         rm(fav_raster, binary_1pct, binary_5pct, method_model)
@@ -498,9 +483,6 @@ with_progress({
     
     # Step 7: Compute pixel-wise median = consensus model
     consensus_habitat <- app(top5_stack, median)
-    
-    # Step 8: Plot result
-    plot(consensus_habitat, main = "Consensus (Median of Top 5 Models by Variance on PC1)")
 
    
     #------------------------------------------------------------    
@@ -528,10 +510,6 @@ with_progress({
     clim_hab_binary_5pct <- as.factor( clim_hab_binary_5pct*1) 
     levels(clim_hab_binary_5pct) <- data.frame(ID = c(0, 1),
                                                class = c("Absent", "Present"))
-    
-    # Plot (optional)
-    plot(clim_hab_binary_1pct, main = "Binary Map (1% Threshold)")
-    plot(clim_hab_binary_5pct, main = "Binary Map (5% Threshold)")
     
     
     #------------------------------------------------------------    
@@ -644,7 +622,6 @@ with_progress({
                   Label2Value=round(EU_sensitivity,3),
                   Label2Name="Sensitivity")
       }
-    
     }
 
     
