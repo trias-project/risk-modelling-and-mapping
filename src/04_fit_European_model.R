@@ -157,13 +157,30 @@ with_progress({
     #-------------------------------------------------
     #--------------- Create EU folders ---------------
     #-------------------------------------------------
-    # Define the folder paths
-    folder_paths<-list(list("path"= raster_EU_folder,
-                            "name"= "Rasters/Europe"),
-                       list("path"= here::here(PDF_folder, "Europe"),
-                            "name"= "PDF/Europe"),
-                       list("path"= here::here(PNG_folder, "Europe"),
-                            "name"= "PNG/Europe"))
+    # Define outputs, periods, and scenarios
+    outputs   <- c("Rasters", "PDFs", "PNGs")
+    periods   <- c("Current","2041-2070", "2071-2100")
+    scenarios <- c("ssp126", "ssp370", "ssp585")
+    
+    #Create folders for each combination
+    scenario_folders <- list()
+    
+    for(output in outputs){
+      for(period in periods){
+        if(period=="Current"){
+          loop_list <- list(list(path = file.path(base_dir, output, "Europe", period),
+                                 name = paste(output, "Europe", period,  sep = "/")))
+          scenario_folders <- c(scenario_folders, loop_list)  
+          
+        }else{
+          for(scenario in scenarios){
+            loop_list <- list(list(path = file.path(base_dir, output, "Europe", period, scenario),
+                                   name = paste(output, "Europe", period, scenario, sep = "/")))
+            scenario_folders <- c(scenario_folders, loop_list)
+          }
+        }
+      }
+    }
     
     # Check and create each folder if necessary
     lapply(folder_paths, function(folder){

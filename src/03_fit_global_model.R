@@ -304,25 +304,41 @@ with_progress({
     #--------------------------------------------
     #-------------Create folders-----------------
     #--------------------------------------------
-    # Define the folder paths
-    folder_paths<-list(list("path"=here::here("data", "projects", project, paste0(first_two_words, "_", taxonkey), "Rasters", "Interim"),
-                            "name"= "Rasters/Interim"),
-                       list("path"=here::here("data", "projects", project, paste0(first_two_words, "_", taxonkey), "Rasters", "Global", "2041-2070","ssp126"),
-                            "name"= "Rasters/Global/2041-2070/ssp126"),
-                       list("path"=here::here("data", "projects", project, paste0(first_two_words, "_", taxonkey), "Rasters", "Global", "2041-2070","ssp370"),
-                            "name"= "Rasters/Global/2041-2070/ssp370"),
-                       list("path"=here::here("data", "projects", project, paste0(first_two_words, "_", taxonkey), "Rasters", "Global", "2041-2070","ssp585"),
-                            "name"= "Rasters/Global/2041-2070/ssp585"),
-                       list("path"=here::here("data", "projects", project, paste0(first_two_words, "_", taxonkey), "Rasters", "Global", "2071-2100","ssp126"),
-                            "name"= "Rasters/Global/2071-2100/ssp126"),
-                       list("path"=here::here("data", "projects", project, paste0(first_two_words, "_", taxonkey), "Rasters", "Global", "2071-2100","ssp370"),
-                            "name"= "Rasters/Global/2071-2100/ssp370"),
-                       list("path"=here::here("data", "projects", project, paste0(first_two_words, "_", taxonkey), "Rasters", "Global", "2071-2100","ssp585"),
-                            "name"= "Rasters/Global/2071-2100/ssp585"),
-                       list("path"=here::here("data", "projects", project, paste0(first_two_words, "_", taxonkey), "PDFs", "Global"),
-                            "name"= "PDFs"),
-                       list("path"=here::here("data", "projects", project, paste0(first_two_words, "_", taxonkey), "PNGs", "Global"),
-                            "name"= "PNGs"))
+    # Define base project folder
+    base_dir <- here::here("data", "projects", project, paste0(speciesName, "_", taxonkey))
+    
+    # Define outputs, periods, and scenarios
+    outputs   <- c("Rasters", "PDFs", "PNGs")
+    periods   <- c("Current","2041-2070", "2071-2100")
+    scenarios <- c("ssp126", "ssp370", "ssp585")
+    
+    #Create folders for each combination
+    scenario_folders <- list()
+    
+    for(output in outputs){
+      for(period in periods){
+        if(period=="Current"){
+          loop_list <- list(list(path = file.path(base_dir, output, "Global", period),
+                                 name = paste(output, "Global", period,  sep = "/")))
+          scenario_folders <- c(scenario_folders, loop_list)  
+          
+        }else{
+          for(scenario in scenarios){
+            loop_list <- list(list(path = file.path(base_dir, output, "Global", period, scenario),
+                                   name = paste(output, "Global", period, scenario, sep = "/")))
+            scenario_folders <- c(scenario_folders, loop_list)
+          }
+        }
+      }
+    }
+    
+    # Add Rasters/Interim folder
+    fixed_folders <- list(
+      list(path = file.path(base_dir, "Rasters", "Interim"), 
+           name = "Rasters/Interim"))
+    
+    # Combine 
+    folder_paths <- c(fixed_folders, scenario_folders)
     
     # Check and create each folder if necessary
     lapply(folder_paths, function(folder){
