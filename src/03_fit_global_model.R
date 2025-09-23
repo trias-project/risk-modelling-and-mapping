@@ -768,7 +768,8 @@ with_progress({
     mtp_pct <- switch(as.character(probs),
                      "0.05" = "5%",
                      "0.01" = "1%")  
-      
+    mtp_value<- as.numeric(sub("%", "", mtp_pct))
+    
     # Thresholds
     thr <- sapply(fav_vals, function(fv) quantile(fv, probs = probs, na.rm = TRUE))
     
@@ -807,6 +808,7 @@ with_progress({
                 filename = filename)
     }
     
+    assign(paste0(mtp_value,"pct"), mean_pct)
     binary_maps[[mtp_pct]]<-list(binary_raster=binary_map_pct,
                                  EU_sensitivity=global_EU_sensitivity,
                                  mean_MTP=mean_pct)
@@ -820,8 +822,9 @@ with_progress({
     for (period in c("2041-2070","2071-2100")){
       for(scenario in c("ssp126", "ssp370", "ssp585")){
         
-    # Keep relevant predictors in the raster stack
+        print(paste("[FUTURE] Projecting:", period,scenario))
         
+        #Get climate data for specific period and scenario
         future_rast<-get(paste0(scenario, "_", period))
         
         # Keep relevant predictors in the raster stack
