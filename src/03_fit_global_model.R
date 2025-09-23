@@ -285,7 +285,7 @@ with_progress({
     #--------------------------------------------
     species <- names(split_df)[i]
     print(species)
-    first_two_words <- sub("^(\\w+)\\s+(\\w+).*", "\\1_\\2", species)  # Extract first two words of species name
+    speciesName <- sub("^(\\w+)\\s+(\\w+).*", "\\1_\\2", species)  # Extract first two words of species name
     global.occ.LL.cleaned<-split_df[[i]]
     taxonkey<-unique(global.occ.LL.cleaned$acceptedTaxonKey)
     speciesgroup<-unique(global.occ.LL.cleaned$Group)

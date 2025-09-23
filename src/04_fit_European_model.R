@@ -95,13 +95,13 @@ with_progress({
       unique()
     
     #Extract first two words of species name
-    first_two_words <- sub("^(\\w+)\\s+(\\w+).*", "\\1_\\2", species)
+    speciesName <- sub("^(\\w+)\\s+(\\w+).*", "\\1_\\2", species)
     
     #Extract rest of species name
-    rest_of_name <- if (grepl("^\\S+\\s+\\S+$", species)) "" else sub("^\\S+\\s+\\S+\\s+", "", species)
+    nameExtension <- if (grepl("^\\S+\\s+\\S+$", species)) "" else sub("^\\S+\\s+\\S+\\s+", "", species)
     
     #Specify species for plot title
-    species_title <- gsub("_", " ", first_two_words)
+    species_title <- gsub("_", " ", speciesName)
     
     #Define taxonkey
     taxonkey<- key
@@ -747,7 +747,7 @@ with_progress({
     # Export binary raster — 1% threshold
     clim_hab_binary_1pct_file <- here::here(raster_EU_folder,
                                            paste0("Climate_Habitat_binary_1pct_",
-                                                  first_two_words,
+                                                  speciesName,
                                                   "_", 
                                                   taxonkey,
                                                   ".tif"))
@@ -757,7 +757,7 @@ with_progress({
     # Export binary raster — 5% threshold
     clim_hab_binary_5pct_file <- here::here(raster_EU_folder, 
                                            paste0("Climate_Habitat_binary_5pct_",
-                                                  first_two_words,
+                                                  speciesName,
                                                   "_",
                                                   taxonkey,
                                                   ".tif"))
