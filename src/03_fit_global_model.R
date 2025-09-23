@@ -815,13 +815,12 @@ with_progress({
       boyce_val <- "NA (no EU data)"
       }
     
-    #Prepare title and species extension
-    species_title <- gsub("_", " ", first_two_words)
-    rest_of_name <- if (grepl("^\\S+\\s+\\S+$", species)) "" else sub("^\\S+\\s+\\S+\\s+", "", species)
     
-    #Define PNG and PDF folders
-    PDF_folder <- file.path("./data/projects", project, paste0(first_two_words, "_", taxonkey), "PDFs")
-    PNG_folder<-file.path("./data/projects", project, paste0(first_two_words, "_", taxonkey), "PNGs")
+    #------------------------------------------
+    #-- Create map with ensemble suitability --
+    #------------------------------------------
+    #Define name of files
+    base_file <- paste0(basefile, "_hist_ensemble")
     
     for (occs in list(NULL, global.occ.sf)){
       # Export PDFs with and without occurrences plotted
@@ -1010,15 +1009,15 @@ with_progress({
                         selected_predictors = names(eu_future_selection),
                         future_consensus_median = future_consensus_median)
                         
-    qs::qsave(globalmodels, paste0("./data/projects/",project,"/",first_two_words,"_",taxonkey,"/Global_model_",first_two_words,"_",taxonkey,".qs"))
+    qs::qsave(globalmodels, here::here(base_dir, paste0("Global_model_",speciesName,"_",taxonkey,".qs")))
     
     
     #--------------------------------------------
     #--Export raster layers in folder "rasters"--
     #--------------------------------------------
-    #We don't store them in .qs file as some important metadate would be stored in a temp folder, which would be removed after a while 
-    biasgrid_file<- file.path("./data/projects",project,paste0(first_two_words,"_",taxonkey),"Rasters","Interim",paste0("Biasgrid_",first_two_words,"_",taxonkey,".tif"))
-    ensemble_median_file <- file.path( "./data/projects", project, paste0(first_two_words, "_", taxonkey),"Rasters", "Global", paste0("Ensemble_median_", first_two_words, "_", taxonkey, ".tif"))
+    #We don't store them in .qs file as some important metadata would be stored in a temp folder, which would be removed after a while 
+    biasgrid_file<- here::here(base_dir,"Rasters","Interim",paste0("Biasgrid_",speciesName,"_",taxonkey,".tif"))
+    ensemble_median_file <- here::here( base_dir,"Rasters", "Global", "Current", paste0(basefile, "hist_ensemble.tif"))
     
     terra::writeRaster(biasgrid_sub, filename = biasgrid_file, overwrite = TRUE)
     terra::writeRaster(consensus_median, filename = ensemble_median_file, overwrite = TRUE)
