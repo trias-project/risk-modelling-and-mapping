@@ -234,7 +234,7 @@ with_progress({
         })
         
         #Get final dataframe
-        euocc <- occ_habitat[row_sample,] %>%
+        eu_occ <- occ_habitat[row_sample,] %>%
           dplyr::select(decimalLongitude, decimalLatitude, geometry, species)
         
       }
@@ -426,7 +426,7 @@ with_progress({
         modeloutput[[modelmethod]]<-list(fav_raster=fav_raster,
                                          model=method_model)
         
-        rm(fav_raster, binary_1pct, binary_5pct, method_model)
+        rm(fav_raster, method_model)
       }
     
     
@@ -469,7 +469,7 @@ with_progress({
     
     # Step 5: Select top 5 models with highest variance on PC1
     top5_models <- names(sort(model_variances, decreasing = TRUE))[1:5]
-    cat("Top 5 models by variance along PC1:\n")
+    cat(paste("Top 5 models by variance along PC1:\n", top5_models))
     
     # Get model IDs
     top_ids <- info$modelID[info$method %in% top5_models]
@@ -578,20 +578,16 @@ with_progress({
     #------------------------------------------
     #------------ Create binary map -----------
     #------------------------------------------
-    binary_maps <- list(
-      "0.05" = list(
-        binary_raster = clim_hab_binary_5pct,
-        EU_sensitivity = final_sensitivity_5pct,
-        boyce = boyce_val,
-        mtp_pct = "5%"
-      ),
-      "0.01" = list(
-        binary_raster = clim_hab_binary_1pct,
-        EU_sensitivity = final_sensitivity_1pct,
-        boyce = boyce_val,
-        mtp_pct = "1%"
-      )
-    )
+    binary_maps <- list( "0.05" = list( binary_raster = clim_hab_binary_5pct,
+                                        EU_sensitivity = final_sensitivity_5pct,
+                                        boyce = boyce_val,
+                                        mtp_pct = "5%",
+                                        mtp_value = 5),
+                         "0.01" = list(binary_raster = clim_hab_binary_1pct,
+                                       EU_sensitivity = final_sensitivity_1pct,
+                                       boyce = boyce_val,
+                                       mtp_pct = "1%",
+                                       mtp_value = 1))
     
     for (pct in seq_along(binary_maps)){
       
