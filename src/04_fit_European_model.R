@@ -553,27 +553,25 @@ with_progress({
     #------------------------------------------------------------    
     #---------- Create map with ensemble suitability ------------
     #------------------------------------------------------------
-    
-    #Prepare title and species extension
-    species_title <- gsub("_", " ", first_two_words)
-    rest_of_name <- if (grepl("^\\S+\\s+\\S+$", species)) "" else sub("^\\S+\\s+\\S+\\s+", "", species)
+    #Define name of files
+    base_file <- paste0(basefile, "_hist_ensemble")
     
     # Export PDFs with and without occurrences plotted
     for (occs in list(NULL, eu_occ)){
+      filename <- ifelse(is.null(occs), base_file, paste0(base_file, "_occ"))
       exportPDF(predictions = clim_hab,
-                taxonName = first_two_words,
-                nameExtension= rest_of_name,
                 dataType = "Suit",
-                taxonNameTitle = species_title,
-                taxonKey = taxonkey,
                 scenario = "hist",
-                regionName = "EU",
                 returnPredictions = FALSE,
                 returnPNG = FALSE,
                 occ_data=occs,
                 exportPNG=TRUE,
                 LabelValue= boyce_val,
-                LabelName="Boyce index")
+                LabelName="Boyce index",
+                PDF_title = PDF_title,
+                PNG_folder=here::here(base_dir, "PNGs", "Europe","Current"),
+                PDF_folder=here::here(base_dir, "PDFs","Europe" ,"Current"),
+                filename = filename)
     }
     
 
@@ -600,18 +598,16 @@ with_progress({
       binary_map_pct <- binary_maps[[pct]]$binary_raster
       EU_sensitivity <- binary_maps[[pct]]$EU_sensitivity
       mtp_pct <- binary_maps[[pct]]$mtp_pct
+      mtp_value <- binary_maps[[pct]]$mtp_value
       #boyce_ind <- binary_maps[[pct]]$boyce
       
       # export as PDF and PNG with and without occurrences plotted and return as PNG
+      base_file<- paste0(basefile, "_hist_ensemble_binary",mtp_value,"pct")
       for (occs in list(NULL, eu_occ)){
+        filename <- ifelse(is.null(occs), base_file, paste0(base_file, "_occ"))
         exportPDF(predictions = binary_map_pct,
-                  taxonName = first_two_words,
-                  nameExtension= rest_of_name,
                   dataType = "Binary",
-                  taxonNameTitle = species_title,
-                  taxonKey = taxonkey,
                   scenario = "hist",
-                  regionName = "EU",
                   returnPredictions = FALSE,
                   returnPNG = FALSE,
                   occ_data=occs,
@@ -619,7 +615,11 @@ with_progress({
                   LabelValue= mtp_pct,
                   LabelName="MTP threshold",
                   Label2Value=round(EU_sensitivity,3),
-                  Label2Name="Sensitivity")
+                  Label2Name="Sensitivity",
+                  PDF_title = PDF_title,
+                  PNG_folder=here::here(base_dir, "PNGs", "Europe","Current"),
+                  PDF_folder=here::here(base_dir, "PDFs","Europe" ,"Current"),
+                  filename = filename)
       }
     }
 

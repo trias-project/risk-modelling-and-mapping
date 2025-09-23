@@ -720,22 +720,23 @@ with_progress({
     #Define name of files
     base_file <- paste0(basefile, "_hist_ensemble")
     
+    #Export PDFs with and without occurrences plotted
     for (occs in list(NULL, global.occ.sf)){
-      # Export PDFs with and without occurrences plotted
+      filename <- ifelse(is.null(occs), base_file, paste0(base_file, "_occ"))
+      
       exportPDF(predictions = consensus_median,
-                taxonName = first_two_words,
-                nameExtension= rest_of_name,
                 dataType = "Suit",
-                taxonNameTitle = species_title,
-                taxonKey = taxonkey,
                 scenario = "hist",
-                regionName = "Global",
                 returnPredictions = FALSE,
                 returnPNG = FALSE,
                 occ_data=occs,
                 exportPNG=TRUE,
                 LabelValue= boyce_val,
-                LabelName="Boyce index")
+                LabelName="Boyce index",
+                PDF_title = PDF_title,
+                PNG_folder=here::here(base_dir, "PNGs", "Global", "Current"),
+                PDF_folder=here::here(base_dir, "PDFs", "Global", "Current"),
+                filename = filename)
     }
 
     
@@ -781,17 +782,13 @@ with_progress({
     occ_values <- terra::extract(binary_map_pct, vect(global.occ.sf))[,2]  
     global_EU_sensitivity <- sum(occ_values == "Present", na.rm = TRUE) / sum(occ_values %in% c("Present", "Absent"), na.rm = TRUE)
     
-    
-    # export as PDF and PNG with and without occurrences plotted and return as PNG
+    # export as PDF and PNG with and without occurrences plotted 
+    base_file<- paste0(basefile, "_hist_ensemble_binary",mtp_value,"pct")
     for (occs in list(NULL, global.occ.sf)){
+      filename <- ifelse(is.null(occs), base_file, paste0(base_file, "_occ"))
       exportPDF(predictions = binary_map_pct,
-                taxonName = first_two_words,
-                nameExtension= rest_of_name,
                 dataType = "Binary",
-                taxonNameTitle = species_title,
-                taxonKey = taxonkey,
                 scenario = "hist",
-                regionName = "Global",
                 returnPredictions = FALSE,
                 returnPNG = TRUE,
                 occ_data=occs,
@@ -799,7 +796,11 @@ with_progress({
                 LabelValue= mtp_pct,
                 LabelName="MTP threshold",
                 Label2Value=round(global_EU_sensitivity,3),
-                Label2Name="Sensitivity")
+                Label2Name="Sensitivity",
+                PDF_title = PDF_title,
+                PNG_folder=here::here(base_dir, "PNGs", "Global","Current"),
+                PDF_folder=here::here(base_dir, "PDFs","Global" ,"Current"),
+                filename = filename)
     }
     
     binary_maps[[mtp_pct]]<-list(binary_raster=binary_map_pct,
