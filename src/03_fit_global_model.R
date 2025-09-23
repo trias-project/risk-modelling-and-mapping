@@ -649,7 +649,11 @@ with_progress({
     # Assign layer names based on model methods
     names(fav_stack) <- names(modeloutput)
     
-    #make PCA
+    
+    #---------------------------------------------
+    #-- Create Ensemble model using PCAm method --
+    #---------------------------------------------
+    #Step 0: make PCA
     pca_result <- rasterPCA(fav_stack, nSamples = NULL, spca = FALSE, maskCheck = TRUE)
     
     # Step 1: Recover original raster stack used in rasterPCA
@@ -674,7 +678,7 @@ with_progress({
     
     # Step 5: Select top 5 models with highest variance on PC1
     top5_models <- names(sort(model_variances, decreasing = TRUE))[1:5]
-    cat("Top 5 models by variance along PC1:\n")
+    cat("Top 5 models by variance along PC1:\n", top5_models)
     
     # Get model IDs
     top_ids <- info$modelID[info$method %in% top5_models]
@@ -690,7 +694,7 @@ with_progress({
     
 
     #------------------------------------------
-    #-- Create map with ensemble suitability --
+    #-Calculate Boyce index to display on map--
     #------------------------------------------
     #Extract all raster values (excluding NAs)
     all_suit_vals <- values(consensus_median)
@@ -711,7 +715,7 @@ with_progress({
     } else {
       warning(paste("No EU occurrences available to calculate Boyce index for", species))
       boyce_val <- "NA (no EU data)"
-      }
+    }
     
     
     #------------------------------------------
@@ -760,7 +764,7 @@ with_progress({
     binary_maps<-list()
     for (probs in c(0.05, 0.01)){
     
-    #Define mtp_pct
+    #Define mtp_pct and mtp_value
     mtp_pct <- switch(as.character(probs),
                      "0.05" = "5%",
                      "0.01" = "1%")  
@@ -768,11 +772,11 @@ with_progress({
     # Thresholds
     thr <- sapply(fav_vals, function(fv) quantile(fv, probs = probs, na.rm = TRUE))
     
-    # Averages
+    # Get the average threshold used for binarization
     mean_pct <- mean(thr, na.rm = TRUE)
     cat(paste0("Mean ",mtp_pct," minimum training presence threshold: ", round(mean_pct, 4), "\n"))
     
-    # Binary raster using MTP threshold
+    # Create binary raster using MTP threshold
     binary_map_pct <- consensus_median >= mean_pct  
     binary_map_pct <- as.factor( binary_map_pct*1) #Convert TRUE/FALSE to 1/0 and then to Present/Absent
     levels( binary_map_pct) <- data.frame(ID = c(0, 1),
@@ -817,6 +821,7 @@ with_progress({
       for(scenario in c("ssp126", "ssp370", "ssp585")){
         
     # Keep relevant predictors in the raster stack
+        
         future_rast<-get(paste0(scenario, "_", period))
         
         # Keep relevant predictors in the raster stack
@@ -1024,7 +1029,7 @@ with_progress({
     
     
     #--------------------------------------------
-    #--Export raster layers in folder "rasters"--
+    #--Export raster layers in folder "Rasters"--
     #--------------------------------------------
     #We don't store them in .qs file as some important metadata would be stored in a temp folder, which would be removed after a while 
     biasgrid_file<- here::here(base_dir,"Rasters","Interim",paste0("Biasgrid_",speciesName,"_",taxonkey,".tif"))
