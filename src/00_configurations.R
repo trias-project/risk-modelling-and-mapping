@@ -1,7 +1,7 @@
 #--------------------------------------------
 #-------  Define wiSDM configurations -------
 #--------------------------------------------
-project <- "PA prob & Alternative Treshold & Ensemble Boyce"
+project <- "PA prob & Alternative Treshold & Ensemble Boyce"  #TIP: don't use a long project name to avoid Windows errors
 
 species_to_model <- c("Verbena bonariensis", "Erigeron karvinskianus", "Leycesteria formosa", "Asclepias syriaca L.")
 
