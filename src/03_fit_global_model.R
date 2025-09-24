@@ -775,57 +775,60 @@ with_progress({
     
     # Create binary maps
     binary_maps<-list()
-    for (probs in c(0.05, 0.01)){
-    
-    #Define mtp_pct and mtp_value
-    mtp_pct <- switch(as.character(probs),
-                     "0.05" = "5%",
-                     "0.01" = "1%")  
-    mtp_value<- as.numeric(sub("%", "", mtp_pct))
-    
-    # Thresholds
-    thr <- sapply(fav_vals, function(fv) quantile(fv, probs = probs, na.rm = TRUE))
-    
-    # Get the average threshold used for binarization
-    mean_pct <- mean(thr, na.rm = TRUE)
-    cat(paste0("Mean ",mtp_pct," minimum training presence threshold: ", round(mean_pct, 4), "\n"))
-    
-    # Create binary raster using MTP threshold
-    binary_map_pct <- consensus_median >= mean_pct  
-    binary_map_pct <- as.factor( binary_map_pct*1) #Convert TRUE/FALSE to 1/0 and then to Present/Absent
-    levels( binary_map_pct) <- data.frame(ID = c(0, 1),
-                                          class = c("Absent", "Present"))
-
-    # Calculate sensitivity in Europe
-    occ_values <- terra::extract(binary_map_pct, vect(global.occ.sf))[,2]  
-    global_EU_sensitivity <- sum(occ_values == "Present", na.rm = TRUE) / sum(occ_values %in% c("Present", "Absent"), na.rm = TRUE)
-    
-    # export as PDF and PNG with and without occurrences plotted 
-    base_file<- paste0(basefile, "_hist_ensemble_binary",mtp_value,"pct")
-    for (occs in list(NULL, global.occ.sf)){
-      filename <- ifelse(is.null(occs), base_file, paste0(base_file, "_occ"))
-      exportPDF(predictions = binary_map_pct,
-                dataType = "Binary",
-                scenario = "hist",
-                returnPredictions = FALSE,
-                returnPNG = TRUE,
-                occ_data=occs,
-                exportPNG=TRUE,
-                LabelValue= mtp_pct,
-                LabelName="MTP threshold",
-                Label2Value=round(global_EU_sensitivity,3),
-                Label2Name="Sensitivity",
-                PDF_title = PDF_title,
-                PNG_folder=here::here(base_dir, "PNGs", "Global","Current"),
-                PDF_folder=here::here(base_dir, "PDFs","Global" ,"Current"),
-                filename = filename)
-    }
-    
-    assign(paste0(mtp_value,"pct"), mean_pct)
-    binary_maps[[mtp_pct]]<-list(binary_raster=binary_map_pct,
-                                 EU_sensitivity=global_EU_sensitivity,
-                                 mean_MTP=mean_pct)
-    rm(binary_map_pct)
+    for (probs in mtp_probabilities){
+      
+      #Define mtp_pct and mtp_value
+      mtp_value<- probs*100
+      mtp_pct <- paste0(mtp_value, "%")
+      
+      # Thresholds
+      thr <- sapply(fav_vals, function(fv) quantile(fv, probs = probs, na.rm = TRUE))
+      
+      # Get the average threshold used for binarization
+      mean_pct <- mean(thr, na.rm = TRUE)
+      cat(paste0("Mean ",mtp_pct," minimum training presence threshold: ", round(mean_pct, 4), "\n"))
+      
+      # Create binary raster using MTP threshold
+      binary_map_pct <- consensus_median >= mean_pct  
+      binary_map_pct <- as.factor( binary_map_pct*1) #Convert TRUE/FALSE to 1/0 and then to Present/Absent
+      levels( binary_map_pct) <- data.frame(ID = c(0, 1),
+                                            class = c("Absent", "Present"))
+      
+      # Calculate sensitivity in Europe
+      occ_values <- terra::extract(binary_map_pct, vect(global.occ.sf))[,2]  
+      global_EU_sensitivity <- sum(occ_values == "Present", na.rm = TRUE) / sum(occ_values %in% c("Present", "Absent"), na.rm = TRUE)
+      
+      #Store raster
+      raster_folder=file.path(base_dir, "Climate","Current", "Predictions", "Rasters")
+      binary_file <- file.path (raster_folder, paste0(basefile,"current_binary",mtp_value,"pct.tif"))
+      terra::writeRaster(binary_map_pct, filename = binary_file, overwrite = TRUE)
+      
+      # export as PDF and PNG with and without occurrences plotted 
+      base_file<- paste0(basefile, "current_binary",mtp_value,"pct")
+      for (occs in list(NULL, global.occ.sf)){
+        filename <- ifelse(is.null(occs), base_file, paste0(base_file, "_occ"))
+        exportPDF(predictions = binary_map_pct,
+                  dataType = "Binary",
+                  scenario = "Current",
+                  returnPredictions = FALSE,
+                  returnPNG = TRUE,
+                  occ_data=occs,
+                  exportPNG=TRUE,
+                  LabelValue= round(mean_pct,3),
+                  LabelName=paste0(mtp_pct, " MTP threshold"),
+                  Label2Value=round(global_EU_sensitivity,3),
+                  Label2Name="Sensitivity",
+                  PDF_title = PDF_title,
+                  PNG_folder=file.path(base_dir, "Climate","Current", "Predictions", "PNGs"),
+                  PDF_folder=file.path(base_dir,"Climate" ,"Current", "Predictions", "PDFs"),
+                  filename = filename)
+      }
+      
+      assign(paste0(mtp_value,"pct"), mean_pct)
+      binary_maps[[mtp_pct]]<-list(binary_raster=binary_map_pct,
+                                   EU_sensitivity=global_EU_sensitivity,
+                                   mean_MTP=mean_pct)
+      rm(binary_map_pct, binary_file)
     }
     
     
@@ -893,14 +896,13 @@ with_progress({
         
         
         # Create binarized ensemble predictions for future
-        for(MTP_threshold in c("1pct","5pct")){
-          
-          mtp_label <- switch(MTP_threshold,
-                              "5pct" = "5%",
-                              "1pct" = "1%")  
+        for(probs in mtp_probabilities){
+          #Define mtp_pct and mtp_value
+          mtp_label <- paste0(probs*100, "%")
+          mtp_text <- paste0(probs*100,"pct")
           
           #Get threshold value and apply to consensus predictions
-          threshold<-get(MTP_threshold)
+          threshold<-get(mtp_text)
           binary_map_future <- future_consensus_median  >= threshold
           binary_map_future <- as.factor( binary_map_future*1) #Convert TRUE/FALSE to 1/0 and then to Present/Absent
           levels( binary_map_future) <- data.frame(ID = c(0, 1),
@@ -924,8 +926,8 @@ with_progress({
                       returnPredictions = FALSE,
                       returnPNG = TRUE,
                       exportPNG=TRUE,
-                      LabelValue= mtp_label,
-                      LabelName="MTP threshold",
+                      LabelValue= round(threshold,3),
+                      LabelName=paste0(mtp_label, " MTP threshold"),
                       PDF_title=PDF_title,
                       PNG_folder=file.path(base_dir,"Climate", period, scenario, "Predictions", "PNGs"),
                       PDF_folder=file.path(base_dir, "Climate",period, scenario, "Predictions", "PDFs"),
