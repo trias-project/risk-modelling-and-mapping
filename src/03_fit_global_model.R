@@ -17,9 +17,8 @@ sdm::installAll()
 #--------------------------------------------
 #- Load helper functions and configurations -
 #--------------------------------------------
-source(here::here("src", "helper_functions.R"))
-source(here::here("src", "00_configurations.R"))
 source(file.path("src", "helper_functions.R"))
+source(file.path("src", "00_configurations.R"))
 
 
 #--------------------------------------------
@@ -309,7 +308,7 @@ with_progress({
     PDF_title<-bquote(italic(.(gsub("_", " ", speciesName))) ~ .(nameExtension) ~ "(" * .(taxonkey) * ")")
     
     #Prepare current and future basefile
-    basefile<-  paste0(speciesName, "_", taxonkey, "_Global_")
+    basefile<-  paste0(speciesName,"_Climate_")
     
     
     #--------------------------------------------
@@ -319,24 +318,30 @@ with_progress({
     base_dir <- file.path("data", "projects", project, paste0(speciesName, "_", taxonkey))
     
     # Define outputs, periods, and scenarios
-    outputs   <- c("Rasters", "PDFs", "PNGs")
     periods   <- c("Current","2041-2070", "2071-2100")
     scenarios <- c("ssp126", "ssp370", "ssp585")
+    outputs   <- c("Rasters", "PDFs", "PNGs")
     
     #Create folders for each combination
     scenario_folders <- list()
     
-    for(output in outputs){
       for(period in periods){
+        for(output in outputs){
         if(period=="Current"){
-          loop_list <- list(list(path = file.path(base_dir, output, "Global", period),
-                                 name = paste(output, "Global", period,  sep = "/")))
+          loop_list <- list(list(path = file.path(base_dir, "Climate", period,"Predictions",output),
+                                 name = paste("Climate", period, output,  sep = "/")),
+                             list(path = file.path(base_dir, "Climate", period,"Diagnostics", "Variable_importance"),
+                                  name = paste("Climate", period, output,  sep = "/")),
+                             list(path = file.path(base_dir, "Climate", period,"Diagnostics", "Response_curves"),
+                                 name = paste("Climate", period, output,  sep = "/")),
+                             list(path = file.path(base_dir, "Climate", period,"Diagnostics", "Confidence_maps",output),
+                                 name = paste("Climate", period, output,  sep = "/")))
           scenario_folders <- c(scenario_folders, loop_list)  
           
         }else{
           for(scenario in scenarios){
-            loop_list <- list(list(path = file.path(base_dir, output, "Global", period, scenario),
-                                   name = paste(output, "Global", period, scenario, sep = "/")))
+            loop_list <- list(list(path = file.path(base_dir, "Climate", period, scenario, "Predictions", output),
+                                   name = paste("Climate", period, scenario, output, sep = "/")))
             scenario_folders <- c(scenario_folders, loop_list)
           }
         }
@@ -345,8 +350,8 @@ with_progress({
     
     # Add Rasters/Interim folder
     fixed_folders <- list(
-      list(path = file.path(base_dir, "Rasters", "Interim"), 
-           name = "Rasters/Interim"))
+      list(path = file.path(base_dir, "Climate", "Current", "Interim"), 
+           name = "Interim"))
     
     # Combine 
     folder_paths <- c(fixed_folders, scenario_folders)
@@ -375,9 +380,12 @@ with_progress({
     #-----------------------------------------------
     if(nrow(global.occ.sf) > 10000){
       if(occurrence_thinning_method == "random"){
+        print("Thinning occurrences randomly")
       set.seed(101) 
       global.occ.sf <- global.occ.sf[sample(nrow(global.occ.sf), 10000, replace=FALSE), ]
       }else if (occurrence_thinning_method == "kmeans_clustering"){
+        
+        print("Thinning occurrences based on k-means clustering")
         #Extract environmental data in each occurrence grid cell
         env_data <- terra::extract(globalclimpreds_terra, global.occ.sf, ID = FALSE)
         
@@ -723,7 +731,7 @@ with_progress({
     #-- Create map with ensemble suitability --
     #------------------------------------------
     #Define name of files
-    base_file <- paste0(basefile, "_hist_ensemble")
+    base_file <- paste0(basefile, "current_ensemble")
     
     #Export PDFs with and without occurrences plotted
     for (occs in list(NULL, global.occ.sf)){
@@ -731,7 +739,7 @@ with_progress({
       
       exportPDF(predictions = consensus_median,
                 dataType = "Suit",
-                scenario = "hist",
+                scenario = "Current",
                 returnPredictions = FALSE,
                 returnPNG = FALSE,
                 occ_data=occs,
@@ -762,6 +770,7 @@ with_progress({
     # Favourability transformation
     fav_vals <- lapply(pred_vals, function(p) favourability_from_prob(p[[1]], prev_ratio))
     
+    # Create binary maps
     binary_maps<-list()
     for (probs in c(0.05, 0.01)){
     
@@ -852,12 +861,12 @@ with_progress({
         ensemble_file <- file.path(future_folder, paste0(basefile, period,"_",scenario,"_ensemble.tif"))
         terra::writeRaster(future_consensus_median, filename = ensemble_file, overwrite = TRUE)
         
-        # Export future single-model rasters
-        for (mod in top5_models) {
-          singlemodfile <- here::here(future_folder,
-                                      paste0(basefile, period, "_",scenario,"_", mod, ".tif"))
-          terra::writeRaster(future_fav_stack[[mod]], filename = singlemodfile, overwrite = TRUE)
-        }
+        # # Export future single-model rasters
+        # for (mod in top5_models) {
+        #   singlemodfile <- file.path(future_folder,
+        #                               paste0(basefile, period, "_",scenario,"_", mod, ".tif"))
+        #   terra::writeRaster(future_fav_stack[[mod]], filename = singlemodfile, overwrite = TRUE)
+        # }
         
         # Export ensemble predictions as PDF and PNG with and without occurrences
         base_file <- paste0(basefile, scenario,"_", period,"_ensemble")
@@ -899,7 +908,7 @@ with_progress({
           terra::writeRaster(binary_map_future, filename = binary_file, overwrite = TRUE)
           
           # Export binarized ensemble predictions as PDF and PNG with and without occurrences 
-          base_file <- paste0(basefile, period,"_", scenario, "_ensemble_binary",MTP_threshold)
+          base_file <- paste0(basefile, period,"_", scenario, "_binary",mtp_text)
           
           for (occs in list(NULL, global.occ.sf)){
             
@@ -987,10 +996,10 @@ with_progress({
       theme_bw()
     
     #Save plot
-    PNG_folder <- here::here(base_dir, "PNGs", "Global")
+    PNG_folder <- file.path(base_dir, "Climate", "Current", "Diagnostics")
     
-    ggplot2::ggsave(filename = paste(basefile, "variable_importance.png"), plot = varimp_plot ,  device = "png", width =8.27 , height = 5.845, path= PNG_folder )
-    ggplot2::ggsave(filename = paste(basefile, "response_curves.png"), plot = response_plot,  device = "png", width =8.27 , height = 5.845, path= PNG_folder )
+    ggplot2::ggsave(filename = paste(basefile, "variable_importance.png"), plot = varimp_plot ,  device = "png", width =8.27 , height = 5.845, path= file.path(PNG_folder, "Variable_importance") )
+    ggplot2::ggsave(filename = paste(basefile, "response_curves.png"), plot = response_plot,  device = "png", width =8.27 , height = 5.845, path=  file.path(PNG_folder, "Response_curves") )
 
 
     
@@ -1029,7 +1038,7 @@ with_progress({
                         selected_predictors = names(eu_future_selection),
                         future_consensus_median = future_consensus_median)
                         
-    qs::qsave(globalmodels, here::here(base_dir, paste0("Global_model_",speciesName,"_",taxonkey,".qs")))
+    qs::qsave(globalmodels, file.path(base_dir, "Climate", paste0("Climate_model_",speciesName,"_",taxonkey,".qs")))
     
     
     #--------------------------------------------
