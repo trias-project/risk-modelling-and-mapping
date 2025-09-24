@@ -313,8 +313,7 @@ exportPDF <- function(predictions=NULL, period=NULL, scenario, occ_data=NULL, da
  
   #Define scenario title
   scenarioTitle<- switch(paste0(period,scenario),
-    "hist" = "Historical",
-    "historical" = "Historical",
+    "Current" = "Current",
     "all" = "all",
     "2041-2070ssp126" = "2041-2070: SSP1-2.6",
     "2041-2070ssp370" = "2041-2070: SSP3-7.0",
@@ -388,7 +387,7 @@ exportPDF <- function(predictions=NULL, period=NULL, scenario, occ_data=NULL, da
     )
   }
   # Define text label, fill label, and hjust based on dataType
-  text_label <- ifelse(dataType=="Diff",paste(scenarioTitle, "- historical"), scenarioTitle)
+  text_label <- ifelse(dataType=="Diff",paste(scenarioTitle, "- current"), scenarioTitle)
   
   fill_label <- switch(dataType,
                        "Suit" = "Suitability",
@@ -422,11 +421,13 @@ exportPDF <- function(predictions=NULL, period=NULL, scenario, occ_data=NULL, da
                     decimalLatitude=y)%>%
       st_as_sf(coords=c("decimalLongitude", "decimalLatitude"), crs=crs_value)
     
+    suppressMessages(
     country_plot<-country_plot +
       geom_sf(data = occ_data, color = "black", fill = "red", 
               size = 1.5, shape = 21)+
       coord_sf(xlim = c(exten[1], exten[2]), 
                ylim = c(exten[3], exten[4] + 2))
+    )
   }
   
   if(!is.null(LabelValue)){
@@ -532,8 +533,6 @@ exportPDF <- function(predictions=NULL, period=NULL, scenario, occ_data=NULL, da
     return(list("png" = country_plot,
                 "scenario"=scenario))
   }
-  
-  
 }
 
 
