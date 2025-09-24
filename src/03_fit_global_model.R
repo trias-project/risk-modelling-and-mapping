@@ -19,6 +19,7 @@ sdm::installAll()
 #--------------------------------------------
 source(here::here("src", "helper_functions.R"))
 source(here::here("src", "00_configurations.R"))
+source(file.path("src", "helper_functions.R"))
 
 
 #--------------------------------------------
@@ -133,7 +134,7 @@ cleaned_1km<-cleaned%>%
 #--------------------------------------------
 # Only include files that start with "scaled_layer_" and end with .tif: 
 scaled_files <- list.files(
-  here::here("data", "external","climate","trias_CHELSA"),
+  file.path("data", "external","climate","trias_CHELSA"),
   pattern = "^scaled_layer.*\\.tif$",
   full.names = TRUE)
 
@@ -147,7 +148,7 @@ globalclimpreds_terra<- aggregate(globalclimpreds_terra, fact=5, fun=mean, na.rm
 #--------------------------------------------
 #--------Load European climate rasters-------
 #--------------------------------------------
-euboundary<-sf::st_read(here::here("data", "external", "GIS", "Europe", "EUROPE.shp")) 
+euboundary<-sf::st_read(file.path("data", "external", "GIS", "Europe", "EUROPE.shp")) 
 # Convert sf boundary to SpatVector
 euboundary_vect <- terra::vect(euboundary)
 
@@ -179,7 +180,7 @@ for (period in c("2041-2070","2071-2100")){
   for(scenario in c("ssp126", "ssp370", "ssp585")){
     
     # List future raster files
-    future_files<- list.files( here::here("data", "external", "climate", "chelsa_future", period,scenario), pattern = "\\.tif$", full.names = TRUE)
+    future_files<- list.files( file.path("data", "external", "climate", "chelsa_future", period,scenario), pattern = "\\.tif$", full.names = TRUE)
     
     #Stack them together
     future_stack <- terra::rast(future_files)
@@ -222,7 +223,7 @@ world<-rnaturalearth::ne_countries(scale=50)
 #--------------------------------------------
 #--------------Load ecoregions --------------
 #--------------------------------------------
-wwf_eco_biome<-sf::st_read(here::here("./data/external/GIS/official/newRealms.shp")) 
+wwf_eco_biome<-sf::st_read(file.path("./data/external/GIS/official/newRealms.shp")) 
 
 
 # Dissolve by BIOME
@@ -237,17 +238,17 @@ wwf_eco_biome<-sf::st_read(here::here("./data/external/GIS/official/newRealms.sh
 #--------------------------------------------
 #-------Load file paths to bias grids -------
 #--------------------------------------------
-bias_grid_folder<-here::here("data","external", "bias_grids")
+bias_grid_folder<-file.path("data","external", "bias_grids")
 bias_grid_paths <- list(
-  Plants = here::here(bias_grid_folder, "plants_10km_bias_layer_log.tif"), #0-13.24
-  Amphibians = here::here(bias_grid_folder, "amphibians_10km_bias_layer_log.tif"),#0-12.06
-  Birds = here::here(bias_grid_folder, "birds_1deg_min5.tif"),#5-1703018
-  Mammals = here::here(bias_grid_folder, "mammals_10km_bias_layer_log.tif"), #0-13.36
-  Molluscs = here::here(bias_grid_folder, "mollusca_10km_bias_layer_log.tif"),#0-12.48
-  Reptiles = here::here(bias_grid_folder, "reptiles_10km_bias_layer_log.tif"), #0-11.34
-  Fish = here::here(bias_grid_folder, "fish_10km_bias_layer_log.tif"),#0-14.67
-  Malacostraca = here::here(bias_grid_folder, "malacostraca_10km_bias_layer_log.tif"),#0-13.12
-  Insects = here::here(bias_grid_folder, "insects_10km_bias_layer_log.tif")) #0-15.78
+  Plants = file.path(bias_grid_folder, "plants_10km_bias_layer_log.tif"), #0-13.24
+  Amphibians = file.path(bias_grid_folder, "amphibians_10km_bias_layer_log.tif"),#0-12.06
+  Birds = file.path(bias_grid_folder, "birds_1deg_min5.tif"),#5-1703018
+  Mammals = file.path(bias_grid_folder, "mammals_10km_bias_layer_log.tif"), #0-13.36
+  Molluscs = file.path(bias_grid_folder, "mollusca_10km_bias_layer_log.tif"),#0-12.48
+  Reptiles = file.path(bias_grid_folder, "reptiles_10km_bias_layer_log.tif"), #0-11.34
+  Fish = file.path(bias_grid_folder, "fish_10km_bias_layer_log.tif"),#0-14.67
+  Malacostraca = file.path(bias_grid_folder, "malacostraca_10km_bias_layer_log.tif"),#0-13.12
+  Insects = file.path(bias_grid_folder, "insects_10km_bias_layer_log.tif")) #0-15.78
 
 
 #--------------------------------------------
@@ -281,7 +282,7 @@ with_progress({
     p()
     
     #--------------------------------------------
-    #----------Load species data ----------------
+    #----------- Load species details -----------
     #--------------------------------------------
     species <- names(split_df)[i]
     print(species)
@@ -315,7 +316,7 @@ with_progress({
     #-------------Create folders-----------------
     #--------------------------------------------
     # Define base project folder
-    base_dir <- here::here("data", "projects", project, paste0(speciesName, "_", taxonkey))
+    base_dir <- file.path("data", "projects", project, paste0(speciesName, "_", taxonkey))
     
     # Define outputs, periods, and scenarios
     outputs   <- c("Rasters", "PDFs", "PNGs")
@@ -738,8 +739,8 @@ with_progress({
                 LabelValue= boyce_val,
                 LabelName="Boyce index",
                 PDF_title = PDF_title,
-                PNG_folder=here::here(base_dir, "PNGs", "Global", "Current"),
-                PDF_folder=here::here(base_dir, "PDFs", "Global", "Current"),
+                PNG_folder=file.path(base_dir, "Climate", "Current", "Predictions", "PNGs"),
+                PDF_folder=file.path(base_dir, "Climate", "Current", "Predictions","PDFs"),
                 filename = filename)
     }
 
@@ -847,8 +848,8 @@ with_progress({
         future_consensus_median <- app(future_fav_stack, median)
         
         # Export future ensemble raster (favorability) 
-        future_folder <- here::here(base_dir, "Rasters", "Global", period, scenario)
-        ensemble_file <- here::here(future_folder, paste0(basefile, period,"_",scenario,"_ensemble.tif"))
+        future_folder <- file.path(base_dir, "Climate", period, scenario, "Predictions", "Rasters")
+        ensemble_file <- file.path(future_folder, paste0(basefile, period,"_",scenario,"_ensemble.tif"))
         terra::writeRaster(future_consensus_median, filename = ensemble_file, overwrite = TRUE)
         
         # Export future single-model rasters
@@ -873,8 +874,8 @@ with_progress({
                     occ_data=occs,
                     exportPNG=TRUE,
                     PDF_title=PDF_title,
-                    PNG_folder=here::here(base_dir, "PNGs", "Global", period, scenario),
-                    PDF_folder=here::here(base_dir, "PDFs", "Global", period, scenario),
+                    PNG_folder=file.path(base_dir, "Climate", period, scenario, "Predictions", "PNGs"),
+                    PDF_folder=file.path(base_dir, "Climate", period, scenario, "Predictions", "PDFs"),
                     filename = filename)
         }
         
@@ -894,7 +895,7 @@ with_progress({
                                                    class = c("Absent", "Present"))
           
           #Store raster
-          binary_file <- here::here (future_folder, paste0(basefile, period,"_",scenario,"_ensemble_binary",MTP_threshold,".tif"))
+          binary_file <- file.path(future_folder, paste0(basefile, period,"_",scenario,"_binary",mtp_text,".tif"))
           terra::writeRaster(binary_map_future, filename = binary_file, overwrite = TRUE)
           
           # Export binarized ensemble predictions as PDF and PNG with and without occurrences 
@@ -914,8 +915,8 @@ with_progress({
                       LabelValue= mtp_label,
                       LabelName="MTP threshold",
                       PDF_title=PDF_title,
-                      PNG_folder=here::here(base_dir, "PNGs","Global", period, scenario),
-                      PDF_folder=here::here(base_dir, "PDFs", "Global",period, scenario),
+                      PNG_folder=file.path(base_dir,"Climate", period, scenario, "Predictions", "PNGs"),
+                      PDF_folder=file.path(base_dir, "Climate",period, scenario, "Predictions", "PDFs"),
                       filename=filename)
           }
         }
@@ -1035,8 +1036,10 @@ with_progress({
     #--Export raster layers in folder "Rasters"--
     #--------------------------------------------
     #We don't store them in .qs file as some important metadata would be stored in a temp folder, which would be removed after a while 
-    biasgrid_file<- here::here(base_dir,"Rasters","Interim",paste0("Biasgrid_",speciesName,"_",taxonkey,".tif"))
-    ensemble_median_file <- here::here( base_dir,"Rasters", "Global", "Current", paste0(basefile, "hist_ensemble.tif"))
+    biasgrid_file<- file.path(base_dir,"Climate", "Current", "Interim", 
+                               paste0("Biasgrid_",speciesName,"_",taxonkey,".tif"))
+    ensemble_median_file <- file.path( base_dir,"Climate", "Current", "Predictions", "Rasters",
+                                        paste0(basefile, "current_ensemble.tif"))
     
     terra::writeRaster(biasgrid_sub, filename = biasgrid_file, overwrite = TRUE)
     terra::writeRaster(consensus_median, filename = ensemble_median_file, overwrite = TRUE)
@@ -1045,8 +1048,6 @@ with_progress({
     #--------------------------------------------
     #------------------ Clean up-----------------
     #--------------------------------------------
-    print(paste("Global model has been created for", species))
-    
     rm(list = setdiff(ls(), c("p","wwf_eco_biome","eu_climpreds.10", "split_df",  "decimalplaces", "globalclimpreds_terra","bias_grid_paths", "i", "world", "project", "create_folder", "split_df_all_occs", "exportPDF", "remove_duplicates", "remove_nodata_occurrences", "favourability_from_prob", "cleaned_1km", "occurrence_thinning_method", "n_clusters", "ssp126_2041-2070","ssp370_2041-2070","ssp585_2041-2070","ssp126_2071-2100","ssp370_2071-2100","ssp585_2071-2100")))
    
   }

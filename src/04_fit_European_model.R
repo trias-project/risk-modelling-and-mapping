@@ -17,8 +17,8 @@ sdm::installAll()
 #--------------------------------------------
 #- Load helper functions and configurations -
 #--------------------------------------------
-source(here::here("src", "helper_functions.R"))
-source(here::here("src", "00_configurations.R"))
+source(file.path("src", "helper_functions.R"))
+source(file.path("src", "00_configurations.R"))
 
 
 #--------------------------------------------
@@ -31,7 +31,7 @@ euboundary<-sf::st_read(here("./data/external/GIS/Europe/EUROPE.shp"))
 #-------- Load European habitat rasters -----
 #--------------------------------------------
 # Load all habitat rasters
-habitat_files <- list.files(here::here("./data/external/habitat"), pattern = 'tif$', full.names = TRUE)
+habitat_files <- list.files(file.path("./data/external/habitat"), pattern = 'tif$', full.names = TRUE)
 habitat_rasters <- lapply(habitat_files, terra::rast)
 
 # compute common intersection extent across all rasters
@@ -120,9 +120,9 @@ with_progress({
     #--------------------------------------------
     #-- Define file path of global model file  --
     #--------------------------------------------  
-    base_dir <- here::here("data", "projects", project, paste0(speciesName,"_",taxonkey))
-    global_model_file <- here::here(base_dir,
-                                  paste0("Global_model_",speciesName,"_",taxonkey,".qs"))
+    base_dir <- file.path("data", "projects", project, paste0(speciesName,"_",taxonkey))
+    global_model_file <- file.path(base_dir,"Climate",
+                                  paste0("Climate_model_",speciesName,"_",taxonkey,".qs"))
     
     
     #--------------------------------------------
@@ -147,8 +147,9 @@ with_progress({
     #------------ Import raster layers ----------
     #--------------------------------------------
     #Define file paths
-    biasgrid_file <- here::here(base_dir,"Rasters","Interim",paste0("Biasgrid_",speciesName,"_",taxonkey,".tif"))
-    global_model_file <- here::here(base_dir,"Rasters","Global", "Current",paste0(speciesName,"_",taxonkey,"_Global_hist_ensemble.tif"))
+    biasgrid_file <- file.path(base_dir,"Climate", "Current", "Interim", paste0("Biasgrid_",speciesName,"_",taxonkey,".tif"))
+    global_model_file <- file.path(base_dir,"Climate", "Current","Predictions","Rasters",
+                                   paste0(speciesName,"_Climate_current_ensemble.tif"))
     
     #Load rasterlayers
     biasgrid_sub <- terra::rast(biasgrid_file)
@@ -569,12 +570,12 @@ with_progress({
                 LabelValue= boyce_val,
                 LabelName="Boyce index",
                 PDF_title = PDF_title,
-                PNG_folder=here::here(base_dir, "PNGs", "Europe","Current"),
-                PDF_folder=here::here(base_dir, "PDFs","Europe" ,"Current"),
+                PNG_folder=file.path(base_dir, "Combined", "Current", "Predictions", "PNGs"),
+                PDF_folder=file.path(base_dir, "Combined", "Current", "Predictions","PDFs"),
                 filename = filename)
     }
     
-
+    
     #------------------------------------------
     #------------ Create binary map -----------
     #------------------------------------------
@@ -629,8 +630,8 @@ with_progress({
         print(paste("[FUTURE] Projecting:", period,scenario))
         
         #Get climate data for specific period and scenario
-        future_folder <- here::here(base_dir, "Rasters", "Global", period, scenario)
-        ensemble_file <- here::here(future_folder, paste0(global_basefile, period,"_",scenario,"_ensemble.tif"))
+        future_folder <- file.path(base_dir, "Rasters", "Global", period, scenario)
+        ensemble_file <- file.path(future_folder, paste0(global_basefile, period,"_",scenario,"_ensemble.tif"))
         future_climate <- terra::rast(ensemble_file)%>%
           terra::project(consensus_habitat)
         
@@ -652,8 +653,8 @@ with_progress({
                     occ_data=occs,
                     exportPNG=TRUE,
                     PDF_title=PDF_title,
-                    PNG_folder=here::here(base_dir, "PNGs", "Europe", period, scenario),
-                    PDF_folder=here::here(base_dir, "PDFs", "Europe", period, scenario),
+                    PNG_folder=file.path(base_dir, "PNGs", "Europe", period, scenario),
+                    PDF_folder=file.path(base_dir, "PDFs", "Europe", period, scenario),
                     filename = filename)
         }
         
@@ -676,8 +677,8 @@ with_progress({
                                                    class = c("Absent", "Present"))
           
           #Store raster
-          future_europe_folder <- here::here(base_dir, "Rasters", "Europe", period, scenario)
-          binary_file <- here::here(future_europe_folder, paste0(basefile, period,"_",scenario,"_final_binary",mtp_thr,".tif"))
+          future_europe_folder <- file.path(base_dir, "Rasters", "Europe", period, scenario)
+          binary_file <- file.path(future_europe_folder, paste0(basefile, period,"_",scenario,"_final_binary",mtp_thr,".tif"))
           terra::writeRaster(binary_map_future, filename = binary_file, overwrite = TRUE)
           
           # Export binarized ensemble predictions as PDF and PNG with and without occurrences 
@@ -697,8 +698,8 @@ with_progress({
                       LabelValue= mtp_label,
                       LabelName="MTP threshold",
                       PDF_title=PDF_title,
-                      PNG_folder=here::here(base_dir, "PNGs","Europe", period, scenario),
-                      PDF_folder=here::here(base_dir, "PDFs", "Europe",period, scenario),
+                      PNG_folder=file.path(base_dir, "PNGs","Europe", period, scenario),
+                      PDF_folder=file.path(base_dir, "PDFs", "Europe",period, scenario),
                       filename=filename)
           }
         }
@@ -791,20 +792,20 @@ with_progress({
    
     #Save eumodel as .qs file
     qs::qsave(eumodel, 
-              here::here(base_dir, paste0("EU_model_",speciesName,"_",taxonkey,".qs"))) 
+              file.path(base_dir, paste0("EU_model_",speciesName,"_",taxonkey,".qs"))) 
     
     
     #--------------------------------------------
     #- ------ Save rasters-----------------------
     #--------------------------------------------
     # Export continuous suitability raster
-    clim_hab_file <- here::here(base_dir, "Rasters","Europe", "Current",
+    clim_hab_file <- file.path(base_dir, "Rasters","Europe", "Current",
                                paste0(paste0(basefile, "final_hist_ensemble.tif")))
     
     terra::writeRaster(clim_hab, filename = clim_hab_file, overwrite = T)
     
     # Export binary raster — 1% threshold
-    clim_hab_binary_1pct_file <- here::here(raster_EU_folder,
+    clim_hab_binary_1pct_file <- file.path(raster_EU_folder,
                                            paste0("Climate_Habitat_binary_1pct_",
                                                   speciesName,
                                                   "_", 
@@ -814,7 +815,7 @@ with_progress({
     terra::writeRaster(clim_hab_binary_1pct, filename = clim_hab_binary_1pct_file, overwrite = T)
     
     # Export binary raster — 5% threshold
-    clim_hab_binary_5pct_file <- here::here(raster_EU_folder, 
+    clim_hab_binary_5pct_file <- file.path(raster_EU_folder, 
                                            paste0("Climate_Habitat_binary_5pct_",
                                                   speciesName,
                                                   "_",
