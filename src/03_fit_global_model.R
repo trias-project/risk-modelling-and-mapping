@@ -284,21 +284,24 @@ with_progress({
     #----------- Load species details -----------
     #--------------------------------------------
     species <- names(split_df)[i]
-    print(species)
+    taxonkey<- unique(split_df[[i]]$acceptedTaxonKey)
     speciesName <- sub("^(\\w+)\\s+(\\w+).*", "\\1_\\2", species)  # Extract first two words of species name
-    global.occ.LL.cleaned<-split_df[[i]]
-    taxonkey<-unique(global.occ.LL.cleaned$acceptedTaxonKey)
-    speciesgroup<-unique(global.occ.LL.cleaned$Group)
-    global.occ.LL.cleaned<-global.occ.LL.cleaned %>%
+    speciesgroup<-unique(split_df[[i]]$Group)
+    
+    
+    #--------------------------------------------
+    #----------- Load occurrence data -----------
+    #--------------------------------------------
+    global.occ.LL.cleaned<-split_df[[i]]%>%
       dplyr::select(c(decimalLongitude,decimalLatitude))
     global.occ_1KM<-cleaned_1km %>%
-      filter(acceptedTaxonKey == taxonkey)
+      dplyr::filter(acceptedTaxonKey == taxonkey)
     
     #Generate file for informing PA selection containing all occurrences (no thinning, in case we thinned split_df)
     for_PA_selection <- split_df_all_occs[[i]] %>%
       dplyr::select(c(decimalLongitude, decimalLatitude))%>%
-      sf::st_as_sf(coords = c("decimalLongitude", "decimalLatitude"),
-                   crs = 4326)
+      sf::st_as_sf(coords = c("decimalLongitude", "decimalLatitude"),crs = 4326)
+ 
     
     #---------------------------------------------
     #-- Prepare filenames and titles for export --
