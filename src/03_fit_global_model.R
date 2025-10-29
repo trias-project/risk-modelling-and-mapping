@@ -735,6 +735,13 @@ with_progress({
     # Favourability transformation
     fav_vals <- lapply(pred_vals, function(p) favourability_from_prob(p[[1]], prev_ratio))
     
+    #Create one df with the median favorability value for each occurrence
+    fav_vals <- fav_vals %>%
+      do.call(cbind, .) %>%
+      as.data.frame() %>%
+      dplyr::mutate(median = apply(., 1, median, na.rm = TRUE)) %>% #1 = apply to rows
+      dplyr::select(median)
+    
     # Create binary maps
     binary_maps<-list()
     for (probs in mtp_probabilities){
@@ -743,15 +750,13 @@ with_progress({
       mtp_value <- probs*100
       mtp_pct <- paste0(mtp_value, "%")
       
-      # Thresholds
-      thr <- sapply(fav_vals, function(fv) quantile(fv, probs = probs, na.rm = TRUE))
-      
-      # Get the average threshold used for binarization
-      mean_pct <- mean(thr, na.rm = TRUE)
-      cat(paste0("Mean ",mtp_pct," minimum training presence threshold: ", round(mean_pct, 4), "\n"))
+      # Obtain threshold
+      to_omit <- floor(probs * nrow(fav_vals)) #Define how many of lowest ranked occs to omit based on mtp threshold
+      thr <- sort(fav_vals$median)[to_omit + 1]
+      cat(paste0("Mean ",mtp_pct," minimum training presence threshold: ", round(thr, 4), "\n"))
       
       # Create binary raster using MTP threshold
-      binary_map_pct <- consensus_median >= mean_pct  
+      binary_map_pct <- consensus_median >= thr 
       binary_map_pct <- as.factor( binary_map_pct*1) #Convert TRUE/FALSE to 1/0 and then to Present/Absent
       levels( binary_map_pct) <- data.frame(ID = c(0, 1),
                                             class = c("Absent", "Present"))
@@ -776,7 +781,7 @@ with_progress({
                   returnPNG = TRUE,
                   occ_data=occs,
                   exportPNG=TRUE,
-                  LabelValue= round(mean_pct,3),
+                  LabelValue= round(thr,3),
                   LabelName=paste0(mtp_pct, " MTP threshold"),
                   Label2Value=round(global_EU_sensitivity,3),
                   Label2Name="Sensitivity",
@@ -786,10 +791,10 @@ with_progress({
                   filename = filename)
       }
       
-      assign(paste0(mtp_value,"pct"), mean_pct)
-      binary_maps[[mtp_pct]]<-list(binary_raster=binary_map_pct,
+      assign(paste0(mtp_value,"pct"), thr)
+      binary_maps[[mtp_pct]] <- list(binary_raster=binary_map_pct,
                                    EU_sensitivity=global_EU_sensitivity,
-                                   mean_MTP=mean_pct)
+                                   mean_MTP= thr)
       rm(binary_map_pct, binary_file)
     }
     
