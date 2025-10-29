@@ -386,19 +386,16 @@ with_progress({
         
         # K-means clustering
         set.seed(101)
-        clust <- kmeans(env_data, centers = n_clusters,iter.max = 10, nstart = 1)$cluster
+        clust <- kmeans(env_data, centers = 10000,iter.max = 10, nstart = 1)$cluster
         occ_env <- cbind(global.occ.sf, env_data, clust)
         
-        # Sample within clusters
-        max_per_cluster <- 10000/n_clusters
-        row_sample <- sapply(1:10000, function(x) {
-          rowids <- which(clust == x)
-          sample(rowids, min(max_per_cluster, length(rowids)), replace = FALSE)
-        })
-        
-        #Get final dataframe
-        global.occ.sf <- occ_env[row_sample,] %>%
+        global.occ.sf <- occ_env %>%
+          dplyr::group_by(clust) %>%
+          dplyr::slice_sample(n = 1) %>%
+          dplyr::ungroup() %>%
           dplyr::select(decimalLongitude, decimalLatitude, geometry, species)
+        
+        rm(env_data, occ_env)
 
       }
     }
