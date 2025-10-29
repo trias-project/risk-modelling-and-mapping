@@ -239,15 +239,15 @@ wwf_eco_biome<-sf::st_read(file.path("./data/external/GIS/official/newRealms.shp
 #--------------------------------------------
 bias_grid_folder<-file.path("data","external", "bias_grids")
 bias_grid_paths <- list(
-  Plants = file.path(bias_grid_folder, "plants_10km_bias_layer_log.tif"), #0-13.24
-  Amphibians = file.path(bias_grid_folder, "amphibians_10km_bias_layer_log.tif"),#0-12.06
+  Plants = file.path(bias_grid_folder, "log_plants_1degree_layer.tif"), #0-13.24
+  Amphibians = file.path(bias_grid_folder, "log_amphibians_1degree_layer.tif"),#0-12.06
   Birds = file.path(bias_grid_folder, "birds_1deg_min5.tif"),#5-1703018
-  Mammals = file.path(bias_grid_folder, "mammals_10km_bias_layer_log.tif"), #0-13.36
-  Molluscs = file.path(bias_grid_folder, "mollusca_10km_bias_layer_log.tif"),#0-12.48
-  Reptiles = file.path(bias_grid_folder, "reptiles_10km_bias_layer_log.tif"), #0-11.34
-  Fish = file.path(bias_grid_folder, "fish_10km_bias_layer_log.tif"),#0-14.67
-  Malacostraca = file.path(bias_grid_folder, "malacostraca_10km_bias_layer_log.tif"),#0-13.12
-  Insects = file.path(bias_grid_folder, "insects_10km_bias_layer_log.tif")) #0-15.78
+  Mammals = file.path(bias_grid_folder, "log_mammals_1degree_layer.tif"), #0-13.36
+  Molluscs = file.path(bias_grid_folder, "log_mollusca_1degree_layer.tif"),#0-12.48
+  Reptiles = file.path(bias_grid_folder, "log_reptiles_1degree_layer.tif"), #0-11.34
+  Fish = file.path(bias_grid_folder, "log_fish_1degree_layer.tif"),#0-14.67
+  Malacostraca = file.path(bias_grid_folder, "log_malacostraca_1degree_layer.tif"),#0-13.12
+  Insects = file.path(bias_grid_folder, "log_insects_1degree_layer.tif")) #0-15.78
 
 
 #--------------------------------------------
