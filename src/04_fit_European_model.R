@@ -216,27 +216,27 @@ with_progress({
     #-----------------------------------------------
     if(nrow(eu_occ) > 10000){
       if(occurrence_thinning_method == "random"){
+        print("Thinning occurrences randomly")
         set.seed(101) 
         eu_occ <- eu_occ[sample(nrow(eu_occ), 10000, replace=FALSE), ]
       }else if (occurrence_thinning_method == "kmeans_clustering"){
+        print("Thinning occurrences based on k-means clustering")
         #Extract environmental data in each occurrence grid cell
         habitat_data <- terra::extract(habitat_stack, eu_occ, ID = FALSE)
         
         # K-means clustering
         set.seed(101)
-        clust <- kmeans(habitat_data, centers = n_clusters,iter.max = 10, nstart = 1)$cluster
+        clust <- kmeans(habitat_data, centers = 10000,iter.max = 10, nstart = 1)$cluster
         occ_habitat <- cbind(eu_occ, habitat_data, clust)
         
-        # Sample within clusters
-        max_per_cluster <- 10000/n_clusters
-        row_sample <- sapply(1:10000, function(x) {
-          rowids <- which(clust == x)
-          sample(rowids, min(max_per_cluster, length(rowids)), replace = FALSE)
-        })
-        
-        #Get final dataframe
-        eu_occ <- occ_habitat[row_sample,] %>%
+        # Keep 1 occurrence per cluster
+        eu_occ <- occ_habitat %>%
+          dplyr::group_by(clust) %>%
+          dplyr::slice_sample(n = 1) %>%
+          dplyr::ungroup() %>%
           dplyr::select(decimalLongitude, decimalLatitude, geometry, species)
+        
+        rm(habitat_data, occ_habitat)
         
       }
     }
