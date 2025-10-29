@@ -361,7 +361,7 @@ with_progress({
     #------ Process occurrence data -----
     #--------------------------------------------
     #Keep only one occurrence per grid cell
-    global.occ.LL.cleaned <- remove_duplicates(occurrences = global.occ.LL.cleaned, rast_template = globalclimpreds_terra)
+    global.occ.LL.cleaned <- remove_duplicates(occurrences = global.occ.LL.cleaned, rast_template = globalclimpreds_terra[[1]])
     
     #Remove occurrences within grid cells with NA values
     global.occ.sf <- remove_nodata_occurrences(occurrences = global.occ.LL.cleaned, rast_template=globalclimpreds_terra, crs=4326)
