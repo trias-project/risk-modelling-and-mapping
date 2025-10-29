@@ -1062,7 +1062,7 @@ with_progress({
     #--------------------------------------------
     #------------------ Clean up-----------------
     #--------------------------------------------
-    rm(list = setdiff(ls(), c("p","wwf_eco_biome","eu_climpreds.10", "split_df",  "decimalplaces", "globalclimpreds_terra","bias_grid_paths", "i", "world", "project", "create_folder", "split_df_all_occs", "exportPDF", "remove_duplicates", "remove_nodata_occurrences", "favourability_from_prob", "cleaned_1km", "occurrence_thinning_method", "n_clusters", "ssp126_2041-2070","ssp370_2041-2070","ssp585_2041-2070","ssp126_2071-2100","ssp370_2071-2100","ssp585_2071-2100")))
+    rm(list = setdiff(ls(), c("p","wwf_eco_biome","eu_climpreds.10", "split_df",  "decimalplaces", "globalclimpreds_terra","bias_grid_paths", "i", "world", "project", "create_folder", "split_df_all_occs", "exportPDF", "remove_duplicates", "remove_nodata_occurrences", "favourability_from_prob", "cleaned_1km", "occurrence_thinning_method", "n_clusters", "ssp126_2041-2070","ssp370_2041-2070","ssp585_2041-2070","ssp126_2071-2100","ssp370_2071-2100","ssp585_2071-2100", "mtp_probabilities")))
    
   }
 })
