@@ -552,7 +552,7 @@ with_progress({
     #---- Extract climate data for modelling-----
     #--------------------------------------------
     global.data.df <- sdm::sdmData(species~.,train=vect(global_presabs),
-                                   predictors=globalclimpreds_terra)%>%
+                                   predictors = globalclimpreds_terra)%>%
                       as.data.frame()
     
     
@@ -740,7 +740,7 @@ with_progress({
     for (probs in mtp_probabilities){
       
       #Define mtp_pct and mtp_value
-      mtp_value<- probs*100
+      mtp_value <- probs*100
       mtp_pct <- paste0(mtp_value, "%")
       
       # Thresholds
@@ -761,12 +761,12 @@ with_progress({
       global_EU_sensitivity <- sum(occ_values == "Present", na.rm = TRUE) / sum(occ_values %in% c("Present", "Absent"), na.rm = TRUE)
       
       #Store raster
-      raster_folder=file.path(base_dir, "Climate","Current", "Predictions", "Rasters")
+      raster_folder <- file.path(base_dir, "Climate","Current", "Predictions", "Rasters")
       binary_file <- file.path (raster_folder, paste0(basefile,"current_binary",mtp_value,"pct.tif"))
       terra::writeRaster(binary_map_pct, filename = binary_file, overwrite = TRUE)
       
       # export as PDF and PNG with and without occurrences plotted 
-      base_file<- paste0(basefile, "current_binary",mtp_value,"pct")
+      base_file <- paste0(basefile, "current_binary",mtp_value,"pct")
       for (occs in list(NULL, global.occ.sf)){
         filename <- ifelse(is.null(occs), base_file, paste0(base_file, "_occ"))
         exportPDF(predictions = binary_map_pct,
@@ -803,7 +803,7 @@ with_progress({
         print(paste("[FUTURE] Projecting:", period,scenario))
         
         #Get climate data for specific period and scenario
-        future_rast<-get(paste0(scenario, "_", period))
+        future_rast <- get(paste0(scenario, "_", period))
         
         # Keep relevant predictors in the raster stack
         eu_future_selection <- future_rast %>%
