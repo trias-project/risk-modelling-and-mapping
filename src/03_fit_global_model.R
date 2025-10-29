@@ -185,10 +185,9 @@ for (period in c("2041-2070","2071-2100")){
     future_stack <- terra::rast(future_files)
     
     #Aggregate at a resolution of 5km
-    future_stack<- terra::aggregate(future_stack, fact=5, fun=mean, na.rm=TRUE)
+    future_stack <- terra::aggregate(future_stack, fact=5, fun = mean, na.rm=TRUE)
     
     #Reproject future stack to match CRS and resolution of eu_climpreds.10
-    #TODO: Regenerate these rasters so this is not necessary
     future_aligned <- terra::project(
       future_stack,
       eu_climpreds.10,
@@ -223,13 +222,6 @@ world<-rnaturalearth::ne_countries(scale=50)
 #--------------Load ecoregions --------------
 #--------------------------------------------
 wwf_eco_biome<-sf::st_read(file.path("./data/external/GIS/official/newRealms.shp")) 
-
-
-# Dissolve by BIOME
-#wwf_eco_biome <- wwf_eco %>%
-#  group_by(BIOME) %>%
-#  summarise(geometry = sf::st_union(geometry), .groups = "drop") %>%
-#  sf::st_as_sf()
 
 # Optionally, make geometry valid
 #wwf_eco_biome <- sf::st_make_valid(wwf_eco)
