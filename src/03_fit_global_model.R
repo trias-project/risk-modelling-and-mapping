@@ -693,31 +693,6 @@ with_progress({
     # Step 7: Compute pixel-wise median = consensus model
     consensus_median <- app(top5_stack, median)
     
-
-    #------------------------------------------
-    #-Calculate Boyce index to display on map--
-    #------------------------------------------
-    #Extract all raster values (excluding NAs)
-    all_suit_vals <- values(consensus_median)
-    all_suit_vals <- all_suit_vals[!is.na(all_suit_vals)]
-    
-    #Extract suitability values at occurrence locations
-    occ_suit_vals <- terra::extract(consensus_median, vect(global.occ.sf))[,2]
-    occ_suit_vals <- occ_suit_vals[!is.na(occ_suit_vals)]
-    
-    #Compute Boyce only if there are enough occurrences
-    if (length(occ_suit_vals) > 0) {
-      boyce_result <- ecospat.boyce(
-        fit = all_suit_vals,
-        obs = occ_suit_vals,
-        nclass = 0
-      )
-      boyce_val <- round(boyce_result$cor, 3)
-    } else {
-      warning(paste("No EU occurrences available to calculate Boyce index for", species))
-      boyce_val <- "NA (no EU data)"
-    }
-    
     
     #------------------------------------------
     #-- Create map with ensemble suitability --
@@ -736,8 +711,6 @@ with_progress({
                 returnPNG = FALSE,
                 occ_data=occs,
                 exportPNG=TRUE,
-                LabelValue= boyce_val,
-                LabelName="Boyce index",
                 PDF_title = PDF_title,
                 PNG_folder=file.path(base_dir, "Climate", "Current", "Predictions", "PNGs"),
                 PDF_folder=file.path(base_dir, "Climate", "Current", "Predictions","PDFs"),
@@ -1023,7 +996,6 @@ with_progress({
                         sdm_model = model,
                         pca_result = pca_result,
                         top5_models = top5_models,
-                        final_boyce = boyce_val,
                         global_EU_sensitivity_5pct_threshold =  binary_maps$`5%`$EU_sensitivity,
                         global_EU_sensitivity_1pct_threshold =  binary_maps$`1%`$EU_sensitivity,
                         response_df = response_df,
