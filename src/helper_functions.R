@@ -62,7 +62,7 @@ remove_nodata_occurrences <- function(occurrences, rast_template, crs){
   
   #Remove occurrences in NA cells and convert to sf
   occurrences <- terra::extract(rast_template, occurrences, xy = T, ID = F) %>%
-    dplyr::filter(rowSums(is.na(.[, 1:(ncol(.) - 2)])) == 0) %>% 
+    dplyr::filter(!is.na(.[[1]])) %>%   # keep only rows where first column is not NA
     dplyr::select(c(x,y)) %>%
     dplyr::rename(decimalLongitude = x,
                   decimalLatitude = y) %>%

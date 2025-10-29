@@ -364,7 +364,7 @@ with_progress({
     global.occ.LL.cleaned <- remove_duplicates(occurrences = global.occ.LL.cleaned, rast_template = globalclimpreds_terra[[1]])
     
     #Remove occurrences within grid cells with NA values
-    global.occ.sf <- remove_nodata_occurrences(occurrences = global.occ.LL.cleaned, rast_template=globalclimpreds_terra, crs=4326)
+    global.occ.sf <- remove_nodata_occurrences(occurrences = global.occ.LL.cleaned, rast_template=globalclimpreds_terra[[1]], crs=4326)
     
     #add column indicating species presence (1) for modeling
     global.occ.sf$species <- rep(1, nrow(global.occ.sf)) 
