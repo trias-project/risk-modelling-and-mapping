@@ -22,19 +22,14 @@ source(pr("src","Configurations.R"))
 
 
 #--------------------------------------------
-#---------   Load shape of Europe   ---------
+#-------- Load European habitat rasters -----
 #--------------------------------------------
-euboundary <- sf::st_read(here("./data/external/GIS/Europe/EUROPE.shp")) 
-
-
-#--------------------------------------------
-#-------- Prepare habitat rasters (once) ----
-#--------------------------------------------
-habitat_files  <- list.files(pr("data/external/habitat"), pattern = 'tif$', full.names = TRUE)
+# Load all habitat rasters
+habitat_files <- list.files(file.path("./data/external/habitat"), pattern = 'tif$', full.names = TRUE)
 habitat_rasters <- lapply(habitat_files, terra::rast)
 
-# Compute common intersection extent across all rasters
-common_ext <- Reduce(terra::intersect, lapply(habitat_rasters, terra::ext))
+# compute common intersection extent across all rasters
+common_ext <- Reduce(intersect, lapply(habitat_rasters, ext))
 
 # Crop all rasters to the common (smallest) extent
 habitat_rasters <- lapply(habitat_rasters, terra::crop, common_ext)
@@ -43,18 +38,20 @@ habitat_rasters <- lapply(habitat_rasters, terra::crop, common_ext)
 habitat_stack <- terra::rast(habitat_rasters)
 rm(habitat_rasters)
 
-# Scale + mask
+#Scale habitat rasters
 habitat_stack <- terra::scale(habitat_stack, center = TRUE, scale = TRUE)
-ref <- habitat_stack[[1]]
-habitat_stack <- terra::mask(habitat_stack, ref)
 
-# Persist single multi-layer for workers
-hab_cache_dir <- pr("data/external/habitat/_cache")
-dir.create(hab_cache_dir, recursive = TRUE, showWarnings = FALSE)
-habitat_path <- file.path(hab_cache_dir, "EU_habitat_scaled_masked.tif")
-terra::writeRaster(habitat_stack, filename = habitat_path, overwrite = TRUE)
+#Obtain target CRS
+target_crs <- sf::st_crs(terra::crs(habitat_stack))  # WKT-aware
 
-rm(habitat_stack, ref); gc()
+
+#---------------------------------------------
+#----- Remove NA pixels from predictors ------
+#---------------------------------------------
+#This is to avoid that some layers have NA while others have values in certain pixels
+na_mask_habitat_stack <- anyNA(habitat_stack)
+habitat_stack <- terra::mask(habitat_stack, na_mask_habitat_stack, maskvalue=1)
+
 
 #---------------------------------------------
 #--------- Load WWF ecoregions file ----------
