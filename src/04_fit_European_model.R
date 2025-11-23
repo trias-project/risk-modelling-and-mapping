@@ -493,19 +493,29 @@ with_progress({
     # Step 7: Compute pixel-wise median = consensus model
     consensus_habitat <- app(top5_stack, median)
 
-   
-    #------------------------------------------------------------    
-    #-- Create final predictions combining habitat and climate --
-    #------------------------------------------------------------
-    #Combine suitability predictions by global model (climate) and EU habitat model
-    clim_hab <- sqrt(consensus_habitat * global_climate_for_eu)
     
-    #Extract suitability predictions of EU occurrences
-    vals_occ <- terra::extract(clim_hab, terra::vect(eu_occ), ID=FALSE)
+    #--------------------------------------------------
+    #-- Create map with ensemble habitat suitability --
+    #--------------------------------------------------
+    #Define name of files
+    base_file <- paste0(basefile, "current_ensemble")
     
-    #Define 5% and 1% reclassification thresholds
-    threshold_5pct <- quantile(vals_occ, probs = 0.05, na.rm = TRUE)
-    threshold_1pct <- quantile(vals_occ, probs = 0.01, na.rm = TRUE)
+    #Export PDFs with and without occurrences plotted
+    for (occs in list(NULL, eu_occ)){
+      filename <- ifelse(is.null(occs), base_file, paste0(base_file, "_occ"))
+      
+      exportPDF(predictions = consensus_habitat,
+                dataType = "Suit",
+                scenario = "Current",
+                returnPredictions = FALSE,
+                returnPNG = FALSE,
+                occ_data=occs,
+                exportPNG=TRUE,
+                PDF_title = PDF_title,
+                PNG_folder=file.path(base_dir, "Habitat", "Current", "Predictions", "PNGs"),
+                PDF_folder=file.path(base_dir, "Habitat", "Current", "Predictions","PDFs"),
+                filename = filename)
+    }
     
     # Create binary map: 1 if ≥ threshold, 0 otherwise
     clim_hab_binary_1pct <- clim_hab >= threshold_1pct
