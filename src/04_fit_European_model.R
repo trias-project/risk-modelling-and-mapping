@@ -115,8 +115,9 @@ with_progress({
     PDF_title<-bquote(italic(.(gsub("_", " ", speciesName))) ~ .(nameExtension) ~ "(" * .(taxonkey) * ")")
     
     #Prepare current and future basefile
-    basefile<-  paste0(speciesName, "_Europe_")
-    global_basefile<-  paste0(speciesName, "_", taxonkey, "_Global_")
+    basefile<-  paste0(speciesName, "_Habitat_")
+    combined_basefile<-  paste0(speciesName, "_Combined_")
+    global_basefile<-  paste0(speciesName, "_Climate_")
     
     #--------------------------------------------
     #-- Define file path of global model file  --
@@ -162,9 +163,9 @@ with_progress({
     #--------------- Create EU folders ---------------
     #-------------------------------------------------
     # Define outputs, periods, and scenarios
-    outputs   <- c("Rasters", "PDFs", "PNGs")
     periods   <- c("Current","2041-2070", "2071-2100")
     scenarios <- c("ssp126", "ssp370", "ssp585")
+    outputs   <- c("Rasters", "PDFs", "PNGs")
     
     #Create folders for each combination
     scenario_folders <- list()
