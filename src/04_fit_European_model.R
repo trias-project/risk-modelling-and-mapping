@@ -700,45 +700,59 @@ with_progress({
     #------------------------------------------
     #------------ Create binary map -----------
     #------------------------------------------
-    binary_maps <- list( "0.05" = list( binary_raster = clim_hab_binary_5pct,
-                                        EU_sensitivity = final_sensitivity_5pct,
-                                        boyce = boyce_val,
-                                        mtp_pct = "5%",
-                                        mtp_value = 5),
-                         "0.01" = list(binary_raster = clim_hab_binary_1pct,
-                                       EU_sensitivity = final_sensitivity_1pct,
-                                       boyce = boyce_val,
-                                       mtp_pct = "1%",
-                                       mtp_value = 1))
+    # Get predicted values at occurrence points
+    vals_occ <- terra::extract(clim_hab, terra::vect(eu_occ), ID=FALSE)
     
-    for (pct in seq_along(binary_maps)){
+    # Create binary maps
+    for (probs in mtp_probabilities){
       
-      binary_map_pct <- binary_maps[[pct]]$binary_raster
-      EU_sensitivity <- binary_maps[[pct]]$EU_sensitivity
-      mtp_pct <- binary_maps[[pct]]$mtp_pct
-      mtp_value <- binary_maps[[pct]]$mtp_value
-      #boyce_ind <- binary_maps[[pct]]$boyce
+      #Define mtp_pct and mtp_value
+      mtp_value<- probs*100
+      mtp_pct <- paste0(mtp_value, "%")
       
-      # export as PDF and PNG with and without occurrences plotted and return as PNG
-      base_file<- paste0(basefile, "_hist_ensemble_binary",mtp_value,"pct")
+      # Obtain threshold
+      to_omit <- floor(probs * nrow(vals_occ)) #Define how many of lowest ranked occs to omit based on mtp threshold
+      thr <- sort(vals_occ[[1]])[to_omit + 1]
+      cat(paste0("Mean ",mtp_pct," minimum training presence threshold: ", round(thr, 4), "\n"))
+      
+      # Create binary raster using MTP threshold
+      binary_map_pct <- consensus_habitat >= thr 
+      binary_map_pct <- as.factor( binary_map_pct*1) #Convert TRUE/FALSE to 1/0 and then to Present/Absent
+      levels( binary_map_pct) <- data.frame(ID = c(0, 1),
+                                            class = c("Absent", "Present"))
+      
+      #Store raster
+      raster_folder <- file.path(base_dir, "Combined","Current", "Predictions", "Rasters")
+      binary_file <- file.path (raster_folder, paste0(combined_basefile,"current_binary",mtp_value,"pct.tif"))
+      terra::writeRaster(binary_map_pct, filename = binary_file, overwrite = TRUE)
+      
+      # Calculate sensitivity in Europe
+      occ_values <- terra::extract(binary_map_pct, vect(eu_occ))[,2]  
+      combined_EU_sensitivity <- sum(occ_values == "Present", na.rm = TRUE) / sum(occ_values %in% c("Present", "Absent"), na.rm = TRUE)
+      
+      # export as PDF and PNG with and without occurrences plotted 
+      base_file<- paste0(combined_basefile, "current_binary",mtp_value,"pct")
       for (occs in list(NULL, eu_occ)){
         filename <- ifelse(is.null(occs), base_file, paste0(base_file, "_occ"))
         exportPDF(predictions = binary_map_pct,
                   dataType = "Binary",
-                  scenario = "hist",
+                  scenario = "Current",
                   returnPredictions = FALSE,
-                  returnPNG = FALSE,
+                  returnPNG = TRUE,
                   occ_data=occs,
                   exportPNG=TRUE,
-                  LabelValue= mtp_pct,
-                  LabelName="MTP threshold",
-                  Label2Value=round(EU_sensitivity,3),
+                  LabelValue= round(thr,3),
+                  LabelName=paste0(mtp_pct, " MTP threshold"),
+                  Label2Value=round(combined_EU_sensitivity,3),
                   Label2Name="Sensitivity",
                   PDF_title = PDF_title,
-                  PNG_folder=here::here(base_dir, "PNGs", "Europe","Current"),
-                  PDF_folder=here::here(base_dir, "PDFs","Europe" ,"Current"),
+                  PNG_folder=file.path(base_dir, "Combined","Current", "Predictions", "PNGs"),
+                  PDF_folder=file.path(base_dir,"Combined" ,"Current", "Predictions", "PDFs"),
                   filename = filename)
       }
+      
+      assign(paste0(mtp_value,"pct"), thr)
+      rm(binary_map_pct, binary_file, thr, combined_EU_sensitivity)
     }
 
     
