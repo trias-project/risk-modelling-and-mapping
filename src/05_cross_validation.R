@@ -98,15 +98,6 @@ with_progress({
     terra::terraOptions(tempdir = td_terra, memfrac = 0.6, todisk = TRUE)
     raster::rasterOptions(tmpdir = td_raster, chunksize = 1e7, maxmemory = 1e8)
     
-    # Disable s2 + cleanup on exit
-    old_s2 <- sf::sf_use_s2(FALSE)
-    on.exit({
-      try(sf::sf_use_s2(old_s2), silent = TRUE)
-      try(unlink(td_terra,  recursive = TRUE, force = TRUE), silent = TRUE)
-      try(unlink(td_raster, recursive = TRUE, force = TRUE), silent = TRUE)
-      gc()
-    }, add = TRUE)
-    
   #--------------------------------------------
   #--------Extract species-specific data  -----
   #--------------------------------------------
