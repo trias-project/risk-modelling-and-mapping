@@ -85,6 +85,8 @@ with_progress({
     #---------------Map progress  ---------------
     #--------------------------------------------
     p()
+    start_time <- Sys.time()
+    
     
     #--------------------------------------------
     #--------Extract species-specific data  -----
@@ -867,8 +869,13 @@ with_progress({
     #--------------------------------------------
     #-------- End of loop -----------------------
     #--------------------------------------------
-    print(paste("European model has been created for", species_title))
-    rm(list = setdiff(ls(), c("p", "project",  "create_folder",  "euboundary", "habitat_stack",  "accepted_taxonkeys", "taxa_info", "key", "exportPDF", "remove_duplicates", "wwf_eco_biome", "remove_nodata_occurrences", "favourability_from_prob", "mtp_probabilities")))
+    end_time <- Sys.time()
+    elapsed<-difftime(end_time, start_time, units="mins")
+    cat("Habitat and ensemble model have been created for", species_title, "in", round(elapsed, 2), "minutes\n\n")
+    
+    rm(list = setdiff(ls(), c("p", "project",  "create_folder",  "euboundary", "habitat_stack",  "accepted_taxonkeys", "taxa_info", "key", "exportPDF", "remove_duplicates", "wwf_eco_biome", "remove_nodata_occurrences", "favourability_from_prob", "mtp_probabilities", "occurrence_thinning_method", "mtp_probabilities")))
+    
+    
   }
 })
 
