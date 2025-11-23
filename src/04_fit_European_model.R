@@ -518,6 +518,10 @@ with_progress({
                 PDF_folder=file.path(base_dir, "Habitat", "Current", "Predictions","PDFs"),
                 filename = filename)
     }
+    # Export ensemble raster (favorability) 
+    current_habitat_folder <- file.path(base_dir, "Habitat", "Current", "Predictions", "Rasters")
+    habitat_ensemble_file <- file.path(current_habitat_folder, paste0(base_file,".tif"))
+    terra::writeRaster(consensus_habitat, filename = habitat_ensemble_file, overwrite = TRUE)
     
     
     #------------------------------------------
