@@ -517,34 +517,84 @@ with_progress({
                 filename = filename)
     }
     
-    # Create binary map: 1 if ≥ threshold, 0 otherwise
-    clim_hab_binary_1pct <- clim_hab >= threshold_1pct
-    clim_hab_binary_5pct <- clim_hab >= threshold_5pct
     
-    # Convert TRUE FALSE to present Absent
-    clim_hab_binary_1pct <- as.factor( clim_hab_binary_1pct*1) 
-    levels(clim_hab_binary_1pct) <- data.frame(ID = c(0, 1),
-                                          class = c("Absent", "Present"))
-
-    clim_hab_binary_5pct <- as.factor( clim_hab_binary_5pct*1) 
-    levels(clim_hab_binary_5pct) <- data.frame(ID = c(0, 1),
-                                               class = c("Absent", "Present"))
+    #------------------------------------------
+    #------------ Create binary map -----------
+    #------------------------------------------
+    # Get predictor values at occurrence points
+    predictors_only <- occ.full.data.df%>%
+      dplyr::filter(occ=="present")%>%
+      dplyr::select(-occ)
+    
+    # Predict for top 5 models
+    pred_vals <- list()
+    for (method in top5_models) {
+      pred_vals[[method]] <- predict(model, newdata = predictors_only, method = tolower(method))
+    }
+    
+    # Favourability transformation
+    fav_vals <- lapply(pred_vals, function(p) favourability_from_prob(p[[1]], prev_ratio))
+    
+    #Create one df with the median favorability value for each occurrence
+    fav_vals <- fav_vals %>%
+      do.call(cbind, .) %>%
+      as.data.frame() %>%
+      dplyr::mutate(median = apply(., 1, median, na.rm = TRUE)) %>% #1 = apply to rows
+      dplyr::select(median)
+    
+    # Create binary maps
+    for (probs in mtp_probabilities){
+      
+      #Define mtp_pct and mtp_value
+      mtp_value<- probs*100
+      mtp_pct <- paste0(mtp_value, "%")
+      
+      # Obtain threshold
+      to_omit <- floor(probs * nrow(fav_vals)) #Define how many of lowest ranked occs to omit based on mtp threshold
+      thr <- sort(fav_vals$median)[to_omit + 1]
+      cat(paste0("Mean ",mtp_pct," minimum training presence threshold habitat model: ", round(thr, 4), "\n"))
+      
+      # Create binary raster using MTP threshold
+      binary_map_pct <- consensus_habitat >= thr  
+      binary_map_pct <- as.factor( binary_map_pct*1) #Convert TRUE/FALSE to 1/0 and then to Present/Absent
+      levels( binary_map_pct) <- data.frame(ID = c(0, 1),
+                                            class = c("Absent", "Present"))
+      
+      # Calculate sensitivity in Europe
+      occ_values <- terra::extract(binary_map_pct, vect(eu_occ))[,2]  
+      global_EU_sensitivity <- sum(occ_values == "Present", na.rm = TRUE) / sum(occ_values %in% c("Present", "Absent"), na.rm = TRUE)
+      
+      #Store raster
+      raster_folder <- file.path(base_dir, "Habitat","Current", "Predictions", "Rasters")
+      binary_file <- file.path (raster_folder, paste0(basefile,"current_binary",mtp_value,"pct.tif"))
+      terra::writeRaster(binary_map_pct, filename = binary_file, overwrite = TRUE)
+      
+      # export as PDF and PNG with and without occurrences plotted 
+      base_file<- paste0(basefile, "current_binary",mtp_value,"pct")
+      for (occs in list(NULL, eu_occ)){
+        filename <- ifelse(is.null(occs), base_file, paste0(base_file, "_occ"))
+        exportPDF(predictions = binary_map_pct,
+                  dataType = "Binary",
+                  scenario = "Current",
+                  returnPredictions = FALSE,
+                  returnPNG = TRUE,
+                  occ_data=occs,
+                  exportPNG=TRUE,
+                  LabelValue= round(thr,3),
+                  LabelName=paste0(mtp_pct, " MTP threshold"),
+                  Label2Value=round(global_EU_sensitivity,3),
+                  Label2Name="Sensitivity",
+                  PDF_title = PDF_title,
+                  PNG_folder=file.path(base_dir, "Habitat","Current", "Predictions", "PNGs"),
+                  PDF_folder=file.path(base_dir,"Habitat" ,"Current", "Predictions", "PDFs"),
+                  filename = filename)
+      }
+      
+      assign(paste0(mtp_value,"pct_habitat_threshold"), thr)
+      rm(binary_map_pct, binary_file, thr)
+    }
     
     
-    #------------------------------------------------------------    
-    #---------- Calculate sensitivity and Boyce Index -----------
-    #------------------------------------------------------------
-    
-    #SENSITIVITY
-    vals_1pct <- terra::extract(clim_hab_binary_1pct, eu_occ, ID = FALSE)
-    FN_1pct <- sum(vals_1pct$class == "Absent")#Counts false negatives
-    TP_1pct <- sum(vals_1pct$class == "Present") #Counts true positives
-    final_sensitivity_1pct <- TP_1pct / (TP_1pct + FN_1pct)
-    
-    vals_5pct <- terra::extract(clim_hab_binary_5pct, eu_occ, ID = FALSE)
-    FN_5pct <- sum(vals_5pct$class == "Absent") #Counts false negatives
-    TP_5pct  <- sum(vals_5pct$class == "Present") #Counts true positives
-    final_sensitivity_5pct <- TP_5pct / (TP_5pct + FN_5pct)
     #---------------------------------------------
     #-- Get response curves of 5 selected models -
     #---------------------------------------------
