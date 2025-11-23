@@ -775,6 +775,11 @@ with_progress({
         #Final ensemble predictions
         final_ensemble<-sqrt(consensus_habitat * future_climate)
         
+        # Export future ensemble raster (favorability) 
+        future_folder <- file.path(base_dir, "Combined", period, scenario, "Predictions", "Rasters")
+        ensemble_file <- file.path(future_folder, paste0(combined_basefile, period,"_",scenario,"_ensemble.tif"))
+        terra::writeRaster(final_ensemble, filename = ensemble_file, overwrite = TRUE)
+        
         # Export ensemble predictions as PDF and PNG with and without occurrences
         base_file <- paste0(combined_basefile, scenario,"_", period,"_ensemble")
         
