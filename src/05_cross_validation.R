@@ -62,20 +62,12 @@ wwf_eco_biome <- sf::st_read(here("./data/external/GIS/official/wwf_terr_ecos.sh
 
 
 #--------------------------------------------
-#------------- Load species data ------------
+#---------   Load shape of Europe   ---------
 #--------------------------------------------
-taxa_info_path <- pr("data/projects", project, paste0(project, "_taxa_info.csv"))
-stopifnot(file.exists(taxa_info_path))
-taxa_info <- read.csv2(taxa_info_path)
+euboundary <- sf::st_read(here("./data/external/GIS/Europe/EUROPE.shp")) %>%
+  sf::st_make_valid() %>%
+  sf::st_transform(target_crs)
 
-# compact key->name map for workers
-taxon_name_by_key <- setNames(
-  as.character(taxa_info$acceptedScientificName),
-  as.character(taxa_info$acceptedTaxonKey)
-)
-accepted_taxonkeys <- unique(taxa_info$acceptedTaxonKey)
-# accepted_taxonkeys <- accepted_taxonkeys[c(1:10)]
-rm(taxa_info); gc()
 
 #--------------------------------------------
 #------ Prepare results directory upfront ----
