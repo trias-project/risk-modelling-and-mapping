@@ -165,6 +165,16 @@ with_progress({
   taxonkey<- key
   
   
+  #--------------------------------------------
+  #------- Define file paths model files  -----
+  #-------------------------------------------- 
+  base_dir <- file.path("data", "projects", project, paste0(speciesName,"_",taxonkey))
+  climate_model_file <- file.path(base_dir,"Climate",
+                                 paste0("Climate_model_",speciesName,"_",taxonkey,".qs"))
+  habitat_model_file <- file.path(base_dir,"Habitat",
+                                  paste0("Habitat_model_",speciesName,"_",taxonkey,".qs"))
+  
+  
     }
     biasgrid_file <- pr("data", "projects", project, paste0(first_two_words, "_", taxonkey),
                         "Rasters", "Interim", paste0("Biasgrid_", first_two_words, "_", taxonkey, ".tif"))
