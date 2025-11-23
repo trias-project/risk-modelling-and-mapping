@@ -70,10 +70,15 @@ euboundary <- sf::st_read(here("./data/external/GIS/Europe/EUROPE.shp")) %>%
 
 
 #--------------------------------------------
-#------ Prepare results directory upfront ----
+#------------- Load species data -----------
 #--------------------------------------------
-results_dir <- pr("data","projects", project, "Results_CV_Boyce")
-dir.create(results_dir, recursive = TRUE, showWarnings = FALSE)
+taxa_info <- read.csv2(paste0("./data/projects/",project,"/",project,"_taxa_info.csv"))
+accepted_taxonkeys <- taxa_info %>%
+  dplyr::pull(acceptedTaxonKey) %>%
+  unique()
+
+rm(taxa_info); gc()
+
 
 #--------------------------------------------
 #------ Parallel plan & progress setup -------
