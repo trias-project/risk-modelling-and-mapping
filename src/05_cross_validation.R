@@ -143,6 +143,28 @@ with_progress({
     if (!file.exists(EU_model_file_qs)) {
       warning(sprintf("Skipping %s (%s): no EU model file.", species, taxonkey))
       return(list(species = species, taxonkey = taxonkey, skipped = TRUE, reason = "no_EU_qs"))
+  #--------------------------------------------
+  #--------Extract species-specific data  -----
+  #--------------------------------------------
+  #Extract species name
+  species<-taxa_info%>%
+    dplyr::filter(acceptedTaxonKey==key)%>%
+    dplyr::pull(acceptedScientificName)%>%
+    unique()
+  
+  #Extract first two words of species name
+  speciesName <- sub("^(\\w+)\\s+(\\w+).*", "\\1_\\2", species)
+  
+  #Extract rest of species name
+  nameExtension <- if (grepl("^\\S+\\s+\\S+$", species)) "" else sub("^\\S+\\s+\\S+\\s+", "", species)
+  
+  #Specify species for plot title
+  species_title <- gsub("_", " ", speciesName)
+  
+  #Define taxonkey
+  taxonkey<- key
+  
+  
     }
     biasgrid_file <- pr("data", "projects", project, paste0(first_two_words, "_", taxonkey),
                         "Rasters", "Interim", paste0("Biasgrid_", first_two_words, "_", taxonkey, ".tif"))
