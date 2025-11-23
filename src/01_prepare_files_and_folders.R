@@ -35,57 +35,29 @@ source(here::here("src", "00_configurations.R"))
 habitat_folder <- here::here("data","external","habitat")
 country_folder <- here::here("data","external","GIS","Country")
 Europe_folder <- here::here("data","external","GIS","Europe")
-chelsa_eu_folder <- here::here("data","external","climate","chelsa_eu_clips")
-rcp26_country_globalmodel_folder <- here::here("data","external","climate","Global_finalRCP","country_rcps","rcp26")
-rcp70_country_globalmodel_folder <- here::here("data","external","climate","Global_finalRCP","country_rcps","rcp70")
-rcp85_country_globalmodel_folder <- here::here("data","external","climate","Global_finalRCP","country_rcps","rcp85")
-rcp26_globalmodel_folder <- here::here("data","external","climate","Global_finalRCP","rcp26")
-rcp70_globalmodel_folder <- here::here("data","external","climate","Global_finalRCP","rcp70")
-rcp85_globalmodel_folder <- here::here("data","external","climate","Global_finalRCP","rcp85")
-global_climate_folder <- here::here("data","external","climate","trias_CHELSA")
+chelsa_current_folder <- here::here("data","external","climate","chelsa_current")
 chelsa_mask_folder <- here::here("data","external","climate","chelsa_mask")
-scaled_layers_folder <- here::here("data","external","climate","scaled_layers")
 biasgrids_folder <- here::here("data","external","bias_grids")
+
+#Store in a vector
+folders<-c(habitat_folder, country_folder, Europe_folder, chelsa_current_folder, chelsa_mask_folder, biasgrids_folder)
+
+# Check and create each folder if necessary
+for(folder in folders){
+  if(!dir.exists(folder)) dir.create(folder, recursive=TRUE)
+}
 
 
 #-------------------------------------------------
 #----------- Create future folders ---------------
 #-------------------------------------------------
-# Define the folder paths
-folder_paths<-list(list("path"= habitat_folder,
-                        "name"= "habitat"),
-                   list("path"= country_folder,
-                        "name"= "Country"),
-                   list("path"= Europe_folder,
-                        "name"= "Europe"),
-                   list("path"= chelsa_eu_folder,
-                        "name"= "chelsa_eu_clips"),
-                   list("path"= rcp26_country_globalmodel_folder,
-                        "name"= "rcp26"),
-                   list("path"= rcp70_country_globalmodel_folder,
-                        "name"= "rcp70"),
-                   list("path"= rcp85_country_globalmodel_folder,
-                        "name"= "rcp85"),
-                   list("path"= rcp26_globalmodel_folder,
-                        "name"= "rcp26"),
-                   list("path"= rcp70_globalmodel_folder,
-                        "name"= "rcp70"),
-                   list("path"= rcp85_globalmodel_folder,
-                        "name"= "rcp85"),
-                   list("path"= global_climate_folder,
-                        "name"= "trias_CHELSA"),
-                   list("path"= chelsa_mask_folder,
-                        "name"= "CHELSA mask"),
-                   list("path"= scaled_layers_folder,
-                        "name"= "scaled_layers"),
-                   list("path"= biasgrids_folder,
-                        "name"= "trias")
-                   )
-
-# Check and create each folder if necessary
-lapply(folder_paths, function(folder){
-  create_folder(folder$path, folder$name)
-})
+for (period in c("2041-2070","2071-2100")){
+  for(scenario in c("ssp126", "ssp370", "ssp585")){
+    
+    folder <- here::here("data","external", "climate", "chelsa_future", period, scenario)
+    if(!dir.exists(folder)) dir.create(folder, recursive=TRUE)
+  }
+}
 
 
 #-------------------------------------------------
