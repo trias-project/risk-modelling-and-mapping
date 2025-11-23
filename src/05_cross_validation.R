@@ -152,29 +152,8 @@ with_progress({
       warning(sprintf("Skipping %s: missing biasgrid or ensemble raster.", species))
       return(list(species = species, taxonkey = taxonkey, skipped = TRUE, reason = "missing_bias_or_ensemble"))
     }
-    global_model_file_qs <- pr("data", "projects", project, paste0(first_two_words, "_", taxonkey),
-                               paste0("Global_model_", first_two_words, "_", taxonkey, ".qs"))
-    if (!file.exists(global_model_file_qs)) {
-      warning(sprintf("Skipping %s (%s): no Global model file.", species, taxonkey))
-      return(list(species = species, taxonkey = taxonkey, skipped = TRUE, reason = "no_global_qs"))
-    }
-    
-    #------------- Reopen static data -------------
-    euboundary    <- sf::st_read(euboundary_path, quiet = TRUE)
-    habitat_stack <- terra::rast(habitat_path)
-    wwf_eco_biome <- sf::st_read(wwf_path, quiet = TRUE)
-    
-    # ====== CRS SINGLE SOURCE OF TRUTH ======
-    target_crs <- sf::st_crs(terra::crs(habitat_stack))  # WKT-aware
-    
-    # Transform/validate vectors to target CRS
-    euboundary <- euboundary |>
-      sf::st_make_valid() |>
-      sf::st_transform(target_crs)
-    
-    wwf_eco_biome <- wwf_eco_biome |>
-      sf::st_make_valid() |>
-      sf::st_transform(target_crs)
+
+###################STOPPED HERE#####################
     
     # Load species-level objects (then free big list)
     EUmodels <- qs::qread(global_model_file_qs)
