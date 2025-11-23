@@ -667,34 +667,9 @@ with_progress({
     clim_hab <- sqrt(consensus_habitat * global_climate_for_eu)
     
     
-    #------------------------------------------
-    #-Calculate Boyce index to display on map--
-    #------------------------------------------
-    #Extract all raster values (excluding NAs)
-    pred_vals <- values(clim_hab)
-    pred_vals <- pred_vals[!is.na(pred_vals)]
-    
-    #Extract suitability values at occurrence locations
-    obs_vals <- terra::extract(clim_hab, eu_occ, ID = FALSE) 
-    obs_vals <- obs_vals[!is.na(obs_vals)]
-    
-    #Calculate Boyce index
-    boyce_result <- ecospat::ecospat.boyce(
-      fit = pred_vals,
-      obs = obs_vals,
-      nclass = 0  # continuous Boyce Index
-    )
-    
-    if (exists("boyce_result") && !is.null(boyce_result$cor)) {
-      boyce_val <- round(boyce_result$cor, 3)
-    } else {
-      boyce_val <- NA
-    }
-    
-    
-    #------------------------------------------------------------    
-    #---------- Create map with ensemble suitability ------------
-    #------------------------------------------------------------
+    #--------------------------------------------------
+    #--Export maps with final suitability predictions -
+    #--------------------------------------------------
     #Define name of files
     base_file <- paste0(basefile, "_hist_ensemble")
     
