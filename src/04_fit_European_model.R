@@ -619,7 +619,7 @@ with_progress({
     }
     
     # Convert list to a dataframe
-    response_df <- imap_dfr(response_list, function(model_list, model_name) {
+    response_df <- purrr::imap_dfr(response_list, function(model_list, model_name) {
       imap_dfr(model_list, function(df, var_name) {
         response_df <- df %>%
           setNames(c("Predictor_value", "Response"))%>%
