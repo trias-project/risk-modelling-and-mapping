@@ -209,6 +209,22 @@ with_progress({
   }
   
   
+  #--------------------------------------------
+  #------------ Import raster layers ----------
+  #--------------------------------------------
+  #Define file paths
+  biasgrid_file <- file.path(base_dir,"Climate", "Current", "Interim", paste0("Biasgrid_",speciesName,"_",taxonkey,".tif"))
+  climate_file <- file.path(base_dir,"Climate", "Current","Predictions","Rasters",
+                            paste0(speciesName,"_Climate_current_ensemble.tif"))
+  ensemble_file <- file.path(base_dir,"Combined", "Current","Predictions","Rasters",
+                             paste0(speciesName,"_Combined_current_ensemble.tif"))
+  
+  #Load rasterlayers
+  biasgrid_sub <- terra::rast(biasgrid_file)
+  climate_predictions <- terra::rast(climate_file)%>%
+    terra::project( habitat_stack)
+  ensemble_predictions <- terra::rast(ensemble_file)
+  
     if (!file.exists(biasgrid_file) || !file.exists(ensemble_file)) {
       warning(sprintf("Skipping %s: missing biasgrid or ensemble raster.", species))
       return(list(species = species, taxonkey = taxonkey, skipped = TRUE, reason = "missing_bias_or_ensemble"))
