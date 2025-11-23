@@ -94,12 +94,6 @@ with_progress({
     p()
     
   
-    # Per-worker tempdirs
-    td_terra  <- file.path(tempdir(), paste0("terra_",  Sys.getpid()))
-    td_raster <- file.path(tempdir(), paste0("raster_", Sys.getpid()))
-    dir.create(td_terra,  showWarnings = FALSE, recursive = TRUE)
-    dir.create(td_raster, showWarnings = FALSE, recursive = TRUE)
-    
     # Force on-disk processing
     terra::terraOptions(tempdir = td_terra, memfrac = 0.6, todisk = TRUE)
     raster::rasterOptions(tmpdir = td_raster, chunksize = 1e7, maxmemory = 1e8)
