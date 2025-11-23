@@ -56,8 +56,10 @@ habitat_stack <- terra::mask(habitat_stack, na_mask_habitat_stack, maskvalue=1)
 #---------------------------------------------
 #--------- Load WWF ecoregions file ----------
 #---------------------------------------------
-wwf_path <- pr("data/external/GIS/official/wwf_terr_ecos.shp")
-stopifnot(file.exists(wwf_path))
+wwf_eco_biome <- sf::st_read(here("./data/external/GIS/official/wwf_terr_ecos.shp")) %>%
+  sf::st_make_valid() %>%
+  sf::st_transform(target_crs)
+
 
 #--------------------------------------------
 #------------- Load species data ------------
