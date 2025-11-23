@@ -145,7 +145,7 @@ globalclimpreds_terra<- aggregate(globalclimpreds_terra, fact=5, fun=mean, na.rm
 
 
 #--------------------------------------------
-#--------Load European climate rasters-------
+#--------Load European boundary layer -------
 #--------------------------------------------
 euboundary<-sf::st_read(file.path("data", "external", "GIS", "Europe", "EUROPE.shp")) 
 # Convert sf boundary to SpatVector

@@ -89,7 +89,7 @@ with_progress({
     #--------Extract species-specific data  -----
     #--------------------------------------------
     #Extract species name
-    species<-taxa_info%>%
+    species <- taxa_info%>%
       dplyr::filter(acceptedTaxonKey==key)%>%
       dplyr::pull(acceptedScientificName)%>%
       unique()
@@ -208,7 +208,7 @@ with_progress({
     eu_occ <- remove_duplicates(occurrences =  eu_occ, rast_template = habitat_stack[[1]])
     
     #Remove occurrences within grid cells with NA values
-    eu_occ <- remove_nodata_occurrences(occurrences = eu_occ, rast_template= habitat_stack, st_crs(habitat_stack))
+    eu_occ <- remove_nodata_occurrences(occurrences = eu_occ, rast_template= habitat_stack[[1]], st_crs(habitat_stack))
     
     
     #-----------------------------------------------
@@ -373,17 +373,13 @@ with_progress({
     
     
     #--------------------------------------------
-    #-- Run models with climate and habitat data -
+    #------- Run models with habitat data -------
     #--------------------------------------------
-    #Define prevalence ratio
-    n1 <- nrow(eu_occ)  # presences
-    n0 <- nrow(global_points_sf)   # pseudoabsences 
-    prev_ratio <- n1 / n0
-    
-    #define methods and data
+    #Convert present absent to 1 0
     eu_presabs <- eu_presabs %>%
       dplyr::mutate(species = ifelse(species == "present", 1, 0))
     
+    #Define SDM data and methods
     sdm_data <- sdm::sdmData(species~.,train=vect(eu_presabs),predictors= fullstack ) 
     methods <- c("glm", "gam", "bioclim", "brt", "rf", "glmpoly", "mars", "maxent", "fda","cart")
     
@@ -397,6 +393,10 @@ with_progress({
     #--------------------------------------------
     #---  Make predictions using each model  ---
     #-------------------------------------------- 
+    #Define prevalence ratio
+    n1 <- nrow(eu_occ)  # presences
+    n0 <- nrow(global_points_sf) # pseudoabsences 
+    prev_ratio <- n1 / n0
     
     # Get model info
     info <- sdm::getModelInfo(model)
@@ -629,7 +629,7 @@ with_progress({
     #Define name of files
     base_file <- paste0(basefile, "_hist_ensemble")
     
-    # Export PDFs with and without occurrences plotted
+    #Export PDFs with and without occurrences plotted
     for (occs in list(NULL, eu_occ)){
       filename <- ifelse(is.null(occs), base_file, paste0(base_file, "_occ"))
       exportPDF(predictions = clim_hab,
@@ -832,11 +832,12 @@ with_progress({
     terra::writeRaster(clim_hab_binary_5pct, filename = clim_hab_binary_5pct_file, overwrite = T)
     
     
+   
     #--------------------------------------------
     #-------- End of loop -----------------------
     #--------------------------------------------
     print(paste("European model has been created for", species_title))
-    rm(list = setdiff(ls(), c("p", "project",  "create_folder",  "euboundary", "habitat_stack",  "accepted_taxonkeys", "taxa_info", "key", "exportPDF", "remove_duplicates", "wwf_eco_biome", "remove_nodata_occurrences", "favourability_from_prob")))
+    rm(list = setdiff(ls(), c("p", "project",  "create_folder",  "euboundary", "habitat_stack",  "accepted_taxonkeys", "taxa_info", "key", "exportPDF", "remove_duplicates", "wwf_eco_biome", "remove_nodata_occurrences", "favourability_from_prob", "mtp_probabilities")))
   }
 })
 

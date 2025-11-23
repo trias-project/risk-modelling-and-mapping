@@ -28,9 +28,10 @@ source(here::here("src", "helper_functions.R"))
 source(here::here("src", "00_configurations.R"))
 
 
-#--------------------------------------------
-#------------ Define folder paths -----------
-#--------------------------------------------
+#-------------------------------------------------
+#--------------- Create folders ---------------
+#-------------------------------------------------
+# Define the folder paths
 habitat_folder <- here::here("data","external","habitat")
 country_folder <- here::here("data","external","GIS","Country")
 Europe_folder <- here::here("data","external","GIS","Europe")
@@ -48,7 +49,7 @@ biasgrids_folder <- here::here("data","external","bias_grids")
 
 
 #-------------------------------------------------
-#--------------- Create EU folders ---------------
+#----------- Create future folders ---------------
 #-------------------------------------------------
 # Define the folder paths
 folder_paths<-list(list("path"= habitat_folder,
@@ -261,9 +262,9 @@ for (list_name in list_names) {
 }
 
 
-#------------------------------------------------------------------------
-#--Create future climate layers for a specific country (global model)  --
-#------------------------------------------------------------------------
+#-------------------------------------------------
+#----- Store the country boundary shapefile  -----
+#-------------------------------------------------
 #This may take some time!
 country <- rnaturalearth::ne_countries(country=country_of_interest, scale=10)[1]
 country_vector <- terra::vect(country) #Convert to a SpatVector, used for masking
