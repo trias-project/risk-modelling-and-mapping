@@ -812,7 +812,7 @@ with_progress({
                                                    class = c("Absent", "Present"))
           
           #Store raster
-          future_europe_folder <- file.path(base_dir, "Climate", period, scenario, "Predictions", "Rasters")
+          future_europe_folder <- file.path(base_dir, "Combined", period, scenario, "Predictions", "Rasters")
           binary_file <- file.path(future_europe_folder, paste0(combined_basefile, period,"_",scenario,"_binary",mtp_thr,".tif"))
           terra::writeRaster(binary_map_future, filename = binary_file, overwrite = TRUE)
           
