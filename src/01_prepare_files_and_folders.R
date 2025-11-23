@@ -229,40 +229,6 @@ for (file in chelsa_current){
 country <- rnaturalearth::ne_countries(country=country_of_interest, scale=10)[1]
 country_vector <- terra::vect(country) #Convert to a SpatVector, used for masking
 country_ext <- terra::ext(country_vector) 
-
-#List files
-country26 <- list.files(rcp26_globalmodel_folder , pattern = 'tif', full.names = TRUE)
-country70 <- list.files(rcp70_globalmodel_folder , pattern = 'tif', full.names = TRUE)
-country85 <- list.files(rcp85_globalmodel_folder , pattern = 'tif', full.names = TRUE)
-
-# List scenarios to iterate through
-set.seed(123)
-list_names <- c("country26", "country70", "country85")
-
-# Iterate over the list names
-for (list_name in list_names) {
-  # get the list ("country26", "country70", "country85")
-  current_list <- get(list_name)
-  
-  #Define folder to store the rasters in
-  rcp_folder <- switch(list_name,
-                       "country26" = rcp26_country_globalmodel_folder,
-                       "country70" = rcp70_country_globalmodel_folder,
-                       "country85" = rcp85_country_globalmodel_folder)
-  
-  fullstack <- lapply(current_list, function(f) {
-    r <- terra::rast(f)
-    r <- terra::crop(r, country_ext)
-    r <- terra::mask(r, country_vector)
-    terra::writeRaster(r, filename = here::here(rcp_folder, basename(f)), overwrite=TRUE)
-
-  })
-}
-  
-
-#-------------------------------------------------
-#----- Store the country boundary shapefile  -----
-#-------------------------------------------------
 sf::write_sf(country, here::here(country_folder,"country.shp"))
 
 
