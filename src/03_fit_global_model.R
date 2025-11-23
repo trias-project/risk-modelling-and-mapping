@@ -134,7 +134,7 @@ cleaned_1km<-cleaned%>%
 #--------------------------------------------
 # Only include files that start with "scaled_layer_" and end with .tif: 
 scaled_files <- list.files(
-  file.path("data", "external","climate","trias_CHELSA"),
+  file.path("data", "external","climate","chelsa_current"),
   pattern = "^scaled_layer.*\\.tif$",
   full.names = TRUE)
 
@@ -180,7 +180,7 @@ for (period in c("2041-2070","2071-2100")){
   for(scenario in c("ssp126", "ssp370", "ssp585")){
     
     # List future raster files
-    future_files<- list.files( file.path("data", "external", "climate", "chelsa_future", period,scenario), pattern = "\\.tif$", full.names = TRUE)
+    future_files<- list.files( file.path("data", "external", "climate", "chelsa_future", period,scenario), pattern = "^scaled_layer.*\\.tif$", full.names = TRUE)
     
     #Stack them together
     future_stack <- terra::rast(future_files)
