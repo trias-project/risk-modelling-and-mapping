@@ -94,19 +94,6 @@ with_progress({
     p()
     
   
-  #------------------------------------------
-  #----------- Worker function --------------
-  #------------------------------------------
-  run_one_key <- function(key) {
-    # Ensure required pkgs in worker
-    if (!"sdm" %in% .packages()) suppressPackageStartupMessages(library(sdm))
-    if (!"blockCV" %in% .packages()) suppressPackageStartupMessages(library(blockCV))
-    if (!"dplyr" %in% .packages()) suppressPackageStartupMessages(library(dplyr))
-    if (!"sf" %in% .packages()) suppressPackageStartupMessages(library(sf))
-    if (!"terra" %in% .packages()) suppressPackageStartupMessages(library(terra))
-    if (!"raster" %in% .packages()) suppressPackageStartupMessages(library(raster))
-    if (!"ecospat" %in% .packages()) suppressPackageStartupMessages(library(ecospat))
-    
     # Per-worker tempdirs
     td_terra  <- file.path(tempdir(), paste0("terra_",  Sys.getpid()))
     td_raster <- file.path(tempdir(), paste0("raster_", Sys.getpid()))
