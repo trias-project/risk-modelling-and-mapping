@@ -94,10 +94,6 @@ with_progress({
     p()
     
   
-    # Force on-disk processing
-    terra::terraOptions(tempdir = td_terra, memfrac = 0.6, todisk = TRUE)
-    raster::rasterOptions(tmpdir = td_raster, chunksize = 1e7, maxmemory = 1e8)
-    
   #--------------------------------------------
   #--------Extract species-specific data  -----
   #--------------------------------------------
