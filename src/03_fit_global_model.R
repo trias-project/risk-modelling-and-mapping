@@ -2,6 +2,7 @@
 #-------------- Load packages ---------------
 #--------------------------------------------
 options("rgdal_show_exportToProj4_warnings"="none")
+setGDALconfig("GDAL_PAM_ENABLED", "FALSE")#Prevent terra from writing aux.xml files
 
 packages <- c( "dplyr", "stringr", "here", "qs","CoordinateCleaner","terra", "raster", "rnaturalearth", "rnaturalearthdata", "ggplot2","tidyterra", "dismo", "sdm", "caret", "viridisLite", "kableExtra","future", "future.apply","randomForest","earth", "progressr", "sf", "gbm", "PresenceAbsence","geosphere","arm", "RStoolbox", "ecospat", "viridis", "patchwork", "grid", "purrr")
 
