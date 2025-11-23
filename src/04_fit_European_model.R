@@ -243,7 +243,7 @@ with_progress({
           dplyr::group_by(clust) %>%
           dplyr::slice_sample(n = 1) %>%
           dplyr::ungroup() %>%
-          dplyr::select(decimalLongitude, decimalLatitude, geometry, species)
+          dplyr::select(decimalLongitude, decimalLatitude, geometry)
         
         rm(habitat_data, occ_habitat)
         
