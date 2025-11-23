@@ -843,54 +843,24 @@ with_progress({
     #--------------------------------------------
     #- Save best model, european occurrences, and layers for Belgium -
     #--------------------------------------------
-    eumodel <- list(species = species,
+    habitatmodel <- list(species = species,
                     taxonkey = taxonkey,
                     eu_occ = eu_occ,  # sf of filtered EU occurrences
                     eu_presabs = eu_presabs,    # sf of presence + pseudoabsence data
                     occ_full_df = occ.full.data.df, # presabs data and their habitat values
-                    prevalence_ratio = prev_ratio,  # used for favourability scaling
-                    eu_5pct_threshold = threshold_5pct,# 5% min training presence threshold from EU model
-                    eu_1pct_threshold = threshold_1pct, # 1% min training presence threshold from EU model
-                    final_boyce = boyce_val,
-                    boyce_result = boyce_result,# full object from ecospat.boyce()
+                    prevalence_ratio = prev_ratio, # used for favourability scaling
+                    habitat_5pct_threshold = `5pct_habitat_threshold`,# 5% mtp threshold habitat model
+                    habitat_1pct_threshold = `1pct_habitat_threshold`,# 1% mtp threshold habitat model
+                    ensemble_5pct_threshold = `5pct`, # 5% min training presence threshold ensemble model
+                    ensemble_1pct_threshold = `1pct`, # 1% min training presence threshold ensemble model
                     response_df = response_df,
                     varimp_df = varimp_df,
                     top5models = top5models #model object holding selected models
     )
    
     #Save eumodel as .qs file
-    qs::qsave(eumodel, 
-              file.path(base_dir, paste0("EU_model_",speciesName,"_",taxonkey,".qs"))) 
-    
-    
-    #--------------------------------------------
-    #- ------ Save rasters-----------------------
-    #--------------------------------------------
-    # Export continuous suitability raster
-    clim_hab_file <- file.path(base_dir, "Rasters","Europe", "Current",
-                               paste0(paste0(basefile, "final_hist_ensemble.tif")))
-    
-    terra::writeRaster(clim_hab, filename = clim_hab_file, overwrite = T)
-    
-    # Export binary raster — 1% threshold
-    clim_hab_binary_1pct_file <- file.path(raster_EU_folder,
-                                           paste0("Climate_Habitat_binary_1pct_",
-                                                  speciesName,
-                                                  "_", 
-                                                  taxonkey,
-                                                  ".tif"))
-    
-    terra::writeRaster(clim_hab_binary_1pct, filename = clim_hab_binary_1pct_file, overwrite = T)
-    
-    # Export binary raster — 5% threshold
-    clim_hab_binary_5pct_file <- file.path(raster_EU_folder, 
-                                           paste0("Climate_Habitat_binary_5pct_",
-                                                  speciesName,
-                                                  "_",
-                                                  taxonkey,
-                                                  ".tif"))
-    
-    terra::writeRaster(clim_hab_binary_5pct, filename = clim_hab_binary_5pct_file, overwrite = T)
+    qs::qsave(habitatmodel, 
+              file.path(base_dir,"Habitat", paste0("Habitat_model_",speciesName,"_",taxonkey,".qs"))) 
     
     
    
