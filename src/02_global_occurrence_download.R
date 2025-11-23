@@ -105,7 +105,7 @@ basis_of_record <- c(
 
 #Time period
 year_begin <- 1971
-year_end <- 2024
+year_end <- 2025
 
 #Only georeferenced points
 hasCoordinate <- TRUE
@@ -141,7 +141,7 @@ gbif_download_key <- metadata$key
 data.path <- here::here("data", gbif_download_key)
 unzip(paste0(data.path,".zip"),exdir = data.path, overwrite = TRUE)
 global <- as.data.frame(data.table::fread(paste0(data.path,"/occurrence.txt"),header = TRUE))
-  
+
 global <- dplyr::select(global, c(acceptedTaxonKey,acceptedScientificName, decimalLatitude, decimalLongitude, kingdom, phylum, class,order, genus, coordinateUncertaintyInMeters, identificationVerificationStatus))
 
 
@@ -266,5 +266,3 @@ unlink(data.path, recursive = TRUE)
 
 # Clean R environment
 rm(list = ls())
-
-
