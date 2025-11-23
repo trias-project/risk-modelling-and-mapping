@@ -169,18 +169,25 @@ with_progress({
     
     #Create folders for each combination
     scenario_folders <- list()
-    
-    for(output in outputs){
-      for(period in periods){
+    for(period in periods){
+      for(output in outputs){
         if(period=="Current"){
-          loop_list <- list(list(path = file.path(base_dir, output, "Europe", period),
-                                 name = paste(output, "Europe", period,  sep = "/")))
+          loop_list <- list(list(path = file.path(base_dir, "Habitat", period,"Predictions",output),
+                                 name = paste("Habitat", period, output,  sep = "/")),
+                            list(path = file.path(base_dir, "Combined", period,"Predictions",output),
+                                 name = paste("Combined", period, output,  sep = "/")),
+                            list(path = file.path(base_dir, "Habitat", period,"Diagnostics", "Variable_importance"),
+                                 name = paste("Habitat", period, output,  sep = "/")),
+                            list(path = file.path(base_dir, "Habitat", period,"Diagnostics", "Response_curves"),
+                                 name = paste("Habitat", period, output,  sep = "/")),
+                            list(path = file.path(base_dir, "Habitat", period,"Diagnostics", "Confidence_maps",output),
+                                 name = paste("Habitat", period, output,  sep = "/")))
           scenario_folders <- c(scenario_folders, loop_list)  
           
         }else{
           for(scenario in scenarios){
-            loop_list <- list(list(path = file.path(base_dir, output, "Europe", period, scenario),
-                                   name = paste(output, "Europe", period, scenario, sep = "/")))
+            loop_list <- list(list(path = file.path(base_dir, "Combined", period, scenario, "Predictions", output),
+                                   name = paste("Combined", period, scenario, output, sep = "/")))
             scenario_folders <- c(scenario_folders, loop_list)
           }
         }
