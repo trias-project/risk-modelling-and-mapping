@@ -42,7 +42,7 @@ remove_duplicates <- function(occurrences, rast_template){
   occurrences <- occurrences %>%
     dplyr::filter(!is.na(cell)) %>% 
     dplyr::distinct(cell, .keep_all=TRUE) %>% 
-    dplyr::select(decimalLongitude, decimalLatitude)
+    dplyr::select(1:2)
   
   #Print how many occurrences were removed
   print(paste(initial_occurrences - nrow(occurrences), "duplicate occurrence records removed."))
