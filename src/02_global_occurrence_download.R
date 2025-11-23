@@ -114,15 +114,19 @@ hasCoordinate <- TRUE
 #--------------------------------------------
 #---------------Perform download-------------
 #--------------------------------------------
+gbif_user  <- Sys.getenv("GBIF_USER",   unset = NA)
+gbif_pwd   <- Sys.getenv("GBIF_PWD",    unset = NA)
+gbif_email <- Sys.getenv("GBIF_EMAIL",  unset = NA)
+
 gbif_download_key <-  rgbif::occ_download(
   pred_in("taxonKey", accepted_taxonkeys),
   pred_in("basisOfRecord", basis_of_record),
   pred_gte("year", year_begin),
   pred_lte("year", year_end),
   pred("hasCoordinate", hasCoordinate),
-  user  =  rstudioapi::askForPassword("GBIF username"),
-  pwd   = rstudioapi::askForPassword("GBIF password"),
-  email = rstudioapi::askForPassword("Email address for notification"),
+  user  =  gbif_user,
+  pwd   = gbif_pwd,
+  email = gbif_email,
   curlopts = list(http_version = 2)
 )
 
