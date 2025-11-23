@@ -81,14 +81,18 @@ rm(taxa_info); gc()
 
 
 #--------------------------------------------
-#------ Parallel plan & progress setup -------
+#----------- Start modelling loop  ----------
 #--------------------------------------------
-options(future.globals.maxSize = 2 * 1024^3)
-plan(multisession, workers = 10)
-handlers(global = TRUE)
 
 with_progress({
-  p <- progressr::progressor(along = accepted_taxonkeys)
+  p <- progressr::progressor(along = 1:length(accepted_taxonkeys)) 
+  for(key in accepted_taxonkeys){ #Approx. 13 min per species
+    
+    #--------------------------------------------
+    #---------------Map progress  ---------------
+    #--------------------------------------------
+    p()
+    
   
   #------------------------------------------
   #----------- Worker function --------------
