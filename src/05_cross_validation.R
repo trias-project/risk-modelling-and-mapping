@@ -126,23 +126,6 @@ with_progress({
       gc()
     }, add = TRUE)
     
-    #------------- Species metadata -------------
-    species <- unname(taxon_name_by_key[as.character(key)])
-    if (is.na(species) || is.null(species) || !nzchar(species)) {
-      warning(sprintf("No species name found for key %s; skipping.", key))
-      return(list(taxonkey = key, skipped = TRUE, reason = "no_species_name"))
-    }
-    first_two_words <- sub("^(\\w+)\\s+(\\w+).*", "\\1_\\2", species)
-    species_title   <- gsub("_", " ", first_two_words)
-    taxonkey        <- key
-    
-    #------------- Locate EU model + rasters --------
-    species_folder   <- pr("data", "projects", project, paste0(first_two_words, "_", taxonkey))
-    EU_model_file_qs <- pr("data", "projects", project, paste0(first_two_words, "_", taxonkey),
-                           paste0("EU_model_", first_two_words, "_", taxonkey, ".qs"))
-    if (!file.exists(EU_model_file_qs)) {
-      warning(sprintf("Skipping %s (%s): no EU model file.", species, taxonkey))
-      return(list(species = species, taxonkey = taxonkey, skipped = TRUE, reason = "no_EU_qs"))
   #--------------------------------------------
   #--------Extract species-specific data  -----
   #--------------------------------------------
