@@ -765,7 +765,7 @@ with_progress({
         print(paste("[FUTURE] Projecting:", period,scenario))
         
         #Get climate data for specific period and scenario
-        future_folder <- file.path(base_dir, "Rasters", "Global", period, scenario)
+        future_folder <- file.path(base_dir, "Climate", period, scenario, "Predictions", "Rasters")
         ensemble_file <- file.path(future_folder, paste0(global_basefile, period,"_",scenario,"_ensemble.tif"))
         future_climate <- terra::rast(ensemble_file)%>%
           terra::project(consensus_habitat)
@@ -774,7 +774,7 @@ with_progress({
         final_ensemble<-sqrt(consensus_habitat * future_climate)
         
         # Export ensemble predictions as PDF and PNG with and without occurrences
-        base_file <- paste0(basefile, scenario,"_", period,"_final_ensemble")
+        base_file <- paste0(combined_basefile, scenario,"_", period,"_ensemble")
         
         for (occs in list(NULL, eu_occ)){
           filename <- ifelse(is.null(occs), base_file, paste0(base_file, "_occ"))
@@ -788,36 +788,34 @@ with_progress({
                     occ_data=occs,
                     exportPNG=TRUE,
                     PDF_title=PDF_title,
-                    PNG_folder=file.path(base_dir, "PNGs", "Europe", period, scenario),
-                    PDF_folder=file.path(base_dir, "PDFs", "Europe", period, scenario),
+                    PNG_folder=file.path(base_dir, "Combined", period, scenario, "Predictions", "PNGs"),
+                    PDF_folder=file.path(base_dir, "Combined", period, scenario, "Predictions", "PDFs"),
                     filename = filename)
         }
         
         
         # Create binarized ensemble predictions for future
-        for(MTP_threshold in c("threshold_1pct","threshold_5pct")){
+        for(probs in mtp_probabilities){
           
-          mtp_label <- switch(MTP_threshold,
-                              "threshold_5pct" = "5%",
-                              "threshold_1pct" = "1%")  
-          mtp_thr <- switch(MTP_threshold,
-                              "threshold_5pct" = "5pct",
-                              "threshold_1pct" = "1pct")  
+          #Define mtp_pct and mtp_value
+          mtp_value<- probs*100
+          mtp_pct <- paste0(mtp_value, "%")
+          mtp_thr <- paste0(mtp_value, "pct")
           
           #Get threshold value and apply to consensus predictions
-          threshold<-get(MTP_threshold)
+          threshold<-get(mtp_thr)
           binary_map_future <- final_ensemble  >= threshold
           binary_map_future <- as.factor( binary_map_future*1) #Convert TRUE/FALSE to 1/0 and then to Present/Absent
           levels( binary_map_future) <- data.frame(ID = c(0, 1),
                                                    class = c("Absent", "Present"))
           
           #Store raster
-          future_europe_folder <- file.path(base_dir, "Rasters", "Europe", period, scenario)
-          binary_file <- file.path(future_europe_folder, paste0(basefile, period,"_",scenario,"_final_binary",mtp_thr,".tif"))
+          future_europe_folder <- file.path(base_dir, "Climate", period, scenario, "Predictions", "Rasters")
+          binary_file <- file.path(future_europe_folder, paste0(combined_basefile, period,"_",scenario,"_binary",mtp_thr,".tif"))
           terra::writeRaster(binary_map_future, filename = binary_file, overwrite = TRUE)
           
           # Export binarized ensemble predictions as PDF and PNG with and without occurrences 
-          base_file <- paste0(basefile, period,"_", scenario, "_final_binary",mtp_thr)
+          base_file <- paste0(combined_basefile, period,"_", scenario, "_binary",mtp_thr)
           
           for (occs in list(NULL, eu_occ)){
             
@@ -830,11 +828,11 @@ with_progress({
                       returnPredictions = FALSE,
                       returnPNG = FALSE,
                       exportPNG = TRUE,
-                      LabelValue= mtp_label,
-                      LabelName="MTP threshold",
+                      LabelValue= threshold,
+                      LabelName=paste0(mtp_pct, " MTP threshold"),
                       PDF_title=PDF_title,
-                      PNG_folder=file.path(base_dir, "PNGs","Europe", period, scenario),
-                      PDF_folder=file.path(base_dir, "PDFs", "Europe",period, scenario),
+                      PNG_folder=file.path(base_dir, "Combined", period, scenario, "Predictions", "PNGs"),
+                      PDF_folder=file.path(base_dir, "Combined", period, scenario, "Predictions", "PDFs"),
                       filename=filename)
           }
         }
