@@ -3,19 +3,15 @@
 #--------------------------------------------
 options("rgdal_show_exportToProj4_warnings"="none")
 
-packages <- c(
-  "viridis","dplyr","here","qs","terra","tidyterra","sf","ggplot2","RColorBrewer",
-  "magick","patchwork","grid","randomForest","progressr","raster","dismo","caret",
-  "caretEnsemble","kableExtra","gbm","PresenceAbsence","RStoolbox","sdm",
-  "future","future.apply","sp","ecospat","blockCV"
-)
+packages <- c("viridis","dplyr","here","qs","terra","tidyterra","sf","ggplot2","RColorBrewer", "magick","patchwork","grid","randomForest","progressr","raster","dismo","caret","caretEnsemble","kableExtra","gbm","PresenceAbsence","RStoolbox","sdm","future","future.apply","sp","ecospat","blockCV")
+
 for (package in packages) {
   if (!package %in% rownames(installed.packages())) install.packages(package)
   library(package, character.only = TRUE)
 }
 
-# Installs all sdm plugin backends if missing (incl. maxent). Safe if already present.
-suppressWarnings(try(sdm::installAll(), silent = TRUE))
+# Installs all sdm plugin backends if missing (incl. maxent). 
+sdm::installAll()
 
 
 #--------------------------------------------
