@@ -990,7 +990,7 @@ with_progress({
     #--------------------------------------------
     #-- Export results as .qs list
     #--------------------------------------------
-    globalmodels <-list(species = species, #Species name
+    climatemodel <-list(species = species, #Species name
                         taxonkey = taxonkey, #Species taxonkey
                         global_data_df_uncor=global.data.df.uncor, #Data used to fit the model (climate data for each presence/pseudoabsence)
                         global_presabs = global_presabs,#xy coordinates of presences and pseudoabsences used to fit the models
@@ -1010,7 +1010,7 @@ with_progress({
                         selected_predictors = names(eu_future_selection),
                         future_consensus_median = future_consensus_median)
                         
-    qs::qsave(globalmodels, file.path(base_dir, "Climate", paste0("Climate_model_",speciesName,"_",taxonkey,".qs")))
+    qs::qsave(climatemodel, file.path(base_dir, "Climate", paste0("Climate_model_",speciesName,"_",taxonkey,".qs")))
     
     
     #--------------------------------------------
