@@ -175,11 +175,40 @@ with_progress({
                                   paste0("Habitat_model_",speciesName,"_",taxonkey,".qs"))
   
   
+  #--------------------------------------------
+  #----- Check if habitat model exists --------
+  #--------------------------------------------
+  if(file.exists(habitat_model_file)){
+    
+    #This was stored as part of  script 03
+    habitatmodel <- qs::qread(habitat_model_file)
+    
+    #Extract different data objects stored in globalmodels
+    occ_data <- habitatmodel$eu_occ # sf of filtered EU occurrences
+    
+  }else{
+    warning(paste0("Cross validation will be performed on the climate model for ", species, " because no habitat model could be fitted"))
+  }
+  
+  
+  #--------------------------------------------
+  #-Check if climate model exists,if not, skip-
+  #--------------------------------------------
+  if(file.exists(climate_model_file)){
+    
+    #This was stored as part of  script 02_fit_global_model
+    climatemodel <- qs::qread(climate_model_file) #named climatemodel instead of globalmodels
+    
+    if(!file.exists(habitat_model_file)){
+      
+      occ_data <- global.occ.sf
     }
-    biasgrid_file <- pr("data", "projects", project, paste0(first_two_words, "_", taxonkey),
-                        "Rasters", "Interim", paste0("Biasgrid_", first_two_words, "_", taxonkey, ".tif"))
-    ensemble_file <- pr("data", "projects", project, paste0(first_two_words, "_", taxonkey),
-                        "Rasters", "Global",  paste0("Ensemble_median_", first_two_words, "_", taxonkey, ".tif"))
+  }else{
+    warning(paste0("Skipping species ", species, " because no climate model could be fitted"))
+    next  # Skip the rest of the loop and move to the next iteration
+  }
+  
+  
     if (!file.exists(biasgrid_file) || !file.exists(ensemble_file)) {
       warning(sprintf("Skipping %s: missing biasgrid or ensemble raster.", species))
       return(list(species = species, taxonkey = taxonkey, skipped = TRUE, reason = "missing_bias_or_ensemble"))
