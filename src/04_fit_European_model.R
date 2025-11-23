@@ -671,20 +671,25 @@ with_progress({
     #--Export maps with final suitability predictions -
     #--------------------------------------------------
     #Define name of files
-    base_file <- paste0(basefile, "_hist_ensemble")
+    base_file <- paste0(combined_basefile, "current_ensemble")
+    
+    #Export raster file
+    # Export continuous suitability raster
+    clim_hab_file <- file.path(base_dir, "Combined", "Current", "Predictions", "Rasters",
+                               paste0(base_file,".tif"))
+    terra::writeRaster(clim_hab, filename = clim_hab_file, overwrite = T)
     
     #Export PDFs with and without occurrences plotted
     for (occs in list(NULL, eu_occ)){
       filename <- ifelse(is.null(occs), base_file, paste0(base_file, "_occ"))
+      
       exportPDF(predictions = clim_hab,
                 dataType = "Suit",
-                scenario = "hist",
+                scenario = "Current",
                 returnPredictions = FALSE,
                 returnPNG = FALSE,
                 occ_data=occs,
                 exportPNG=TRUE,
-                LabelValue= boyce_val,
-                LabelName="Boyce index",
                 PDF_title = PDF_title,
                 PNG_folder=file.path(base_dir, "Combined", "Current", "Predictions", "PNGs"),
                 PDF_folder=file.path(base_dir, "Combined", "Current", "Predictions","PDFs"),
