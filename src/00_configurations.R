@@ -16,15 +16,18 @@ country_of_interest <- "Belgium"
 #!ONLY ONCE: Add your GBIF credentials to your ./Renviron file
 #------------------------------------------------------------
 
-#Install usethis if not installed yet
-if (!"usethis" %in% rownames(installed.packages()) ) { install.packages("usethis")}
-  
-# run once in R to open ~/.Renviron for editing
-usethis::edit_r_environ()
+required_vars <- c("GBIF_USER", "GBIF_PWD", "GBIF_EMAIL")
+missing_vars <- required_vars[!nzchar(Sys.getenv(required_vars))]
 
-#Add the following lines to the ./Renviron file, adjust the fields to your specific credentials
-GBIF_USER = "your_gbif_username"
-GBIF_PWD = "your_gbif_password"
-GBIF_EMAIL = "your_email"
-
-#Restart R for changes to take effect
+if (length(missing_vars) > 0) {
+  message(
+    "The following environment variables are missing from your ~/.Renviron file: ",
+    paste(missing_vars, collapse = ", "), "\n\n",
+    'GBIF_USER="your_gbif_username"\n',
+    'GBIF_PWD="your_gbif_password"\n',
+    'GBIF_EMAIL="your_email"\n\n',
+    "Please add them to your ~/.Renviron file.\n\n",
+    "You can open this file by running:\n",
+    "  usethis::edit_r_environ()\n"
+  )
+}
