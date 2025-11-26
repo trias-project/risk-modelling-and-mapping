@@ -1049,12 +1049,14 @@ with_progress({
                                paste0("Biasgrid_",speciesName,"_",taxonkey,".tif"))
     ensemble_median_file <- file.path( base_dir,"Climate", "Current", "Predictions", "Rasters",
                                         paste0(basefile, "current_ensemble.tif"))
+    ensemble_mean_file <- file.path( base_dir,"Climate", "Current", "Interim",
+                                       paste0(basefile, "current_ensemble_mean.tif"))
     ensemble_sd_file <- file.path( base_dir,"Climate", "Current","Diagnostics", "Confidence_maps", "Rasters",
                                        paste0(basefile, "current_ensemble_SD.tif"))
     
     terra::writeRaster(biasgrid_sub, filename = biasgrid_file, overwrite = TRUE)
     terra::writeRaster(consensus_median, filename = ensemble_median_file, overwrite = TRUE)
-  
+    terra::writeRaster(consensus_mean, filename = ensemble_mean_file, overwrite = TRUE)
     terra::writeRaster(consensus_sd, filename = ensemble_sd_file, overwrite = TRUE)
     
     
