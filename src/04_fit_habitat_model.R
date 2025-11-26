@@ -738,6 +738,65 @@ with_progress({
     }
     
     
+    #--------------------------------------------------
+    #----- Create maps with final SD predictions ------
+    #--------------------------------------------------
+    #Load climate layers
+    mean_climate_path<- file.path( base_dir,"Climate", "Current", "Interim",
+                                   paste0(global_basefile, "current_ensemble_mean.tif"))
+    sd_climate_path <- file.path( base_dir,"Climate", "Current","Diagnostics", "Confidence_maps", "Rasters",
+                                  paste0(global_basefile, "current_ensemble_SD.tif"))
+    consensus_climate_mean <- terra::rast(mean_climate_path)
+    consensus_climate_sd <- terra::rast(sd_climate_path)
+      
+    #reproject mean climate to mean habitat crs
+    consensus_climate_mean <- terra::project(consensus_climate_mean,
+                                            consensus_habitat_mean,
+                                            method = "bilinear")
+    consensus_climate_sd <- terra::project(consensus_climate_sd,
+                                          consensus_habitat_mean,
+                                          method = "bilinear")
+    
+    # small floor to avoid division by zero
+    eps <- 1e-6    
+    
+    # compute geometric mean
+    S <- sqrt(consensus_climate_mean * consensus_habitat_mean)
+    
+    # compute relative SDs 
+    sd_climate <- consensus_climate_sd / (consensus_climate_mean + eps)
+    sd_habitat <- consensus_habitat_sd / (consensus_habitat_mean + eps)
+    
+    # combined relative uncertainty 
+    sd_comb <- sqrt(sd_climate^2 + sd_habitat^2)
+    
+    # final sd of geometric mean
+    Final_SD <- 0.5 * S * sd_comb
+    
+    names(Final_SD) <- "sd_geometric_mean"
+    
+    #Define name of files
+    filename <- paste0(combined_basefile, "current_ensemble_SD")
+    
+    #Export raster file
+    clim_comb_sd_file <- file.path(base_dir, "Combined", "Current", "Diagnostics", "Confidence_maps", "Rasters",
+                               paste0(filename,".tif"))
+    terra::writeRaster(Final_SD, filename = clim_comb_sd_file, overwrite = T)
+    
+    #Export PDFs and PNGs
+      exportPDF(predictions = Final_SD,
+                dataType = "Stdev",
+                scenario = "Current",
+                returnPredictions = FALSE,
+                returnPNG = FALSE,
+                occ_data=NULL,
+                exportPNG=TRUE,
+                PDF_title = PDF_title,
+                PNG_folder=file.path(base_dir, "Combined", "Current", "Diagnostics", "Confidence_maps", "PNGs"),
+                PDF_folder=file.path(base_dir, "Combined", "Current", "Diagnostics", "Confidence_maps", "PDFs"),
+                filename = filename)
+    
+    
     #------------------------------------------
     #------------ Create binary map -----------
     #------------------------------------------
