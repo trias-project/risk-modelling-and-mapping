@@ -534,6 +534,31 @@ with_progress({
     terra::writeRaster(consensus_habitat, filename = habitat_ensemble_file, overwrite = TRUE)
     
     
+    #--------------------------------------------------
+    #---------- Create map with ensemble SD -----------
+    #--------------------------------------------------
+    #Define name of files
+    filename <- paste0(basefile, "current_ensemble_SD")
+    
+    #Export PDFs with and without occurrences plotted
+      exportPDF(predictions = consensus_habitat_sd,
+                dataType = "Stdev",
+                scenario = "Current",
+                returnPredictions = FALSE,
+                returnPNG = FALSE,
+                occ_data=NULL,
+                exportPNG=TRUE,
+                PDF_title = PDF_title,
+                PNG_folder=file.path(base_dir, "Habitat", "Current", "Diagnostics","Confidence_maps", "PNGs"),
+                PDF_folder=file.path(base_dir, "Habitat", "Current", "Diagnostics","Confidence_maps", "PDFs"),
+                filename = filename)
+    
+    # Export ensemble raster (favorability) 
+    current_sd_habitat_folder <- file.path(base_dir, "Habitat", "Current", "Diagnostics", "Confidence_maps", "Rasters")
+    habitat_sd_ensemble_file <- file.path(current_sd_habitat_folder, paste0(filename,".tif"))
+    terra::writeRaster(consensus_habitat_sd, filename = habitat_sd_ensemble_file, overwrite = TRUE)
+    
+    
     #------------------------------------------
     #------------ Create binary map -----------
     #------------------------------------------
