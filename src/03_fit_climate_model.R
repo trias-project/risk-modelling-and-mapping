@@ -325,19 +325,21 @@ with_progress({
         for(output in outputs){
         if(period=="Current"){
           loop_list <- list(list(path = file.path(base_dir, "Climate", period,"Predictions",output),
-                                 name = paste("Climate", period, output,  sep = "/")),
-                             list(path = file.path(base_dir, "Climate", period,"Diagnostics", "Variable_importance"),
-                                  name = paste("Climate", period, output,  sep = "/")),
-                             list(path = file.path(base_dir, "Climate", period,"Diagnostics", "Response_curves"),
-                                 name = paste("Climate", period, output,  sep = "/")),
-                             list(path = file.path(base_dir, "Climate", period,"Diagnostics", "Confidence_maps",output),
-                                 name = paste("Climate", period, output,  sep = "/")))
+                                 name = paste("Climate", period, "Predictions",output,  sep = "/")),
+                            list(path = file.path(base_dir, "Climate", period,"Diagnostics", "Variable_importance"),
+                                 name = paste("Climate", period, "Diagnostics", "Variable_importance",  sep = "/")),
+                            list(path = file.path(base_dir, "Climate", period,"Diagnostics", "Response_curves"),
+                                 name = paste("Climate", period,"Diagnostics", "Response_curves", sep = "/")),
+                            list(path = file.path(base_dir, "Climate", period,"Diagnostics", "Confidence_maps",output),
+                                 name = paste("Climate", period, "Diagnostics", "Confidence_maps", output,  sep = "/")))
           scenario_folders <- c(scenario_folders, loop_list)  
           
         }else{
           for(scenario in scenarios){
             loop_list <- list(list(path = file.path(base_dir, "Climate", period, scenario, "Predictions", output),
-                                   name = paste("Climate", period, scenario, output, sep = "/")))
+                                   name = paste("Climate", period, scenario, "Predictions", output, sep = "/")),
+                              list(path = file.path(base_dir, "Climate", period, scenario, "Diagnostics", "Confidence_maps",output),
+                                        name = paste("Climate", period, scenario, "Diagnostics", "Confidence_maps", output,  sep = "/")))
             scenario_folders <- c(scenario_folders, loop_list)
           }
         }
