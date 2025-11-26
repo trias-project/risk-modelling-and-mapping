@@ -498,6 +498,12 @@ with_progress({
     
     # Step 7: Compute pixel-wise median = consensus model
     consensus_habitat <- app(top5_stack, median)
+    
+    # Step 8: Compute pixel-wise mean
+    consensus_habitat_mean <- mean(top5_stack, na.rm=TRUE)
+    
+    # Step 9: Compute pixel-wise population standard deviation
+    consensus_habitat_sd <- stdev(top5_stack, pop=TRUE)
 
     
     #--------------------------------------------------
