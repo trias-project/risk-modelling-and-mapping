@@ -60,7 +60,7 @@ habitat_stack <- terra::mask(habitat_stack, na_mask_habitat_stack, maskvalue=1)
 #---------------------------------------------
 #--------- Load WWF ecoregions file ----------
 #---------------------------------------------
-wwf_eco_biome <- sf::st_read(here("./data/external/GIS/official/wwf_terr_ecos.shp")) %>%
+wwf_ecoregions <- sf::st_read(here("./data/external/GIS/official/wwf_terr_ecos.shp")) %>%
   sf::st_transform(crs = st_crs(habitat_stack))
 
 
@@ -295,18 +295,18 @@ with_progress({
     #------- Select invaded WWF ecoregions------
     #-------------------------------------------
     # Identify which polygons contain at least one occurrence
-    polygons_with_points <- lengths(sf::st_intersects(wwf_eco_biome, eu_occ)) > 0
+    polygons_with_points <- lengths(sf::st_intersects(wwf_ecoregions, eu_occ)) > 0
     
     # Subset only those polygons
-    wwf_eco_biome_filtered <- wwf_eco_biome[polygons_with_points, ]
-   # plot(wwf_eco_biome_filtered[4], key.pos = NULL)
+    wwf_ecoregions_filtered <- wwf_ecoregions[polygons_with_points, ]
+   # plot(wwf_ecoregions_filtered[4], key.pos = NULL)
     
     
     #----------------------------------------------------------------------------------------
     #---- biasgrid: keep values inside invaded ecoregions, set outside to 1 (lowest value)---
     #----------------------------------------------------------------------------------------
     # Step 1: Rasterize WWF polygons to match biasgrid_aligned
-    inside_mask <- terra::rasterize(vect(wwf_eco_biome_filtered), biasgrid_aligned, field = 1, background = NA)
+    inside_mask <- terra::rasterize(vect(wwf_ecoregions_filtered), biasgrid_aligned, field = 1, background = NA)
     
     # Step 2: Apply logic — keep original where inside_mask, else 1
     biasgrid_temp <- terra::ifel(!is.na(inside_mask), biasgrid_aligned, 1)
@@ -886,7 +886,7 @@ with_progress({
     elapsed<-difftime(end_time, start_time, units="mins")
     cat("Habitat and ensemble model have been created for", species_title, "in", round(elapsed, 2), "minutes\n\n")
     
-    rm(list = setdiff(ls(), c("p", "project",  "create_folder",  "euboundary", "habitat_stack",  "accepted_taxonkeys", "taxa_info", "key", "exportPDF", "remove_duplicates", "wwf_eco_biome", "remove_nodata_occurrences", "favourability_from_prob", "mtp_probabilities", "occurrence_thinning_method", "mtp_probabilities")))
+    rm(list = setdiff(ls(), c("p", "project",  "create_folder",  "euboundary", "habitat_stack",  "accepted_taxonkeys", "taxa_info", "key", "exportPDF", "remove_duplicates", "wwf_ecoregions", "remove_nodata_occurrences", "favourability_from_prob", "mtp_probabilities", "occurrence_thinning_method", "mtp_probabilities")))
     
     
   }
