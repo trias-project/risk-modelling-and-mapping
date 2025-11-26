@@ -34,10 +34,11 @@ Before you execute this workflow, specify the following configurations in the **
 
 * **species_to_model**: Specify the species you want to model as a character string (e.g., `"Vespa velutina"`). Multiple species can be provided as a character vector (e.g., `c("Vespa velutina", "Aedes albopictus")`). Use Latin binomials only (no authorship or year).
 
-* **occurrence_thinning_method**: When a species has more than 10,000 occurrences, records are thinned to 10,000 to match the number of pseudoabsences. Options:
-  * `"random"`: randomly samples 10,000 occurrences.
-  * `"kmeans_clustering"`: performs k-means clustering in environmental space and selects 10,000 cluster centroids, ensuring the thinned occurrences represent the broadest environmental variation.<br>
-<br>
+* **occurrence_thinning_method**: When a species has more than 10,000 occurrences, records are thinned to 10,000 to match the number of pseudoabsences. Options:<ul>
+<li><code>"random"</code>: randomly samples 10,000 occurrences.</li>
+<li><code>"kmeans_clustering"</code>: performs k-means clustering in environmental space and selects 10,000 cluster centroids, ensuring the thinned occurrences represent the broadest environmental variation.</li>
+</ul>
+
 * **mtp_probabilities**: Defines the minimum training presence (MTP) thresholds used to convert continuous favorability predictions into binary presence/absence maps. For each value in `mtp_probabilities`, the workflow removes the lowest *x*% of occurrence probabilities and uses the next-lowest value as the threshold. Example: `mtp_probabilities = c(0.01, 0.05)` will produce binarized maps where the threshold corresponds to the lowest favorability that remains after the 1% and 5% lowest-favorability occurrences are removed.
 
 * **country_of_interest**: Currently inactive, do not modify this parameter. The workflow currently produces predictions only for the whole of Europe. Future versions will allow masking outputs to a user-defined country.
@@ -57,17 +58,18 @@ To execute this workflow, run the **06_run_wiSDM.R** script, stored in the `src`
 1.	**Generates habitat suitability maps using machine learning.**
 The workflow requires only a species name and then fits an ensemble of ten machine-learning algorithms to estimate both climate suitability (using global occurrences) and habitat suitability (using European occurrences). For each type (habitat and climate), the predictions from these ten algorithms are summarized using a PCA, and the median of the five models that explain the most variation along the first PCA axis is used to generate the final suitability map. These two maps are then combined using the geometric mean in order to produce a final overall suitability prediction. All maps are generated automatically for current conditions, and climate suitability maps, along with the final combined maps, are also produced for three standard Shared Socioeconomic Pathways (SSP1-2.6, SSP3-7.0, and SSP5-8.5) for the periods 2041–2070 and 2071–2100.
 2.	**Addresses geographic sampling bias.**
-3.	**Implements best practices for pseudoabsence placement:** <br>
-* **Climate model**: Pseudoabsences are sampled within the same biomes as species presences but excluded from presence grid cells. A taxonomic occurrence grid (bias grid) captures the sampling intensity of the higher taxon and is used to weight grid cells, assigning greater weight to well-sampled areas.
-* **Habitat model**: Pseudoabsences are sampled across all of Europe, excluding presence grid cells. In ecoregions with presences, grid cells are weighted using the bias grid, while outside these ecoregions all cells are assigned the minimum weight (1).
+3.	**Implements best practices for pseudoabsence placement:** 
+    * **Climate model**: Pseudoabsences are sampled within the same biomes as species presences but excluded from presence grid cells. A taxonomic occurrence grid (bias grid) captures the sampling intensity of the higher taxon and is used to weight grid cells, assigning greater weight to well-sampled areas.
+    * **Habitat model**: Pseudoabsences are sampled across all of Europe, excluding presence grid cells. In ecoregions with presences, grid cells are weighted using the bias grid, while outside these ecoregions all cells are assigned the minimum weight (1).
 4.	**Detects and removes highly correlated predictors.**<br>
 Highly correlated predictors can have undesirable effects and confuse the interpretation of variable importance.
+5.	**Automatic generation of confidence maps** for each suitability map. These maps illustrate prediction uncertainty across the study area by calculating the population standard deviation of the predictions produced by the five algorithms for both the climate and habitat models. The standard deviation of the combined prediction is then computed using the appropriate error-propagation formula for the geometric mean.
 <br>
 <br>
 
 ## Future functionalities
-1.	**Automatic generation of confidence maps** for each suitability map. These will illustrate prediction uncertainty across the study extent.
-2.	**Evaluation of spatial autocorrelation** in model residuals to detect clustering effects. If autocorrelation is high, the workflow will recommend (but not automatically apply) occurrence thinning.
+1.	**Evaluation of spatial autocorrelation** in model residuals to detect clustering effects. If autocorrelation is high, the workflow will recommend (but not automatically apply) occurrence thinning.
+2.  **Cross-validated Boyce Index calculation** to provide a robust, presence-only model performance measure.
 <br>
 
 ## Contributors
