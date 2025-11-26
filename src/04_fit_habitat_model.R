@@ -862,6 +862,9 @@ with_progress({
     for (period in c("2041-2070","2071-2100")){
       for(scenario in c("ssp126", "ssp370", "ssp585")){
         
+        #--------------------------------
+        #--- Create suitability maps ----
+        #--------------------------------
         print(paste("[FUTURE] Projecting:", period,scenario))
         
         #Get climate data for specific period and scenario
@@ -941,6 +944,67 @@ with_progress({
                       filename=filename)
           }
         }
+        
+        #--------------------------------
+        #---- Create confidence maps ----
+        #--------------------------------
+        #Calculate SD on final future predictions
+        future_sd_folder <- file.path(base_dir, "Climate", period, scenario, "Diagnostics", "Confidence_maps", "Rasters")
+        sd_future_climate_path <-  file.path(future_sd_folder, paste0(global_basefile, period,"_",scenario,"_ensemble_SD.tif"))
+        future_mean_folder <- file.path(base_dir, "Climate", "Current", "Interim")
+        mean_future_climate_path <-  file.path(future_mean_folder, paste0(global_basefile, period,"_",scenario,"_ensemble_mean.tif"))
+        consensus_future_climate_mean <- terra::rast(mean_future_climate_path)
+        consensus_future_climate_sd <- terra::rast(sd_future_climate_path)
+        
+        #reproject mean future_climate to mean habitat crs
+        consensus_future_climate_mean <- terra::project(consensus_future_climate_mean,
+                                                 consensus_habitat_mean,
+                                                 method = "bilinear")
+        consensus_future_climate_sd <- terra::project(consensus_future_climate_sd,
+                                               consensus_habitat_mean,
+                                               method = "bilinear")
+        
+        # small floor to avoid division by zero; adjust if needed
+        eps <- 1e-6    
+        
+        # compute geometric mean
+        S <- sqrt(consensus_future_climate_mean * consensus_habitat_mean)
+        
+        # compute relative SDs safely
+        sd_future_climate <- consensus_future_climate_sd / (consensus_future_climate_mean + eps)
+        sd_habitat <- consensus_habitat_sd / (consensus_habitat_mean + eps)
+        
+        # combined relative uncertainty (root-sum-of-squares)
+        sd_comb <- sqrt(sd_future_climate^2 + sd_habitat^2)
+        
+        # final sd of geometric mean
+        Final_future_SD <- 0.5 * S * sd_comb
+        
+        names(Final_future_SD) <- "sd_geometric_mean"
+        
+        #Define name of files
+        filename <- paste0(combined_basefile, period, "_",scenario,"_ensemble_SD")
+        
+        #Export raster file
+        future_sd_file <- file.path(base_dir, "Combined", period, scenario, "Diagnostics", "Confidence_maps", "Rasters",
+                                      paste0(filename,".tif"))
+        terra::writeRaster(Final_future_SD, filename = future_sd_file, overwrite = T)
+        
+        #Export PDFs and PNGs
+        exportPDF(predictions = Final_future_SD,
+                  dataType = "Stdev",
+                  period = period,
+                  scenario = scenario,
+                  returnPredictions = FALSE,
+                  returnPNG = FALSE,
+                  occ_data=NULL,
+                  exportPNG=TRUE,
+                  PDF_title = PDF_title,
+                  PNG_folder=file.path(base_dir, "Combined", period, scenario, "Diagnostics", "Confidence_maps", "PNGs"),
+                  PDF_folder=file.path(base_dir, "Combined", period, scenario, "Diagnostics", "Confidence_maps", "PDFs"),
+                  filename = filename)
+        
+        rm(S, consensus_future_climate_mean, consensus_future_climate_sd, sd_future_climate, sd_comb, Final_future_SD)
       }
     }
     
