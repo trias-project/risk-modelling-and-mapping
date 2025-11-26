@@ -728,6 +728,24 @@ with_progress({
     }
     
 
+    #------------------------------------------
+    #-- Create map with ensemble SD --
+    #------------------------------------------
+    #Define name of files
+    filename <- paste0(basefile, "current_ensemble_SD")
+    
+      exportPDF(predictions = consensus_sd,
+                dataType = "Stdev",
+                scenario = "Current",
+                returnPredictions = FALSE,
+                returnPNG = FALSE,
+                occ_data=NULL,
+                exportPNG=TRUE,
+                PDF_title = PDF_title,
+                PNG_folder=file.path(base_dir, "Climate", "Current", "Diagnostics", "Confidence_maps", "PNGs"),
+                PDF_folder=file.path(base_dir, "Climate", "Current", "Diagnostics", "Confidence_maps","PDFs"),
+                filename = filename)
+    
     
     #------------------------------------------
     #------------ Create binary map -----------
@@ -1031,10 +1049,14 @@ with_progress({
                                paste0("Biasgrid_",speciesName,"_",taxonkey,".tif"))
     ensemble_median_file <- file.path( base_dir,"Climate", "Current", "Predictions", "Rasters",
                                         paste0(basefile, "current_ensemble.tif"))
+    ensemble_sd_file <- file.path( base_dir,"Climate", "Current","Diagnostics", "Confidence_maps", "Rasters",
+                                       paste0(basefile, "current_ensemble_SD.tif"))
     
     terra::writeRaster(biasgrid_sub, filename = biasgrid_file, overwrite = TRUE)
     terra::writeRaster(consensus_median, filename = ensemble_median_file, overwrite = TRUE)
   
+    terra::writeRaster(consensus_sd, filename = ensemble_sd_file, overwrite = TRUE)
+    
     
     #--------------------------------------------
     #------------------ Clean up-----------------
