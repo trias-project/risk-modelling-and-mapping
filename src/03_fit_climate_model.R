@@ -227,6 +227,7 @@ wwf_eco_biome<-sf::st_read(file.path("./data/external/GIS/official/newRealms.shp
 # Optionally, make geometry valid
 #wwf_eco_biome <- sf::st_make_valid(wwf_eco)
 
+
 #--------------------------------------------
 #-------Load file paths to bias grids -------
 #--------------------------------------------
@@ -321,8 +322,8 @@ with_progress({
     #Create folders for each combination
     scenario_folders <- list()
     
-      for(period in periods){
-        for(output in outputs){
+    for(period in periods){
+      for(output in outputs){
         if(period=="Current"){
           loop_list <- list(list(path = file.path(base_dir, "Climate", period,"Predictions",output),
                                  name = paste("Climate", period, "Predictions",output,  sep = "/")),
@@ -439,7 +440,7 @@ with_progress({
     sf::sf_use_s2(TRUE)
     
     #--------------------------------------------
-    #------------- Plot ecoregions --------------
+    #------------- Plot biomes --------------
     --------------------------------------------
     # ggplot()+
     # geom_sf(data = world,  colour = "black", fill = NA)+
@@ -719,6 +720,7 @@ with_progress({
                 PDF_folder=file.path(base_dir, "Climate", "Current", "Predictions","PDFs"),
                 filename = filename)
     }
+    
 
     
     #------------------------------------------
