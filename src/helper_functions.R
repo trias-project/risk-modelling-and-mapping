@@ -340,7 +340,7 @@ exportPDF <- function(predictions=NULL, period=NULL, scenario, occ_data=NULL, da
   #Settings for plot
   if (dataType == "Diff") {
     brks <- seq(-1, 1, by = 0.25)
-  } else if (dataType %in% c("Suit", "Conf", "Masked_Suit")) {
+  } else if (dataType %in% c("Suit", "Conf", "Masked_Suit", "Stdev")) {
     brks <- seq(0, 1, by = 0.2)
   }
 
@@ -392,7 +392,8 @@ exportPDF <- function(predictions=NULL, period=NULL, scenario, occ_data=NULL, da
                        "Diff" = "Suitability difference",
                        "Conf" = "Confidence",
                        "Masked_Suit" = "Suitability",
-                       "Binary" = "Suitability")
+                       "Binary" = "Suitability",
+                       "Stdev" = "Standard deviation")
   
   hjust_value <- ifelse(dataType == "Diff", -0.264 , -0.24)
   x_value<-ifelse(exten[1]>180, 1547000, -13)
