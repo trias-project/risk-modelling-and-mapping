@@ -857,11 +857,23 @@ with_progress({
         # Create Ensemble predictions for future
         future_fav_stack <- terra::rast(future_modeloutput)
         future_consensus_median <- app(future_fav_stack, median)
+        future_consensus_mean <- mean(future_fav_stack, na.rm=TRUE)
+        future_consensus_sd <- stdev(future_fav_stack, pop=TRUE)
         
         # Export future ensemble raster (favorability) 
         future_folder <- file.path(base_dir, "Climate", period, scenario, "Predictions", "Rasters")
         ensemble_file <- file.path(future_folder, paste0(basefile, period,"_",scenario,"_ensemble.tif"))
         terra::writeRaster(future_consensus_median, filename = ensemble_file, overwrite = TRUE)
+        
+        # Export future sd raster 
+        future_sd_folder <- file.path(base_dir, "Climate", period, scenario, "Diagnostics", "Confidence_maps", "Rasters")
+        ensemble_sd_file <- file.path(future_sd_folder, paste0(basefile, period,"_",scenario,"_ensemble_SD.tif"))
+        terra::writeRaster(future_consensus_sd, filename = ensemble_sd_file, overwrite = TRUE)
+        
+        # Export future mean raster 
+        future_mean_folder <- file.path(base_dir, "Climate", "Current", "Interim")
+        ensemble_mean_file <- file.path(future_mean_folder, paste0(basefile, period,"_",scenario,"_ensemble_mean.tif"))
+        terra::writeRaster(future_consensus_mean, filename = ensemble_mean_file, overwrite = TRUE)
         
         # # Export future single-model rasters
         # for (mod in top5_models) {
@@ -889,6 +901,22 @@ with_progress({
                     PDF_folder=file.path(base_dir, "Climate", period, scenario, "Predictions", "PDFs"),
                     filename = filename)
         }
+        
+        # Export ensemble SD predictions as PDF and PNG 
+        filename<- paste0(basefile, scenario,"_", period,"_ensemble_SD")
+          
+          exportPDF(predictions = future_consensus_sd,
+                    dataType = "Stdev",
+                    period = period,
+                    scenario = scenario,
+                    returnPredictions = FALSE,
+                    returnPNG = TRUE,
+                    occ_data=NULL,
+                    exportPNG=TRUE,
+                    PDF_title=PDF_title,
+                    PNG_folder=file.path(base_dir, "Climate", period, scenario, "Diagnostics", "Confidence_maps", "PNGs"),
+                    PDF_folder=file.path(base_dir, "Climate", period, scenario, "Diagnostics", "Confidence_maps", "PDFs"),
+                    filename = filename)
         
         
         # Create binarized ensemble predictions for future
