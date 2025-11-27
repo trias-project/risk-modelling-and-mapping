@@ -148,9 +148,8 @@ globalclimpreds_terra<- aggregate(globalclimpreds_terra, fact=5, fun=mean, na.rm
 #--------------------------------------------
 #--------Load European boundary layer -------
 #--------------------------------------------
-euboundary<-sf::st_read(file.path("data", "external", "GIS", "Europe", "EUROPE.shp")) 
-# Convert sf boundary to SpatVector
-euboundary_vect <- terra::vect(euboundary)
+euboundary <-terra::rast(file.path("data", "external", "habitat", "Agriculture.tif"))%>%
+  terra::project(globalclimpreds_terra[[1]])
 
 
 #---------------------------------------------
@@ -168,8 +167,9 @@ globalclimpreds_terra  <- terra::mask(
 )
 
 # Crop and mask scaled_stack to European extent
-eu_climpreds.10 <- terra::crop(globalclimpreds_terra, euboundary_vect)
-eu_climpreds.10 <- terra::mask(eu_climpreds.10, euboundary_vect)
+eu_climpreds.10 <- terra::crop(globalclimpreds_terra, euboundary)
+eu_climpreds.10 <- terra::mask(eu_climpreds.10, euboundary)%>%
+  terra::crop(terra::ext(-38, 50,  24.29152732065, 72.66652712715))
 
 
 #--------------------------------------------

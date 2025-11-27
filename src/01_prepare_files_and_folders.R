@@ -34,13 +34,12 @@ source(here::here("src", "00_configurations.R"))
 # Define the folder paths
 habitat_folder <- here::here("data","external","habitat")
 country_folder <- here::here("data","external","GIS","Country")
-Europe_folder <- here::here("data","external","GIS","Europe")
 chelsa_current_folder <- here::here("data","external","climate","chelsa_current")
 chelsa_mask_folder <- here::here("data","external","climate","chelsa_mask")
 biasgrids_folder <- here::here("data","external","bias_grids")
 
 #Store in a vector
-folders<-c(habitat_folder, country_folder, Europe_folder, chelsa_current_folder, chelsa_mask_folder, biasgrids_folder)
+folders<-c(habitat_folder, country_folder, chelsa_current_folder, chelsa_mask_folder, biasgrids_folder)
 
 # Check and create each folder if necessary
 for(folder in folders){
@@ -157,24 +156,6 @@ if(grepl("windows", Sys.getenv("OS"), ignore.case = TRUE)) {
 }
 
 chelsa_mask <- terra::rast(here::here(chelsa_mask_folder,paste0("CHELSA_meantemp1.tif")))
-
-
-#-------------------------------------------------
-#----- Store the European boundary shapefile  ----
-#-------------------------------------------------
-zen4R::download_zenodo(doi="https://doi.org/10.5281/zenodo.15102496", 
-                       path=Europe_folder, 
-                       files=list("EUROPE.shp", 
-                                  "EUROPE.dbf",
-                                  "EUROPE.shx",
-                                  "EUROPE.prj",
-                                  "EUROPE.sbn",
-                                  "EUROPE.sbx",
-                                  "EUROPE.shp.xml"), 
-                       quiet=FALSE)
-
-euboundary_vect <- sf::st_read(here::here(Europe_folder,"EUROPE.shp")) %>%
-  terra::vect()
 
 
 #-------------------------------------------------
