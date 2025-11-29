@@ -52,6 +52,9 @@ Our workflow requires only a species name and generates an ensemble of machine l
 
 [List of contributors](https://github.com/trias-project/risk-modelling-and-mapping/contributors)
 <br>
+
+## References
+Davis AJS, Groom Q, Adriaens T, Vanderhoeven S, De Troch R, Oldoni D, Desmet P, Reyserhove L, Lens L and Strubbe D (2024) Reproducible WiSDM: a workflow for reproducible invasive alien species risk maps under climate change scenarios using standardized open data. Front. Ecol. Evol. 12:1148895. doi: [10.3389/fevo.2024.1148895](https://doi.org/10.3389/fevo.2024.1148895)
 ## License
 
 [MIT License](https://github.com/trias-project/risk-modelling-and-mapping/blob/master/LICENSE)
