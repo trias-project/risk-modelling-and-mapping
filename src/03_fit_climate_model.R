@@ -148,7 +148,7 @@ globalclimpreds_terra<- aggregate(globalclimpreds_terra, fact=5, fun=mean, na.rm
 #--------------------------------------------
 #--------Load European boundary layer -------
 #--------------------------------------------
-euboundary <-terra::rast(file.path("data", "external", "habitat", "Agriculture.tif"))%>%
+euboundary <- terra::rast(file.path("data", "external", "habitat", "Agriculture.tif"))%>%
   terra::project(globalclimpreds_terra[[1]])
 
 
@@ -193,6 +193,12 @@ for (period in c("2041-2070","2071-2100")){
       future_stack,
       eu_climpreds.10,
       method = "bilinear")
+    
+    future_aligned <- future_aligned %>%
+      terra::mask(eu_climpreds.10) %>%
+      terra::crop(terra::ext(-38, 50,  24.29152732065, 72.66652712715))
+      
+    
     
     # Get mask from future stack NA structure
     na_mask_future <- anyNA(future_aligned)
