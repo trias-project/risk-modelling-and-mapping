@@ -106,7 +106,7 @@ chelsa_mask <- terra::rast(here::here(chelsa_mask_folder,paste0("CHELSA_meantemp
 
 
 #-------------------------------------------------
-#-------- Scale and mask CHELSA layers  ----------
+#----- Scale and mask current CHELSA layer  ------
 #-------------------------------------------------
 #List files
 chelsa_current <- list.files(here::here(chelsa_current_folder), pattern = "^CHELSA_.*\\.tif$", full.names = TRUE)
@@ -199,13 +199,27 @@ zen4R::download_zenodo(doi = "https://doi.org/10.5281/zenodo.17724735",
 # #-------------------------------------------------
 # #---------------- Store biasgrids  ---------------
 # #-------------------------------------------------
-# zen4R::download_zenodo(doi="https://doi.org/10.5281/zenodo.7556851", 
-#                        path=biasgrids_folder, 
-#                        files=list("amphib_1deg_min5.tif",
-#                                   "birds_1deg_min5.tif",
-#                                   "mammals_1deg_min5.tif",
-#                                   "molluscs_1deg_min5.tif",
-#                                   "plants_1deg_min5.tif",
-#                                   "reptiles_1deg_min5.tif"), 
-#                        quiet=FALSE)
-# 
+zen4R::download_zenodo(doi="https://doi.org/10.5281/zenodo.17724735", 
+                       path=biasgrids_folder,
+                       files=list("log_amphibians_1degree_layer.tif",
+                                  "log_birds_1degree_layer.tif",
+                                  "log_fish_1degree_layer.tif",
+                                  "log_hydrozoa_1degree_layer.tif",
+                                  "log_insects_1degree_layer.tif",
+                                  "log_malacostraca_1degree_layer.tif",
+                                  "log_mammals_1degree_layer.tif",
+                                  "log_mollusca_1degree_layer.tif",
+                                  "log_plants_1degree_layer.tif",
+                                  "log_reptiles_1degree_layer.tif"),
+                       quiet=FALSE)
+
+
+#-------------------------------------------------
+#----- Store the country boundary shapefile  -----
+#-------------------------------------------------
+#This may take some time!
+country <- rnaturalearth::ne_countries(country=country_of_interest, scale=10)[1]
+country_vector <- terra::vect(country) #Convert to a SpatVector, used for masking
+country_ext <- terra::ext(country_vector) 
+sf::write_sf(country, here::here(country_folder,"country.shp"))
+
