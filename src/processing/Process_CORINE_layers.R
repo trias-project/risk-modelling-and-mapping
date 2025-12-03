@@ -1,14 +1,14 @@
 #---------------------------------------------------------------
 #---------------------------------------------------------------
-# This script processes the CORINE land use dataset 
-# (version U2018_CLC2018_V2020_20u1). We start with the 
-# 100m-resolution GeoTIFF file and aggregate its 100m x 100m 
-# pixels into 1km x 1km cells. Each cell represents the 
+# This script processes the CORINE land use dataset
+# (version U2018_CLC2018_V2020_20u1). We start with the
+# 100m-resolution GeoTIFF file and aggregate its 100m x 100m
+# pixels into 1km x 1km cells. Each cell represents the
 # percentage coverage of a specific land cover cateogry.
-# These maps were created for five land cover categories: 
-# Agriculture, Deciduous forest, Coniferous forest, mixed forest, 
+# These maps were created for eight land cover categories:
+# Agriculture, Deciduous forest, Coniferous forest, mixed forest,
 # Shrubs and herbaceous, Inland wetland, Coastal wetland, and
-# artificial structures. 1km grid cells based on more than 5% NA's 
+# artificial structures. 1km grid cells based on more than 5% NA's
 # or more than 50% Sea and ocean cells were set to NA.
 #---------------------------------------------------------------
 #---------------------------------------------------------------
