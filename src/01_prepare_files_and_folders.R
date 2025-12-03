@@ -180,10 +180,21 @@ for (period in c("2041-2070","2071-2100")) {
 # #-------------------------------------------------
 # #-- Store habitat layers for the European model --
 # #-------------------------------------------------
-# zen4R::download_zenodo(doi="https://doi.org/10.5281/zenodo.7841324", 
-#                        path=habitat_folder, 
-#                        quiet=FALSE)
 
+zen4R::download_zenodo(doi = "https://doi.org/10.5281/zenodo.17724735", 
+                       path = habitat_folder, 
+                       files = list("Agriculture.tif",
+                                  "Artificial.tif",
+                                  "Coastal_wetland.tif",
+                                  "Coniferous_forest.tif",
+                                  "Deciduous_forest.tif",
+                                  "Inland_wetland.tif",
+                                  "Mixed_forest.tif",
+                                  "Shrub_and_herbaceous.tif",
+                                  "log_distance_to_water.tif",
+                                  "log_total_water_length.tif",
+                                  "proportion_total_water_polygon_cover.tif"), 
+                       quiet=FALSE)
 
 # #-------------------------------------------------
 # #---------------- Store biasgrids  ---------------
