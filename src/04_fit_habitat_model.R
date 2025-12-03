@@ -936,7 +936,7 @@ with_progress({
                       returnPredictions = FALSE,
                       returnPNG = FALSE,
                       exportPNG = TRUE,
-                      LabelValue= threshold,
+                      LabelValue= round(threshold,2),
                       LabelName=paste0(mtp_pct, " MTP threshold"),
                       PDF_title=PDF_title,
                       PNG_folder=file.path(base_dir, "Combined", period, scenario, "Predictions", "PNGs"),
