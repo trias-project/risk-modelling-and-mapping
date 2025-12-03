@@ -89,59 +89,6 @@ for(i in c("1", "4", "5", "6","7", "12","13","14","15")){
 }
 
 
-#---------------------------------------------------------
-#---------- Store future CHELSA layers  ---------
-#---------------------------------------------------------
-#Note that there are values missing in all future layers of Precipitation driest month bio14, this should not be a problem though as they fall outside of the EU!
-#Store future CHELSA layers at global level
-# options(timeout = 600) #set time-out to 10 min 
-# 
-# for(i in c("1", "4", "5", "6","7", "12","13","14","15")){
-#   
-#   # Remove leading zeros during download
-#   i_download <- as.integer(i)
-#   
-#   # Define CHELSA layer name
-#   layer_name <- switch(i,
-#                        "1" = "meantemp",
-#                        "4" = "temp_seasonality",
-#                        "5" = "maxTmpWarmestMon",
-#                        "6"= "minTmpColdestMon",
-#                        "7"="temp_annRange",
-#                        "12"="annPrecip",
-#                        "13"="precipWettestMon",
-#                        "14"="precipDriestMon",
-#                        "15"="precipSeasonality")
-#   
-#   if(grepl("windows", Sys.getenv("OS"), ignore.case = TRUE)) {
-#     download.file(url = paste0("https://os.zhdk.cloud.switch.ch/chelsav2/GLOBAL/climatologies/2041-2070/GFDL-ESM4/ssp126/bio/CHELSA_bio",i_download,"_2041-2070_gfdl-esm4_ssp126_V.2.1.tif"),
-#                   mode = "wb",
-#                   destfile = here::here(rcp26_globalmodel_folder,paste0("CHELSA_",layer_name,"_",i,".tif")))
-#   }else{
-#     download.file(url = paste0("https://os.zhdk.cloud.switch.ch/chelsav2/GLOBAL/climatologies/2041-2070/GFDL-ESM4/ssp126/bio/CHELSA_bio",i_download,"_2041-2070_gfdl-esm4_ssp126_V.2.1.tif"),
-#                   destfile = here::here(rcp26_globalmodel_folder,paste0("CHELSA_",layer_name,"_",i,".tif")))
-#   }
-#   
-#   if(grepl("windows", Sys.getenv("OS"), ignore.case = TRUE)) {
-#     download.file(url = paste0("https://os.zhdk.cloud.switch.ch/chelsav2/GLOBAL/climatologies/2041-2070/GFDL-ESM4/ssp370/bio/CHELSA_bio",i_download,"_2041-2070_gfdl-esm4_ssp370_V.2.1.tif"),
-#                   mode = "wb",
-#                   destfile = here::here(rcp70_globalmodel_folder,paste0("CHELSA_",layer_name,"_",i,".tif")))
-#   }else{
-#     download.file(url = paste0("https://os.zhdk.cloud.switch.ch/chelsav2/GLOBAL/climatologies/2041-2070/GFDL-ESM4/ssp370/bio/CHELSA_bio",i_download,"_2041-2070_gfdl-esm4_ssp370_V.2.1.tif"),
-#                   destfile = here::here(rcp70_globalmodel_folder,paste0("CHELSA_",layer_name,"_",i,".tif")))
-#   }
-#   
-#   if(grepl("windows", Sys.getenv("OS"), ignore.case = TRUE)) {
-#     download.file(url = paste0("https://os.zhdk.cloud.switch.ch/chelsav2/GLOBAL/climatologies/2041-2070/GFDL-ESM4/ssp585/bio/CHELSA_bio",i_download,"_2041-2070_gfdl-esm4_ssp585_V.2.1.tif"),
-#                   mode = "wb",
-#                   destfile = here::here(rcp85_globalmodel_folder,paste0("CHELSA_",layer_name,"_",i,".tif")))
-#   }else{
-#     download.file(url = paste0("https://os.zhdk.cloud.switch.ch/chelsav2/GLOBAL/climatologies/2041-2070/GFDL-ESM4/ssp585/bio/CHELSA_bio",i_download,"_2041-2070_gfdl-esm4_ssp585_V.2.1.tif"),
-#                   destfile = here::here(rcp85_globalmodel_folder,paste0("CHELSA_",layer_name,"_",i,".tif")))
-#   }
-# }
-
-
 #--------------------------------------------------------------------
 #----- Store CHELSA v1 layer as mask template for marine pixels  ----
 #--------------------------------------------------------------------
@@ -203,14 +150,31 @@ for (file in chelsa_current){
 }
 
 
-#-------------------------------------------------
-#----- Store the country boundary shapefile  -----
-#-------------------------------------------------
-#This may take some time!
-country <- rnaturalearth::ne_countries(country=country_of_interest, scale=10)[1]
-country_vector <- terra::vect(country) #Convert to a SpatVector, used for masking
-country_ext <- terra::ext(country_vector) 
-sf::write_sf(country, here::here(country_folder,"country.shp"))
+#---------------------------------------------------------
+#---------- Store future CHELSA layers  ---------
+#---------------------------------------------------------
+#Note that there are values missing in all future layers of Precipitation driest month (bio14), this is not a problem as they fall outside of the EU!
+
+for (period in c("2041-2070","2071-2100")) {
+  for (scenario in c("ssp126", "ssp370", "ssp585")) {
+    
+    future_folder <- here::here("data","external", "climate", "chelsa_future", period, scenario)
+    
+    zen4R::download_zenodo(doi = "https://doi.org/10.5281/zenodo.17724735", 
+                           path = future_folder, 
+                           files = list(paste0("scaled_layer_CHELSA_meantemp_1_",period,"_",scenario,".tif"), 
+                                        paste0("scaled_layer_CHELSA_temp_seasonality_4_",period,"_",scenario,".tif"), 
+                                        paste0("scaled_layer_CHELSA_maxTmpWarmestMon_5_",period,"_",scenario,".tif"), 
+                                        paste0("scaled_layer_CHELSA_minTmpColdestMon_6_",period,"_",scenario,".tif"), 
+                                        paste0("scaled_layer_CHELSA_temp_annRange_7_",period,"_",scenario,".tif"), 
+                                        paste0("scaled_layer_CHELSA_annPrecip_12_",period,"_",scenario,".tif"), 
+                                        paste0("scaled_layer_CHELSA_precipWettestMon_13_",period,"_",scenario,".tif"), 
+                                        paste0("scaled_layer_CHELSA_precipDriestMon_14_",period,"_",scenario,".tif"), 
+                                        paste0("scaled_layer_CHELSA_precipSeasonality_15_",period,"_",scenario,".tif")),
+                           quiet=FALSE) 
+    rm(future_folder)
+  }
+}
 
 
 # #-------------------------------------------------
