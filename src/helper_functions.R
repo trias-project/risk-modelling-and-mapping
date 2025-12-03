@@ -349,9 +349,9 @@ exportPDF <- function(predictions=NULL, period=NULL, scenario, occ_data=NULL, da
   viridis_palette <- viridis::viridis(nb)
   
   #Create dummy raster with all values
-  template<-predictions
+  template <- predictions
   values(template) <- rep(brks, length.out = ncell(template))
-  template<-mask(template, predictions)
+  template <- mask(template, predictions)
   
   #Create plot
   suppressMessages(
@@ -365,8 +365,8 @@ exportPDF <- function(predictions=NULL, period=NULL, scenario, occ_data=NULL, da
     theme_bw() +
     theme(axis.title = element_blank())+
     theme(plot.margin = unit(c(0.2,0.2,0.2,0.2), "cm"))+
-    coord_sf(xlim = c(exten[1], exten[2]), 
-             ylim = c(exten[3], exten[4] + 2))
+    coord_sf(xlim = c(exten[1] - (exten[1] * 0.12), exten[2]- (exten[2] * 0.05)), 
+             ylim = c(exten[3], exten[4] + (exten[4] * 0.04)))
   )
   
   }else{
@@ -380,8 +380,8 @@ exportPDF <- function(predictions=NULL, period=NULL, scenario, occ_data=NULL, da
       theme_bw() +
       theme(axis.title = element_blank())+
       theme(plot.margin = unit(c(0.2,0.2,0.2,0.2), "cm"))+
-      coord_sf(xlim = c(exten[1], exten[2]), 
-               ylim = c(exten[3], exten[4] + 2))
+      coord_sf(xlim = c(exten[1] - (exten[1] * 0.12), exten[2]- (exten[2] * 0.05)), 
+               ylim = c(exten[3], exten[4] + (exten[4] * 0.04)))
     )
   }
   # Define text label, fill label, and hjust based on dataType
@@ -395,8 +395,8 @@ exportPDF <- function(predictions=NULL, period=NULL, scenario, occ_data=NULL, da
                        "Binary" = "Suitability",
                        "Stdev" = "Standard deviation")
   
-  hjust_value <- ifelse(dataType == "Diff", -0.264 , -0.24)
-  x_value<-ifelse(exten[1]>180, 1547000, -13)
+  hjust_value <- ifelse(dataType == "Diff", -0.264 , -0.24) 
+  x_value<-ifelse(exten[1]>180, 800000, -35)
   # Update the plot
   country_plot <- country_plot +
     labs(fill = fill_label) +
@@ -404,11 +404,11 @@ exportPDF <- function(predictions=NULL, period=NULL, scenario, occ_data=NULL, da
              x = x_value, y = Inf,       # Position at top-right
              label = text_label,     # Text to display
              hjust = 0,
-             vjust = 2.5,            # Adjust text alignment to the right and above
+             vjust = 2.4,            # Adjust text alignment to the right and above
              size = 4.8,
              color = "#636363",
              fontface = "bold")+
-    theme(aspect.ratio=0.95)
+    theme(aspect.ratio=NULL)
   
   if(!is.null(occ_data)){
     crs_value<-st_crs(occ_data)
@@ -424,8 +424,8 @@ exportPDF <- function(predictions=NULL, period=NULL, scenario, occ_data=NULL, da
     country_plot<-country_plot +
       geom_sf(data = occ_data, color = "black", fill = "red", 
               size = 1.5, shape = 21)+
-      coord_sf(xlim = c(exten[1], exten[2]), 
-               ylim = c(exten[3], exten[4] + 2))
+      coord_sf(xlim = c(exten[1] - (exten[1] * 0.12), exten[2]- (exten[2] * 0.05)), 
+               ylim = c(exten[3], exten[4] + (exten[4] * 0.04)))
     )
   }
   
@@ -465,50 +465,60 @@ exportPDF <- function(predictions=NULL, period=NULL, scenario, occ_data=NULL, da
     theme(plot.background = element_blank()) 
   
   #Create final plot
-  plot_final<-country_plot /empty_plot 
+  plot_final<-country_plot 
   
   # Save plot temporarily as a PNG file
   ggplot2::ggsave(filename = PNG_filename, plot = plot_final, 
-         device = "png", width =8.27 , height = 11.69, path= PDF_folder)
+         device = "png", width =7.7 , height = 6.94, units = "in", dpi= 300, path= PDF_folder)
   
    }else{
      # Save plot temporarily as a PNG file
      ggplot2::ggsave(filename = PNG_filename, plot =providedPNG, 
-            device = "png", width =8.27 , height = 11.69, path= PDF_folder)
+            device = "png", width =7.7 , height = 6.94, units = "in", dpi= 300, path= PDF_folder)
    }
   
   # Read the PNG image back in
   img <- magick::image_read(here::here(PDF_folder, PNG_filename))
   
-  # Start a PDF device for output
+  # Start a PDF device for output (A4 portrait in inches)
   pdf(plot_pdf_path, width = 8.27, height = 11.69)
   
-  # Create a layout for title and image
   grid.newpage()
   
   # Add title at the top of the PDF
   grid.text(
     label = PDF_title,
-    x = 0.5, y = 0.95, just = "center", gp = gpar(fontsize = 12, fontface = "bold")
+    x = 0.5, y = 0.95, just = "center", gp = gpar(fontsize = 14, fontface = "bold")
   )
   
-  # Add the PNG image below the title
-    grid::grid.raster(img, width = unit(0.9, "npc"), height = unit(0.9, "npc"), y = 0.47)
-
-  # Close the PDF device
-  while (dev.cur() > 1) dev.off()
+  # Insert the PNG centered on the page
+  # - x = 0.5 centers horizontally
+  # - y = 0.5 centers vertically
+  # - just = "center" anchors the image by its center point
+  # - width/height use npc units so the image scales to the page
+  grid::grid.raster(
+    img,
+    x = unit(0.5, "npc"),
+    y = unit(0.627, "npc"),  # Put plot under title
+    width = unit(0.95, "npc"),
+    height = unit(0.6, "npc"),  # roughly matches PNG aspect ratio
+    just = "center"
+  )
   
-  #Print
+  # Close the PDF device (single close)
+  dev.off()
+  
+  # Print confirmation
   print(paste(PDF_filename," has been created.", sep=""))
   
-  #Remove PNG file in PDF folder
+  # Remove the temporary PNG file
   file.remove(here::here(PDF_folder, PNG_filename))
   
   #Store PNG file in PNG folder if exportPNG is TRUE
- if(exportPNG){
+  if(exportPNG){
     ggplot2::ggsave(filename = PNG_filename, plot = country_plot, 
-                    device = "png", width =8.27 , height = 5.845, path= PNG_folder)
-    #Print
+                    device = "png", width = 7.7, height = 6.94, units = "in", dpi = 300,
+                    path = PNG_folder)
     print(paste(PNG_filename," has been created.", sep="")) 
   }
   
