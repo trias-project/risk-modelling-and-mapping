@@ -124,6 +124,7 @@ gbif_download_key <-  rgbif::occ_download(
   pred_gte("year", year_begin),
   pred_lte("year", year_end),
   pred("hasCoordinate", hasCoordinate),
+  pred("occurrenceStatus", "PRESENT"),
   user  =  gbif_user,
   pwd   = gbif_pwd,
   email = gbif_email,
