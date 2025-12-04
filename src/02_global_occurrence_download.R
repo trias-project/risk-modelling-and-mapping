@@ -125,6 +125,10 @@ gbif_download_key <-  rgbif::occ_download(
   pred_lte("year", year_end),
   pred("hasCoordinate", hasCoordinate),
   pred("occurrenceStatus", "PRESENT"),
+  pred("hasGeospatialIssue", FALSE), #Remove default geospatial issues
+  pred_or(
+    pred_lte("coordinateUncertaintyInMeters",5000),
+    pred_isnull("coordinateUncertaintyInMeters")),
   user  =  gbif_user,
   pwd   = gbif_pwd,
   email = gbif_email,
