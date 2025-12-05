@@ -20,12 +20,17 @@ required_vars <- c("GBIF_USER", "GBIF_PWD", "GBIF_EMAIL")
 missing_vars <- required_vars[!nzchar(Sys.getenv(required_vars))]
 
 if (length(missing_vars) > 0) {
+  
+  example_lines <- paste0(
+    if ("GBIF_USER" %in% missing_vars) 'GBIF_USER="your_gbif_username"\n' else "",
+    if ("GBIF_PWD" %in% missing_vars)  'GBIF_PWD="your_gbif_password"\n' else "",
+    if ("GBIF_EMAIL" %in% missing_vars) 'GBIF_EMAIL="your_email"\n' else ""
+  )
+  
   message(
     "The following environment variables are missing from your ~/.Renviron file: ",
     paste(missing_vars, collapse = ", "), "\n\n",
-    'GBIF_USER="your_gbif_username"\n',
-    'GBIF_PWD="your_gbif_password"\n',
-    'GBIF_EMAIL="your_email"\n\n',
+    example_lines, "\n",
     "Please add them to your ~/.Renviron file.\n\n",
     "You can open this file by running:\n",
     "  usethis::edit_r_environ()\n"
