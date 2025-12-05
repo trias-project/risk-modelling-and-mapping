@@ -48,18 +48,6 @@ for(folder in folders){
 
 
 #-------------------------------------------------
-#----------- Create future folders ---------------
-#-------------------------------------------------
-for (period in c("2041-2070","2071-2100")){
-  for(scenario in c("ssp126", "ssp370", "ssp585")){
-    
-    folder <- here::here("data","external", "climate", "chelsa_future", period, scenario)
-    if(!dir.exists(folder)) dir.create(folder, recursive=TRUE)
-  }
-}
-
-
-#-------------------------------------------------
 #--------- Store the CHELSA layers  --------------
 #-------------------------------------------------
 options(timeout = 600) #set time-out to 10 min 
@@ -154,25 +142,28 @@ for (file in chelsa_current){
 #---------- Store future CHELSA layers  ---------
 #---------------------------------------------------------
 #Note that there are values missing in all future layers of Precipitation driest month (bio14), this is not a problem as they fall outside of the EU!
-
 for (period in c("2041-2070","2071-2100")) {
-  for (scenario in c("ssp126", "ssp370", "ssp585")) {
+  for (scenario in c("ssp126","ssp370","ssp585")) {
     
     future_folder <- here::here("data","external", "climate", "chelsa_future", period, scenario)
+    if(!dir.exists(future_folder)) dir.create(future_folder, recursive=TRUE)
     
-    zen4R::download_zenodo(doi = "https://doi.org/10.5281/zenodo.17724735", 
-                           path = future_folder, 
-                           files = list(paste0("scaled_layer_CHELSA_meantemp_1_",period,"_",scenario,".tif"), 
-                                        paste0("scaled_layer_CHELSA_temp_seasonality_4_",period,"_",scenario,".tif"), 
-                                        paste0("scaled_layer_CHELSA_maxTmpWarmestMon_5_",period,"_",scenario,".tif"), 
-                                        paste0("scaled_layer_CHELSA_minTmpColdestMon_6_",period,"_",scenario,".tif"), 
-                                        paste0("scaled_layer_CHELSA_temp_annRange_7_",period,"_",scenario,".tif"), 
-                                        paste0("scaled_layer_CHELSA_annPrecip_12_",period,"_",scenario,".tif"), 
-                                        paste0("scaled_layer_CHELSA_precipWettestMon_13_",period,"_",scenario,".tif"), 
-                                        paste0("scaled_layer_CHELSA_precipDriestMon_14_",period,"_",scenario,".tif"), 
-                                        paste0("scaled_layer_CHELSA_precipSeasonality_15_",period,"_",scenario,".tif")),
-                           quiet=FALSE) 
-    rm(future_folder)
+    zen4R::download_zenodo(
+      doi = "10.5281/zenodo.17724735",
+      path = future_folder,
+      files = c(paste0("scaled_layer_CHELSA_meantemp_1_",period,"_",scenario,".tif"), 
+                paste0("scaled_layer_CHELSA_temp_seasonality_4_",period,"_",scenario,".tif"), 
+                paste0("scaled_layer_CHELSA_maxTmpWarmestMon_5_",period,"_",scenario,".tif"), 
+                paste0("scaled_layer_CHELSA_minTmpColdestMon_6_",period,"_",scenario,".tif"), 
+                paste0("scaled_layer_CHELSA_temp_annRange_7_",period,"_",scenario,".tif"), 
+                paste0("scaled_layer_CHELSA_annPrecip_12_",period,"_",scenario,".tif"), 
+                paste0("scaled_layer_CHELSA_precipWettestMon_13_",period,"_",scenario,".tif"), 
+                paste0("scaled_layer_CHELSA_precipDriestMon_14_",period,"_",scenario,".tif"), 
+                paste0("scaled_layer_CHELSA_precipSeasonality_15_",period,"_",scenario,".tif")
+      ),
+      timeout=600,
+      quiet = FALSE
+    )
   }
 }
 
@@ -181,20 +172,21 @@ for (period in c("2041-2070","2071-2100")) {
 # #-- Store habitat layers for the European model --
 # #-------------------------------------------------
 
-zen4R::download_zenodo(doi = "https://doi.org/10.5281/zenodo.17724735", 
+zen4R::download_zenodo(doi = "10.5281/zenodo.17724735", 
                        path = habitat_folder, 
                        files = list("Agriculture.tif",
-                                  "Artificial.tif",
-                                  "Coastal_wetland.tif",
-                                  "Coniferous_forest.tif",
-                                  "Deciduous_forest.tif",
-                                  "Inland_wetland.tif",
-                                  "Mixed_forest.tif",
-                                  "Shrub_and_herbaceous.tif",
-                                  "log_distance_to_water.tif",
-                                  "log_total_water_length.tif",
-                                  "proportion_total_water_polygon_cover.tif"), 
+                                    "Artificial.tif",
+                                    "Coastal_wetland.tif",
+                                    "Coniferous_forest.tif",
+                                    "Deciduous_forest.tif",
+                                    "Inland_wetland.tif",
+                                    "Mixed_forest.tif",
+                                    "Shrub_and_herbaceous.tif",
+                                    "log_distance_to_water.tif",
+                                    "log_total_water_length.tif",
+                                    "proportion_total_water_polygon_cover.tif"),
                        quiet=FALSE)
+
 
 # #-------------------------------------------------
 # #---------------- Store biasgrids  ---------------
@@ -223,3 +215,8 @@ country_vector <- terra::vect(country) #Convert to a SpatVector, used for maskin
 country_ext <- terra::ext(country_vector) 
 sf::write_sf(country, here::here(country_folder,"country.shp"))
 
+
+#--------------------------------------------
+#---------- Clean R environment--------------
+#--------------------------------------------
+rm(list = ls())
