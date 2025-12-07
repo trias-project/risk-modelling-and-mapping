@@ -25,7 +25,10 @@ source(file.path("src", "00_configurations.R"))
 #--------------------------------------------
 #---------   Load shape of Europe   ---------
 #--------------------------------------------
-euboundary<-sf::st_read(here("./data/external/GIS/Europe/EUROPE.shp")) 
+euboundary <- terra::rast(file.path("data", "external", "habitat", "Agriculture.tif"))
+euboundary<-(euboundary*0+1)
+euboundary <- terra::as.polygons(euboundary, dissolve = TRUE)  # merge adjacent cells
+euboundary <- sf::st_as_sf(euboundary)  # convert to sf
 
 
 #--------------------------------------------
