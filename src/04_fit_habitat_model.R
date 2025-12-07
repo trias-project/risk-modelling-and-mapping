@@ -213,11 +213,12 @@ with_progress({
     #----- Create subset of European records -------
     #-----------------------------------------------
     #Check for occurrences that fall within Europe
-    eu_occ <- sf::st_filter(global.occ.sf, euboundary) %>%
+    eu_occ <- global.occ.sf%>%
       st_transform(crs = st_crs(habitat_stack)) %>%
+      sf::st_filter(euboundary) %>%
       sf::st_coordinates() %>%
       as.data.frame()
- 
+    
     
     #-----------------------------------------------
     #----------- Process occurrences ---------------
@@ -274,7 +275,7 @@ with_progress({
     #-------- Plot European occurrences ---------
     #--------------------------------------------
     # ggplot()+
-    # geom_sf(data = sf::st_transform(euboundary, crs=st_crs(habitat_stack)),  colour = "black", fill = NA)+
+    # geom_sf(data = euboundary,  colour = "black", fill = NA)+
     # geom_point(data=eu_occ, aes(x=decimalLongitude, y= decimalLatitude),  fill="green", shape = 22, colour = "black", size=3)+
     # labs(x="Longitude", y="Latitude")+
     # theme_bw()
