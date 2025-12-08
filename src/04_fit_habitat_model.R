@@ -403,6 +403,7 @@ with_progress({
     methods <- c("glm", "gam", "bioclim", "brt", "rf", "glmpoly", "mars", "maxent", "fda","cart")
     
     #run model
+    set.seed(2025)
     model <- sdm(
       species ~ ., data = sdm_data,
       methods = methods  # 10 models
