@@ -483,7 +483,6 @@ with_progress({
       dplyr::relocate(decimalLongitude, decimalLatitude, species, geometry)
     
     #Format pseudoabsence data (global_points) 
-    global_points_sf <- global_points[, 0] %>% #Keep only geometry
     global_points_sf <- global_points %>% #Keep only geometry
       dplyr::mutate(species = "absent") %>%
       dplyr::relocate(decimalLongitude, decimalLatitude, species, geometry) #Reorder columns
@@ -526,7 +525,6 @@ with_progress({
       dplyr::mutate(species = ifelse(species == "present", 1, 0))
     
     #Define SDM data and methods
-    sdm_data <- sdm::sdmData(species~.,train=vect(eu_presabs),predictors= fullstack ) 
     sdm_data <- sdm::sdmData(species~.,train=vect(eu_presabs), predictors= fullstack ) 
     methods <- c("glm", "gam", "bioclim", "brt", "rf", "glmpoly", "mars", "maxent", "fda","cart")
     
@@ -553,31 +551,78 @@ with_progress({
     #Create empty list to store models in
     modeloutput<-list()
     
-    #Around 22 min for one species
-      for(modelmethod in methods){
+    for(modelmethod in methods){
+      
+      print(modelmethod)
+      
+      # Wrap everything in a tryCatch for this method
+      pred_raster <- tryCatch({
         
-        print(modelmethod)
+        # Try full raster first
+        predict(model, newdata = fullstack, method = modelmethod)
         
-        #Create raster with predictions for Europe
-        pred_raster <- predict(model,
-                               newdata = fullstack,
-                               method = modelmethod)
+      }, error = function(e) {
         
-        # Get model IDs
-        model_ids <- info$modelID[info$method == modelmethod]
+        message("Full raster prediction failed for method ", modelmethod, 
+                ". Splitting into blocks...")
         
-        # Subset using those IDs
-        method_model <- model[[model_ids]]  
+        nblocks <- 2
+        e <- terra::ext(fullstack)
+        ybreaks <- seq(e$ymin, e$ymax, length.out = nblocks + 1)
+        exts <- lapply(1:nblocks, function(i) ext(e$xmin, e$xmax, ybreaks[i], ybreaks[i+1]))
         
-        #Apply the transformation to the raster
-        fav_raster <- favourability_from_prob(pred_raster, prev_ratio)
+        pred_blocks <- vector("list", nblocks)
         
-        #Store
-        modeloutput[[modelmethod]]<-list(fav_raster=fav_raster,
-                                         model=method_model)
+        for(i in seq_along(exts)) {
+          block_r <- crop(fullstack, exts[[i]])
+          
+          # If this block fails, stop the whole method immediately
+          pred_blocks[[i]] <- tryCatch({
+            predict(model,
+                    newdata = block_r, 
+                    method = modelmethod)
+          }, error = function(e_block) {
+            stop("Block ", i, " prediction failed: ", conditionMessage(e_block))
+          })
+        }
         
-        rm(fav_raster, method_model)
+        # Merge blocks only if all succeed
+        do.call(terra::merge, pred_blocks)
+      })
+      
+      # If prediction failed entirely (full raster + blocks), skip to next method
+      if(inherits(pred_raster, "try-error")) {
+        message("Skipping method ", modelmethod, " due to prediction failure.")
+        next
+      } else{
+        message("Predictions successfully completed for method '", modelmethod, "'.")
       }
+      
+      # Get model IDs
+      model_ids <- info$modelID[info$method == modelmethod]
+      
+      # Subset using those IDs
+      method_model <- model[[model_ids]]  
+      
+      #Apply the transformation to the raster
+      fav_raster <- favourability_from_prob(pred_raster, prev_ratio)
+      
+      #Store
+      modeloutput[[modelmethod]]<-list(fav_raster=fav_raster,
+                                       model=method_model)
+      
+      rm(fav_raster, method_model)
+    }
+    
+    #------------------------------------------------
+    #----- Check if at least 9 algorithms worked ----
+    #------------------------------------------------
+    if (length(modeloutput) < 9) {
+      warning(paste0("Prediction skipped for species '", species, "': Only ",
+                     length(modeloutput), " out of 10 algorithms successfully produced predictions.\n",
+                     "At least 9 are required to continue — moving on to the next species."))
+      next  # Skip to the next species in the loop
+    }
     
     
     #---------------------------------------------
