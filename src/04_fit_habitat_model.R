@@ -361,11 +361,117 @@ with_progress({
     set.seed(728)
     global_points <- terra::spatSample(
       biasgrid_eu,
-      size = 10000,
+      size = 30000, #three times the number we need
       method = "weights",     # weighted random sampling
       as.points = TRUE,       # return SpatVector of points
       na.rm = TRUE            # ignore NA pixels
     )
+    
+    #Extract environmental data in each occurrence and presence absence grid cell
+    occ_habitat_data <- terra::extract(habitat_stack, eu_occ, ID = FALSE)
+    pa_habitat_data <- terra::extract(habitat_stack, global_points, ID = FALSE)
+    
+    # Find which rows in pa_habitat_df are already in occ_habitat_df
+    rows_to_keep <- !do.call(paste, pa_habitat_data) %in% do.call(paste, occ_habitat_data)
+    
+    #Filter points that have the exact same combo of environmental variables as some presence records
+    global_points <- global_points[rows_to_keep, ]
+    
+    #Convert to sf dataframe
+    global_points <- sf::st_as_sf(global_points) %>%
+      dplyr::mutate(decimalLongitude = sf::st_coordinates(.)[,1],
+                    decimalLatitude  = sf::st_coordinates(.)[,2]) %>%
+      dplyr::select(-layer)  
+    
+    #If after filtering we have less than 10000 PA left, repeat with higher intitial sampling
+    if(nrow(global_points)< 10000) {
+      set.seed(728)
+      global_points <- terra::spatSample(
+        biasgrid_eu,
+        size = 50000, #three times the number we need
+        method = "weights",     # weighted random sampling
+        as.points = TRUE,       # return SpatVector of points
+        na.rm = TRUE            # ignore NA pixels
+      )
+      
+      #Extract environmental data in each occurrence and presence absence grid cell
+      pa_habitat_data <- terra::extract(habitat_stack, global_points, ID = FALSE)
+      
+      # Find which combo of values in pa_habitat_data are already in occ_habitat_data
+      rows_to_keep <- !do.call(paste, pa_habitat_data) %in% do.call(paste, occ_habitat_data)
+      
+      #Filter points that have the exact same combo of environmental variables as some presence records
+      global_points <- global_points[rows_to_keep, ]
+      
+      #Convert to sf dataframe
+      global_points <- sf::st_as_sf(global_points) %>%
+        dplyr::mutate(decimalLongitude = sf::st_coordinates(.)[,1],
+                      decimalLatitude  = sf::st_coordinates(.)[,2]) %>%
+        dplyr::select(-layer)  
+      
+      #If still less than 10000 points, skip species 
+      if(nrow(global_points) < 10000) {   
+        warning(paste0(
+          "Skipping species ", species, 
+          " because too many pseudoabsences with a combination of environmental values ",
+          "occurring in the presence dataset were selected."
+        ))
+        next  # Skip the rest of the loop and move to the next iteration
+      }
+    }
+    
+    #Select 10000 pseudoabsences
+    if(nrow(global_points) > 10000){
+      if(pseudoabsence_thinning_method == "random"){
+        print("Thinning pseudoabsences randomly")
+        set.seed(101) 
+        global_points <- global_points[sample(nrow(global_points), 10000, replace=FALSE), ]
+      }else if (pseudoabsence_thinning_method == "kmeans_clustering"){
+        print("Thinning pseudoabsences based on k-means clustering")
+        
+        #Extract environmental data from pseudoabsences
+        pa_habitat_data <- terra::extract(habitat_stack, global_points, ID = FALSE)
+        
+        #Check how many unique rows there are and set centers to lowest of either 10000 or #unique rows
+        unique_centers<-nrow(unique(pa_habitat_data))
+        center_number<-min(unique_centers, 10000)
+        
+        # K-means clustering
+        set.seed(101)
+        clust <- kmeans(pa_habitat_data, centers = center_number,iter.max = 10, nstart = 1)$cluster
+        pa_habitat <- cbind(global_points, pa_habitat_data, clust)%>%
+          mutate(rID =row_number())
+        
+        # Keep 1 pseudoabsence per cluster
+        sampled <- pa_habitat %>%
+          dplyr::group_by(clust) %>%
+          dplyr::slice_sample(n = 1) %>%
+          dplyr::ungroup()
+        
+        # How many pseudoabsences do we still need
+        remaining <- 10000 - nrow(sampled)
+        
+        # Randomly sample extra pseudoabsences if fewer than 10000
+        if (remaining > 0) {
+          extra_pa <- pa_habitat %>%
+            dplyr::filter(!rID %in% sampled$rID)%>%
+            dplyr::slice_sample(n = remaining) 
+          
+          global_points <- bind_rows(sampled, extra_pa)
+          rm(extra_pa)
+          
+        } else {
+          global_points<- sampled
+        }
+        
+        # Keep only three columns
+        global_points <- global_points%>%
+          dplyr::select(decimalLongitude, decimalLatitude, geometry)
+        
+        rm(pa_habitat_data, pa_habitat, sampled, remaining, unique_centers, center_number, clust)
+        
+      }
+    }
     
     
     #--------------------------------------------
@@ -378,12 +484,8 @@ with_progress({
     
     #Format pseudoabsence data (global_points) 
     global_points_sf <- global_points[, 0] %>% #Keep only geometry
-      sf::st_as_sf() %>% #Convert to sf
-      dplyr::mutate(coords = st_coordinates(geometry),#Extract coordinates as matrix
-             decimalLongitude = coords[,1], #Add coordinates to designated column
-             decimalLatitude  = coords[,2], #Add coordinates to designated column
-             species = "absent") %>%
-      dplyr::select(-coords) %>%  # drop helper column
+    global_points_sf <- global_points %>% #Keep only geometry
+      dplyr::mutate(species = "absent") %>%
       dplyr::relocate(decimalLongitude, decimalLatitude, species, geometry) #Reorder columns
     
     #Combine presence and pseudoabsence data
@@ -1068,7 +1170,7 @@ with_progress({
     cat("Habitat and ensemble model have been created for", species_title, "in", round(elapsed, 2), "minutes\n\n")
     
     rm(list = setdiff(ls(), c("p", "project",  "create_folder",  "euboundary", "habitat_stack",  "accepted_taxonkeys", "taxa_info", "key", "exportPDF", "remove_duplicates", "wwf_ecoregions", "remove_nodata_occurrences", "favourability_from_prob", "mtp_probabilities", "occurrence_thinning_method", "mtp_probabilities")))
-    
+    rm(list = setdiff(ls(), c("p", "project",  "create_folder",  "euboundary", "habitat_stack",  "accepted_taxonkeys", "taxa_info", "key", "exportPDF", "remove_duplicates", "wwf_ecoregions", "remove_nodata_occurrences", "favourability_from_prob", "mtp_probabilities", "occurrence_thinning_method", "mtp_probabilities", "pseudoabsence_thinning_method")))
     
   }
 })
