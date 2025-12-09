@@ -529,15 +529,12 @@ with_progress({
     #---------- Generate pseudoabsences ---------
     #--------------------------------------------
     
-    #---------Mask cells that contain occurrences---------
-    # Convert sf to terra-compatible vector
+    #Mask cells that contain occurrences
     for_PA_vect <- terra::vect(for_PA_selection)
-    # Identify raster cells that correspond to these points
-    cells_to_exclude <- terra::cellFromXY(biasgrid_sub, terra::crds(for_PA_vect))
-    # Set those cells to NA
-    biasgrid_sub[cells_to_exclude] <- NA
+    cells_with_occurrences <- terra::cellFromXY(biasgrid_sub, terra::crds(for_PA_vect))
+    biasgrid_sub[cells_with_occurrences] <- NA
     
-    #--------------Generate pseudoabsences-----------------
+    #Generate 30000 random pseudoabsences
     set.seed(728)
     global_points <- terra::spatSample(
       biasgrid_sub,
