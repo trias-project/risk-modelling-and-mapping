@@ -1142,19 +1142,23 @@ with_progress({
       }
     }
     
-  
     
     #--------------------------------------------
     #- Save best model, european occurrences, and layers for Belgium -
     #--------------------------------------------
     habitatmodel <- list(species = species,
-                    occ_full_df = occ.full.data.df, # presabs data and their habitat values
-                    ensemble_1pct_threshold = `1pct`, # 1% min training presence threshold ensemble model
-                    response_df = response_df,
-                    varimp_df = varimp_df,
-                    top5models = top5models #model object holding selected models
+                         taxonkey = taxonkey,
+                         eu_occ = eu_occ,  # sf of filtered EU occurrences
+                         eu_presabs = eu_presabs,    # sf of presence + pseudoabsence data
                          occ_full_df = occ.full.data.df, # presabs data and their habitat values
                          prevalence_ratio = prev_ratio, # used for favourability scaling
+                         habitat_5pct_threshold = `5pct_habitat_threshold`,# 5% mtp threshold habitat model
+                         habitat_1pct_threshold = `1pct_habitat_threshold`,# 1% mtp threshold habitat model
+                         ensemble_5pct_threshold = `5pct`, # 5% min training presence threshold ensemble model
+                         ensemble_1pct_threshold = `1pct`, # 1% min training presence threshold ensemble model
+                         response_df = response_df,
+                         varimp_df = varimp_df,
+                         top5models = top5models #model object holding selected models
     )
     
     #Save eumodel as .qs file
@@ -1169,7 +1173,6 @@ with_progress({
     elapsed<-difftime(end_time, start_time, units="mins")
     cat("Habitat and ensemble model have been created for", species_title, "in", round(elapsed, 2), "minutes\n\n")
     
-    rm(list = setdiff(ls(), c("p", "project",  "create_folder",  "euboundary", "habitat_stack",  "accepted_taxonkeys", "taxa_info", "key", "exportPDF", "remove_duplicates", "wwf_ecoregions", "remove_nodata_occurrences", "favourability_from_prob", "mtp_probabilities", "occurrence_thinning_method", "mtp_probabilities")))
     rm(list = setdiff(ls(), c("p", "project",  "create_folder",  "euboundary", "habitat_stack",  "accepted_taxonkeys", "taxa_info", "key", "exportPDF", "remove_duplicates", "wwf_ecoregions", "remove_nodata_occurrences", "favourability_from_prob", "mtp_probabilities", "occurrence_thinning_method", "mtp_probabilities", "pseudoabsence_thinning_method")))
     
   }
