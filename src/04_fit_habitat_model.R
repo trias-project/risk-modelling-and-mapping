@@ -81,7 +81,7 @@ accepted_taxonkeys <- taxa_info %>%
 #--------------------------------------------
 
 with_progress({
-    p <- progressr::progressor(along = 1:length(accepted_taxonkeys)) 
+  p <- progressr::progressor(along = 1:length(accepted_taxonkeys)) 
   for(key in accepted_taxonkeys){ #Approx. 13 min per species
     
     #--------------------------------------------
@@ -129,7 +129,7 @@ with_progress({
     #--------------------------------------------  
     base_dir <- file.path("data", "projects", project, paste0(speciesName,"_",taxonkey))
     global_model_file <- file.path(base_dir,"Climate",
-                                  paste0("Climate_model_",speciesName,"_",taxonkey,".qs"))
+                                   paste0("Climate_model_",speciesName,"_",taxonkey,".qs"))
     
     
     #--------------------------------------------
@@ -162,7 +162,7 @@ with_progress({
     biasgrid_sub <- terra::rast(biasgrid_file)
     global_climate_for_eu <- terra::rast(global_model_file)%>%
       terra::project( habitat_stack)
-        
+    
     
     #-------------------------------------------------
     #--------------- Create EU folders ---------------
@@ -269,7 +269,7 @@ with_progress({
                     "\n- European model cannot be constructed, skipping to the next species."))
       next  # Skip to the next species in the loop
     }
-  
+    
     
     #--------------------------------------------
     #-------- Plot European occurrences ---------
@@ -279,7 +279,7 @@ with_progress({
     # geom_point(data=eu_occ, aes(x=decimalLongitude, y= decimalLatitude),  fill="green", shape = 22, colour = "black", size=3)+
     # labs(x="Longitude", y="Latitude")+
     # theme_bw()
-
+    
     
     #--------------------------------------------
     #----- Clip biasgrid to European extent -----
@@ -293,7 +293,7 @@ with_progress({
     
     #Mask biasgrid with habitat raster (so no PA can be selected in cells that are NA in habitat rasters)
     biasgrid_aligned <- terra::mask(biasgrid_aligned, habitat_stack[[1]])
-  
+    
     
     #-------------------------------------------
     #------- Select invaded WWF ecoregions------
@@ -303,7 +303,7 @@ with_progress({
     
     # Subset only those polygons
     wwf_ecoregions_filtered <- wwf_ecoregions[polygons_with_points, ]
-   # plot(wwf_ecoregions_filtered[4], key.pos = NULL)
+    # plot(wwf_ecoregions_filtered[4], key.pos = NULL)
     
     
     #----------------------------------------------------------------------------------------
@@ -331,7 +331,7 @@ with_progress({
     
     
     #--------------------------------------------------------------
-    #Generate pseudoabsences in according to sampling bias---------
+    #Generate pseudoabsences weighted by sampling bias---------
     #--------------------------------------------------------------
     set.seed(728)
     global_points <- terra::spatSample(
@@ -350,7 +350,7 @@ with_progress({
     eu_occ <- eu_occ %>%
       dplyr::mutate(species = "present") %>%
       dplyr::relocate(decimalLongitude, decimalLatitude, species, geometry)
-  
+    
     #Format pseudoabsence data (global_points) 
     global_points_sf <- global_points[, 0] %>% #Keep only geometry
       sf::st_as_sf() %>% #Convert to sf
@@ -363,7 +363,7 @@ with_progress({
     
     #Combine presence and pseudoabsence data
     eu_presabs <- rbind(eu_occ, global_points_sf)
-
+    
     
     #-----------------------------------------------------------
     #--Remove highly correlated predictors from training data --
@@ -379,7 +379,7 @@ with_progress({
     
     # Subset fullstack to keep only uncorrelated predictors
     fullstack <- subset(habitat_stack, !(names(habitat_stack) %in% drop_vars))
-
+    
     
     #-----------------------------------------------------------
     #- Extract predictor values for presences and pseudoabsences
@@ -400,15 +400,17 @@ with_progress({
     
     #Define SDM data and methods
     sdm_data <- sdm::sdmData(species~.,train=vect(eu_presabs),predictors= fullstack ) 
+    sdm_data <- sdm::sdmData(species~.,train=vect(eu_presabs), predictors= fullstack ) 
     methods <- c("glm", "gam", "bioclim", "brt", "rf", "glmpoly", "mars", "maxent", "fda","cart")
     
     #run model
     set.seed(2025)
     model <- sdm(
-      species ~ ., data = sdm_data,
+      species ~ ., 
+      data = sdm_data,
       methods = methods  # 10 models
     )
-  
+    
     
     #--------------------------------------------
     #---  Make predictions using each model  ---
@@ -509,7 +511,7 @@ with_progress({
     
     # Step 9: Compute pixel-wise population standard deviation
     consensus_habitat_sd <- stdev(top5_stack, pop=TRUE)
-
+    
     
     #--------------------------------------------------
     #-- Create map with ensemble habitat suitability --
@@ -546,17 +548,17 @@ with_progress({
     filename <- paste0(basefile, "current_ensemble_SD")
     
     #Export PDFs with and without occurrences plotted
-      exportPDF(predictions = consensus_habitat_sd,
-                dataType = "Stdev",
-                scenario = "Current",
-                returnPredictions = FALSE,
-                returnPNG = FALSE,
-                occ_data=NULL,
-                exportPNG=TRUE,
-                PDF_title = PDF_title,
-                PNG_folder=file.path(base_dir, "Habitat", "Current", "Diagnostics","Confidence_maps", "PNGs"),
-                PDF_folder=file.path(base_dir, "Habitat", "Current", "Diagnostics","Confidence_maps", "PDFs"),
-                filename = filename)
+    exportPDF(predictions = consensus_habitat_sd,
+              dataType = "Stdev",
+              scenario = "Current",
+              returnPredictions = FALSE,
+              returnPNG = FALSE,
+              occ_data=NULL,
+              exportPNG=TRUE,
+              PDF_title = PDF_title,
+              PNG_folder=file.path(base_dir, "Habitat", "Current", "Diagnostics","Confidence_maps", "PNGs"),
+              PDF_folder=file.path(base_dir, "Habitat", "Current", "Diagnostics","Confidence_maps", "PDFs"),
+              filename = filename)
     
     # Export ensemble raster (favorability) 
     current_sd_habitat_folder <- file.path(base_dir, "Habitat", "Current", "Diagnostics", "Confidence_maps", "Rasters")
@@ -753,14 +755,14 @@ with_progress({
                                   paste0(global_basefile, "current_ensemble_SD.tif"))
     consensus_climate_mean <- terra::rast(mean_climate_path)
     consensus_climate_sd <- terra::rast(sd_climate_path)
-      
+    
     #reproject mean climate to mean habitat crs
     consensus_climate_mean <- terra::project(consensus_climate_mean,
-                                            consensus_habitat_mean,
-                                            method = "bilinear")
+                                             consensus_habitat_mean,
+                                             method = "bilinear")
     consensus_climate_sd <- terra::project(consensus_climate_sd,
-                                          consensus_habitat_mean,
-                                          method = "bilinear")
+                                           consensus_habitat_mean,
+                                           method = "bilinear")
     
     # small floor to avoid division by zero
     eps <- 1e-6    
@@ -785,21 +787,21 @@ with_progress({
     
     #Export raster file
     clim_comb_sd_file <- file.path(base_dir, "Combined", "Current", "Diagnostics", "Confidence_maps", "Rasters",
-                               paste0(filename,".tif"))
+                                   paste0(filename,".tif"))
     terra::writeRaster(Final_SD, filename = clim_comb_sd_file, overwrite = T)
     
     #Export PDFs and PNGs
-      exportPDF(predictions = Final_SD,
-                dataType = "Stdev",
-                scenario = "Current",
-                returnPredictions = FALSE,
-                returnPNG = FALSE,
-                occ_data=NULL,
-                exportPNG=TRUE,
-                PDF_title = PDF_title,
-                PNG_folder=file.path(base_dir, "Combined", "Current", "Diagnostics", "Confidence_maps", "PNGs"),
-                PDF_folder=file.path(base_dir, "Combined", "Current", "Diagnostics", "Confidence_maps", "PDFs"),
-                filename = filename)
+    exportPDF(predictions = Final_SD,
+              dataType = "Stdev",
+              scenario = "Current",
+              returnPredictions = FALSE,
+              returnPNG = FALSE,
+              occ_data=NULL,
+              exportPNG=TRUE,
+              PDF_title = PDF_title,
+              PNG_folder=file.path(base_dir, "Combined", "Current", "Diagnostics", "Confidence_maps", "PNGs"),
+              PDF_folder=file.path(base_dir, "Combined", "Current", "Diagnostics", "Confidence_maps", "PDFs"),
+              filename = filename)
     
     
     #------------------------------------------
@@ -859,7 +861,7 @@ with_progress({
       assign(paste0(mtp_value,"pct"), thr)
       rm(binary_map_pct, binary_file, thr, combined_EU_sensitivity)
     }
-
+    
     
     #--------------------------------------------
     #--- Create maps with future projections ----
@@ -963,11 +965,11 @@ with_progress({
         
         #reproject mean future_climate to mean habitat crs
         consensus_future_climate_mean <- terra::project(consensus_future_climate_mean,
-                                                 consensus_habitat_mean,
-                                                 method = "bilinear")
+                                                        consensus_habitat_mean,
+                                                        method = "bilinear")
         consensus_future_climate_sd <- terra::project(consensus_future_climate_sd,
-                                               consensus_habitat_mean,
-                                               method = "bilinear")
+                                                      consensus_habitat_mean,
+                                                      method = "bilinear")
         
         # small floor to avoid division by zero; adjust if needed
         eps <- 1e-6    
@@ -992,7 +994,7 @@ with_progress({
         
         #Export raster file
         future_sd_file <- file.path(base_dir, "Combined", period, scenario, "Diagnostics", "Confidence_maps", "Rasters",
-                                      paste0(filename,".tif"))
+                                    paste0(filename,".tif"))
         terra::writeRaster(Final_future_SD, filename = future_sd_file, overwrite = T)
         
         #Export PDFs and PNGs
@@ -1008,36 +1010,31 @@ with_progress({
                   PNG_folder=file.path(base_dir, "Combined", period, scenario, "Diagnostics", "Confidence_maps", "PNGs"),
                   PDF_folder=file.path(base_dir, "Combined", period, scenario, "Diagnostics", "Confidence_maps", "PDFs"),
                   filename = filename)
-        
+
         rm(S, consensus_future_climate_mean, consensus_future_climate_sd, sd_future_climate, sd_comb, Final_future_SD)
       }
     }
     
   
+    
     #--------------------------------------------
     #- Save best model, european occurrences, and layers for Belgium -
     #--------------------------------------------
     habitatmodel <- list(species = species,
-                    taxonkey = taxonkey,
-                    eu_occ = eu_occ,  # sf of filtered EU occurrences
-                    eu_presabs = eu_presabs,    # sf of presence + pseudoabsence data
                     occ_full_df = occ.full.data.df, # presabs data and their habitat values
-                    prevalence_ratio = prev_ratio, # used for favourability scaling
-                    habitat_5pct_threshold = `5pct_habitat_threshold`,# 5% mtp threshold habitat model
-                    habitat_1pct_threshold = `1pct_habitat_threshold`,# 1% mtp threshold habitat model
-                    ensemble_5pct_threshold = `5pct`, # 5% min training presence threshold ensemble model
                     ensemble_1pct_threshold = `1pct`, # 1% min training presence threshold ensemble model
                     response_df = response_df,
                     varimp_df = varimp_df,
                     top5models = top5models #model object holding selected models
+                         occ_full_df = occ.full.data.df, # presabs data and their habitat values
+                         prevalence_ratio = prev_ratio, # used for favourability scaling
     )
-   
+    
     #Save eumodel as .qs file
     qs::qsave(habitatmodel, 
               file.path(base_dir,"Habitat", paste0("Habitat_model_",speciesName,"_",taxonkey,".qs"))) 
     
     
-   
     #--------------------------------------------
     #-------- End of loop -----------------------
     #--------------------------------------------
