@@ -104,7 +104,7 @@ global.occ <- global.occ %>%
 #-------Prepare occurrence dataset-----------
 #--------------------------------------------
 global.occ.LL<-global.occ%>%
-  rename(species= acceptedScientificName)%>%
+  dplyr::rename(species= acceptedScientificName)%>%
   dplyr::select(decimalLongitude, decimalLatitude, species, acceptedTaxonKey, Group, coordinateUncertaintyInMeters) 
 rm(global.occ, global)
 
@@ -126,8 +126,8 @@ cleaned<-global.occ.LL%>%
 #---------------------------------------------
 #These data will be used for the European model
 cleaned_1km<-cleaned%>%
-  filter(is.na(coordinateUncertaintyInMeters)| coordinateUncertaintyInMeters <= 1000)
- 
+  dplyr::filter(is.na(coordinateUncertaintyInMeters)| coordinateUncertaintyInMeters <= 1000)
+
 
 #--------------------------------------------
 #------- Load global climate rasters --------
@@ -142,7 +142,7 @@ scaled_files <- list.files(
 globalclimpreds_terra <- terra::rast(scaled_files)
 
 #Decrease resolution to match coordinate uncertainty of global occurrences: use around 5km at equator by averaging
-globalclimpreds_terra<- aggregate(globalclimpreds_terra, fact=5, fun=mean, na.rm=TRUE)
+globalclimpreds_terra<- terra::aggregate(globalclimpreds_terra, fact=5, fun=mean, na.rm=TRUE)
 
 
 #--------------------------------------------
@@ -197,7 +197,7 @@ for (period in c("2041-2070","2071-2100")){
     future_aligned <- future_aligned %>%
       terra::mask(eu_climpreds.10) %>%
       terra::crop(terra::ext(-38, 50,  24.29152732065, 72.66652712715))
-      
+    
     
     
     # Get mask from future stack NA structure
@@ -301,7 +301,7 @@ with_progress({
     for_PA_selection <- split_df_all_occs[[i]] %>%
       dplyr::select(c(decimalLongitude, decimalLatitude))%>%
       sf::st_as_sf(coords = c("decimalLongitude", "decimalLatitude"),crs = 4326)
- 
+    
     
     #---------------------------------------------
     #-- Prepare filenames and titles for export --
@@ -346,7 +346,7 @@ with_progress({
             loop_list <- list(list(path = file.path(base_dir, "Climate", period, scenario, "Predictions", output),
                                    name = paste("Climate", period, scenario, "Predictions", output, sep = "/")),
                               list(path = file.path(base_dir, "Climate", period, scenario, "Diagnostics", "Confidence_maps",output),
-                                        name = paste("Climate", period, scenario, "Diagnostics", "Confidence_maps", output,  sep = "/")))
+                                   name = paste("Climate", period, scenario, "Diagnostics", "Confidence_maps", output,  sep = "/")))
             scenario_folders <- c(scenario_folders, loop_list)
           }
         }
@@ -378,7 +378,7 @@ with_progress({
     
     #add column indicating species presence (1) for modeling
     global.occ.sf$species <- rep(1, nrow(global.occ.sf)) 
-   
+    
     
     #-----------------------------------------------
     #------ Limit to 10,000 occupied grid cells ----
@@ -386,8 +386,8 @@ with_progress({
     if(nrow(global.occ.sf) > 10000){
       if(occurrence_thinning_method == "random"){
         print("Thinning occurrences randomly")
-      set.seed(101) 
-      global.occ.sf <- global.occ.sf[sample(nrow(global.occ.sf), 10000, replace=FALSE), ]
+        set.seed(101) 
+        global.occ.sf <- global.occ.sf[sample(nrow(global.occ.sf), 10000, replace=FALSE), ]
       }else if (occurrence_thinning_method == "kmeans_clustering"){
         
         print("Thinning occurrences based on k-means clustering")
@@ -433,7 +433,6 @@ with_progress({
     #--------------------------------------------
     #- Select ecoregions containing occurrences -
     #--------------------------------------------
-    
     # Ensure valid geometries
     #wwf_eco_biome <- sf::st_make_valid(wwf_eco_biome)
     
@@ -445,17 +444,18 @@ with_progress({
     wwf_ecoSub1 <- wwf_eco_biome[has_occurrence, ]
     sf::sf_use_s2(TRUE)
     
-    #--------------------------------------------
-    #------------- Plot biomes --------------
-    --------------------------------------------
-    # ggplot()+
-    # geom_sf(data = world,  colour = "black", fill = NA)+
-    # geom_sf(data=wwf_ecoSub1, fill="#f7786f")+
-    # geom_point(data=global.occ.sf, aes(decimalLongitude, decimalLatitude), color="blue")+
-    # labs(x="Longitude", y="Latitude")+
-    # theme_bw()
-
     
+    #--------------------------------------------
+    #-------------- Plot biomes -----------------
+    #--------------------------------------------
+      # ggplot()+
+      # geom_sf(data = world,  colour = "black", fill = NA)+
+      # geom_sf(data=wwf_ecoSub1, fill="#f7786f")+
+      # geom_point(data=global.occ.sf, aes(decimalLongitude, decimalLatitude), color="blue")+
+      # labs(x="Longitude", y="Latitude")+
+      # theme_bw()
+      
+      
     #--------------------------------------------
     #------ Import right bias grid --------------
     #--------------------------------------------
@@ -468,7 +468,7 @@ with_progress({
     } else {
       next("No bias grid available for this species. Species has to be one of the following: Amphibians, Molluscs, Mammals, Reptiles, Birds, Plants, Fish, Malacostraca, or Insects.")
     }
-
+    
     
     #--------------------------------------------
     #------------ Process  bias grid ------------
@@ -497,8 +497,8 @@ with_progress({
     # scale_fill_continuous(na.value = "transparent",low = "blue", high = "orange")+
     # labs(x="Longitude", y="Latitude")+
     # theme_bw()
-
-
+    
+    
     #--------------------------------------------
     #---------- Generate pseudoabsences ---------
     #--------------------------------------------
@@ -512,8 +512,6 @@ with_progress({
     biasgrid_sub[cells_to_exclude] <- NA
     
     #--------------Generate pseudoabsences-----------------
-    #TODO check if alternative is needed when not enough points can be selected
-    #Before we used ecoregions grid, without biasgrid mask as alternative
     set.seed(728)
     global_points <- terra::spatSample(
       biasgrid_sub,
@@ -556,14 +554,14 @@ with_progress({
     #   scale_fill_continuous(na.value = "transparent",low = "blue", high = "orange", name="Weight")+
     #   labs(x="Longitude", y="Latitude")+
     #   theme_bw()
-
+    
     
     #--------------------------------------------
     #---- Extract climate data for modelling-----
     #--------------------------------------------
     global.data.df <- sdm::sdmData(species~.,train=vect(global_presabs),
                                    predictors = globalclimpreds_terra)%>%
-                      as.data.frame()
+      as.data.frame()
     
     
     #--------------------------------------------
@@ -593,7 +591,7 @@ with_progress({
     
     eu_climpreds.10_selection <- eu_climpreds.10 %>%
       subset(!names(eu_climpreds.10) %in% highlyCorrelated)
-      
+    
     
     #--------------------------------------------
     #--- Run multiple machine learning models ---
@@ -614,7 +612,7 @@ with_progress({
       methods = methods  # 10 models
     )
     print(model)
-   
+    
     
     #--------------------------------------------
     #---  Make predictions using each model  ---
@@ -651,7 +649,7 @@ with_progress({
         rm(fav_raster, binary_1pct, binary_5pct, method_model)
       }
     })
-
+    
     # List favourability rasters
     fav_rasters_list <- lapply(modeloutput, function(x) x$fav_raster)
     
@@ -720,7 +718,7 @@ with_progress({
     #Export PDFs with and without occurrences plotted
     for (occs in list(NULL, global.occ.sf)){
       filename <- ifelse(is.null(occs), base_file, paste0(base_file, "_occ"))
-      
+
       exportPDF(predictions = consensus_median,
                 dataType = "Suit",
                 scenario = "Current",
@@ -734,24 +732,24 @@ with_progress({
                 filename = filename)
     }
     
-
+    
     #------------------------------------------
     #-- Create map with ensemble SD --
     #------------------------------------------
     #Define name of files
     filename <- paste0(basefile, "current_ensemble_SD")
     
-      exportPDF(predictions = consensus_sd,
-                dataType = "Stdev",
-                scenario = "Current",
-                returnPredictions = FALSE,
-                returnPNG = FALSE,
-                occ_data=NULL,
-                exportPNG=TRUE,
-                PDF_title = PDF_title,
-                PNG_folder=file.path(base_dir, "Climate", "Current", "Diagnostics", "Confidence_maps", "PNGs"),
-                PDF_folder=file.path(base_dir, "Climate", "Current", "Diagnostics", "Confidence_maps","PDFs"),
-                filename = filename)
+    exportPDF(predictions = consensus_sd,
+              dataType = "Stdev",
+              scenario = "Current",
+              returnPredictions = FALSE,
+              returnPNG = FALSE,
+              occ_data=NULL,
+              exportPNG=TRUE,
+              PDF_title = PDF_title,
+              PNG_folder=file.path(base_dir, "Climate", "Current", "Diagnostics", "Confidence_maps", "PNGs"),
+              PDF_folder=file.path(base_dir, "Climate", "Current", "Diagnostics", "Confidence_maps","PDFs"),
+              filename = filename)
     
     
     #------------------------------------------
@@ -829,8 +827,8 @@ with_progress({
       
       assign(paste0(mtp_value,"pct"), thr)
       binary_maps[[mtp_pct]] <- list(binary_raster=binary_map_pct,
-                                   EU_sensitivity=global_EU_sensitivity,
-                                   mean_MTP= thr)
+                                     EU_sensitivity=global_EU_sensitivity,
+                                     mean_MTP= thr)
       rm(binary_map_pct, binary_file)
     }
     
@@ -894,7 +892,7 @@ with_progress({
         
         for (occs in list(NULL, global.occ.sf)){
           filename <- ifelse(is.null(occs), base_file, paste0(base_file, "_occ"))
-          
+
           exportPDF(predictions = future_consensus_median,
                     dataType = "Suit",
                     period = period,
@@ -911,20 +909,20 @@ with_progress({
         
         # Export ensemble SD predictions as PDF and PNG 
         filename<- paste0(basefile, scenario,"_", period,"_ensemble_SD")
-          
-          exportPDF(predictions = future_consensus_sd,
-                    dataType = "Stdev",
-                    period = period,
-                    scenario = scenario,
-                    returnPredictions = FALSE,
-                    returnPNG = TRUE,
-                    occ_data=NULL,
-                    exportPNG=TRUE,
-                    PDF_title=PDF_title,
-                    PNG_folder=file.path(base_dir, "Climate", period, scenario, "Diagnostics", "Confidence_maps", "PNGs"),
-                    PDF_folder=file.path(base_dir, "Climate", period, scenario, "Diagnostics", "Confidence_maps", "PDFs"),
-                    filename = filename)
         
+        exportPDF(predictions = future_consensus_sd,
+                  dataType = "Stdev",
+                  period = period,
+                  scenario = scenario,
+                  returnPredictions = FALSE,
+                  returnPNG = TRUE,
+                  occ_data=NULL,
+                  exportPNG=TRUE,
+                  PDF_title=PDF_title,
+                  PNG_folder=file.path(base_dir, "Climate", period, scenario, "Diagnostics", "Confidence_maps", "PNGs"),
+                  PDF_folder=file.path(base_dir, "Climate", period, scenario, "Diagnostics", "Confidence_maps", "PDFs"),
+                  filename = filename)
+
         
         # Create binarized ensemble predictions for future
         for(probs in mtp_probabilities){
@@ -947,7 +945,7 @@ with_progress({
           base_file <- paste0(basefile, period,"_", scenario, "_binary",mtp_text)
           
           for (occs in list(NULL, global.occ.sf)){
-            
+
             filename <- ifelse(is.null(occs), base_file, paste0(base_file, "_occ"))
             exportPDF(predictions = binary_map_future,
                       dataType = "Binary",
@@ -1036,8 +1034,8 @@ with_progress({
     
     ggplot2::ggsave(filename = paste(basefile, "variable_importance.png"), plot = varimp_plot ,  device = "png", width =8.27 , height = 5.845, path= file.path(PNG_folder, "Variable_importance") )
     ggplot2::ggsave(filename = paste(basefile, "response_curves.png"), plot = response_plot,  device = "png", width =8.27 , height = 5.845, path=  file.path(PNG_folder, "Response_curves") )
-
-
+    
+    
     
     #--------------------------------------------
     #-- Prepare global_presabs for export--------
@@ -1046,7 +1044,7 @@ with_progress({
     global_presabs<-global_presabs%>%
       dplyr::select(decimalLongitude, decimalLatitude)%>%
       dplyr::rename("x"= decimalLongitude,
-             "y"= decimalLatitude)%>%
+                    "y"= decimalLatitude)%>%
       sf::st_drop_geometry()
     
     
@@ -1072,7 +1070,7 @@ with_progress({
                         top5models = top5models,
                         selected_predictors = names(eu_future_selection),
                         future_consensus_median = future_consensus_median)
-                        
+    
     qs::qsave(climatemodel, file.path(base_dir, "Climate", paste0("Climate_model_",speciesName,"_",taxonkey,".qs")))
     
     
@@ -1081,13 +1079,13 @@ with_progress({
     #--------------------------------------------
     #We don't store them in .qs file as some important metadata would be stored in a temp folder, which would be removed after a while 
     biasgrid_file<- file.path(base_dir,"Climate", "Current", "Interim", 
-                               paste0("Biasgrid_",speciesName,"_",taxonkey,".tif"))
+                              paste0("Biasgrid_",speciesName,"_",taxonkey,".tif"))
     ensemble_median_file <- file.path( base_dir,"Climate", "Current", "Predictions", "Rasters",
-                                        paste0(basefile, "current_ensemble.tif"))
+                                       paste0(basefile, "current_ensemble.tif"))
     ensemble_mean_file <- file.path( base_dir,"Climate", "Current", "Interim",
-                                       paste0(basefile, "current_ensemble_mean.tif"))
+                                     paste0(basefile, "current_ensemble_mean.tif"))
     ensemble_sd_file <- file.path( base_dir,"Climate", "Current","Diagnostics", "Confidence_maps", "Rasters",
-                                       paste0(basefile, "current_ensemble_SD.tif"))
+                                   paste0(basefile, "current_ensemble_SD.tif"))
     
     terra::writeRaster(biasgrid_sub, filename = biasgrid_file, overwrite = TRUE)
     terra::writeRaster(consensus_median, filename = ensemble_median_file, overwrite = TRUE)
