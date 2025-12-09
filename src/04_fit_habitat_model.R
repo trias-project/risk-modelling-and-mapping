@@ -243,19 +243,44 @@ with_progress({
         #Extract environmental data in each occurrence grid cell
         habitat_data <- terra::extract(habitat_stack, eu_occ, ID = FALSE)
         
+        #Check how many unique rows there are and set centers to lowest of either 10000 or #unique rows
+        unique_centers<-nrow(unique(habitat_data))
+        center_number<-min(unique_centers, 10000)
+        
         # K-means clustering
         set.seed(101)
-        clust <- kmeans(habitat_data, centers = 10000,iter.max = 10, nstart = 1)$cluster
-        occ_habitat <- cbind(eu_occ, habitat_data, clust)
+        clust <- kmeans(habitat_data, centers = center_number,iter.max = 10, nstart = 1)$cluster
+        occ_habitat <- cbind(eu_occ, habitat_data, clust)%>%
+          dplyr::mutate(rID =row_number())
         
         # Keep 1 occurrence per cluster
-        eu_occ <- occ_habitat %>%
+        sampled <- occ_habitat %>%
           dplyr::group_by(clust) %>%
           dplyr::slice_sample(n = 1) %>%
-          dplyr::ungroup() %>%
+          dplyr::ungroup()
+        
+        # How many presences do we still need
+        remaining <- 10000 - nrow(sampled)
+        
+        # sample extra occurrences if fewer than 10000
+        if (remaining > 0) {
+          # Randomly sample additional presences excluding already chosen ones
+          extra_occ <- occ_habitat %>%
+            dplyr::filter(!rID %in% sampled$rID)%>%
+            dplyr::slice_sample(n = remaining) 
+          
+          eu_occ <- bind_rows(sampled, extra_occ)
+          rm(extra_occ)
+          
+        } else {
+          eu_occ <- sampled
+        }
+        
+        # Keep only occurrence columns
+        eu_occ <- eu_occ %>%
           dplyr::select(decimalLongitude, decimalLatitude, geometry)
         
-        rm(habitat_data, occ_habitat)
+        rm(habitat_data, occ_habitat, sampled, remaining, unique_centers, center_number, clust)
         
       }
     }
