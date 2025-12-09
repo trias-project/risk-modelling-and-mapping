@@ -474,14 +474,14 @@ with_progress({
     #--------------------------------------------
     #-------------- Plot biomes -----------------
     #--------------------------------------------
-      # ggplot()+
-      # geom_sf(data = world,  colour = "black", fill = NA)+
-      # geom_sf(data=wwf_ecoSub1, fill="#f7786f")+
-      # geom_point(data=global.occ.sf, aes(decimalLongitude, decimalLatitude), color="blue")+
-      # labs(x="Longitude", y="Latitude")+
-      # theme_bw()
-      
-      
+    # ggplot()+
+    # geom_sf(data = world,  colour = "black", fill = NA)+
+    # geom_sf(data=wwf_ecoSub1, fill="#f7786f")+
+    # geom_point(data=global.occ.sf, aes(decimalLongitude, decimalLatitude), color="blue")+
+    # labs(x="Longitude", y="Latitude")+
+    # theme_bw()
+    
+    
     #--------------------------------------------
     #------ Import right bias grid --------------
     #--------------------------------------------
@@ -844,7 +844,7 @@ with_progress({
     #Export PDFs with and without occurrences plotted
     for (occs in list(NULL, global.occ.sf)){
       filename <- ifelse(is.null(occs), base_file, paste0(base_file, "_occ"))
-
+      
       exportPDF(predictions = consensus_median,
                 dataType = "Suit",
                 scenario = "Current",
@@ -1018,7 +1018,7 @@ with_progress({
         
         for (occs in list(NULL, global.occ.sf)){
           filename <- ifelse(is.null(occs), base_file, paste0(base_file, "_occ"))
-
+          
           exportPDF(predictions = future_consensus_median,
                     dataType = "Suit",
                     period = period,
@@ -1048,7 +1048,7 @@ with_progress({
                   PNG_folder=file.path(base_dir, "Climate", period, scenario, "Diagnostics", "Confidence_maps", "PNGs"),
                   PDF_folder=file.path(base_dir, "Climate", period, scenario, "Diagnostics", "Confidence_maps", "PDFs"),
                   filename = filename)
-
+        
         
         # Create binarized ensemble predictions for future
         for(probs in mtp_probabilities){
@@ -1071,7 +1071,7 @@ with_progress({
           base_file <- paste0(basefile, period,"_", scenario, "_binary",mtp_text)
           
           for (occs in list(NULL, global.occ.sf)){
-
+            
             filename <- ifelse(is.null(occs), base_file, paste0(base_file, "_occ"))
             exportPDF(predictions = binary_map_future,
                       dataType = "Binary",
