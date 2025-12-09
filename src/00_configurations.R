@@ -7,6 +7,8 @@ species_to_model <- c("Verbena bonariensis", "Erigeron karvinskianus", "Leyceste
 
 occurrence_thinning_method <- "kmeans_clustering" #either "random" or "kmeans_clustering"
 
+pseudoabsence_thinning_method <- "kmeans_clustering" #either "random" or "kmeans_clustering"
+
 mtp_probabilities <- c(0.01, 0.05) #Define MTP thresholds (0.01 = 1%; 0.05 = 5%,...)
 
 country_of_interest <- "Belgium"
