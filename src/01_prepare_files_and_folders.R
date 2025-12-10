@@ -86,17 +86,20 @@ for(i in c("1", "4", "5", "6","7", "12","13","14","15")){
 #----- Store CHELSA v1 layer as mask template for marine pixels  ----
 #--------------------------------------------------------------------
 #Download a V1 chelsa layer (check for marine pixels: none seem to be present)
-if(grepl("windows", Sys.getenv("OS"), ignore.case = TRUE)) {
-  download.file(url = paste0("https://os.zhdk.cloud.switch.ch/chelsav1/climatologies/bio/CHELSA_bio10_01.tif"),
-                mode = "wb",
-                destfile = here::here(chelsa_mask_folder,paste0("CHELSA_meantemp1.tif")))
-}else{
-  download.file(url = paste0("https://os.zhdk.cloud.switch.ch/chelsav1/climatologies/bio/CHELSA_bio10_",i,".tif"),
-                destfile = here::here(chelsa_mask_folder,paste0("CHELSA_meantemp1.tif")))
+destfile <- here::here(chelsa_mask_folder,paste0("CHELSA_meantemp1.tif"))
+if(update_files_logic(dest_file = destfile,
+                      update_files)){
+  if(grepl("windows", Sys.getenv("OS"), ignore.case = TRUE)) {
+    download.file(url = paste0("https://os.zhdk.cloud.switch.ch/chelsav1/climatologies/bio/CHELSA_bio10_01.tif"),
+                  mode = "wb",
+                  destfile = destfile)
+  }else{
+    download.file(url = paste0("https://os.zhdk.cloud.switch.ch/chelsav1/climatologies/bio/CHELSA_bio10_",i,".tif"),
+                  destfile = destfile)
+  }
+  
+  chelsa_mask <- terra::rast(destfile)
 }
-
-chelsa_mask <- terra::rast(here::here(chelsa_mask_folder,paste0("CHELSA_meantemp1.tif")))
-
 
 #-------------------------------------------------
 #----- Scale and mask current CHELSA layer  ------
