@@ -13,6 +13,8 @@ mtp_probabilities <- c(0.01, 0.05) #Define MTP thresholds (0.01 = 1%; 0.05 = 5%,
 
 country_of_interest <- "Belgium"
 
+update_files <- "ASK" #either "ask", TRUE or FALSE
+
 
 #------------------------------------------------------------
 #!ONLY ONCE: Add your GBIF credentials to your ./Renviron file
@@ -38,3 +40,5 @@ if (length(missing_vars) > 0) {
     "  usethis::edit_r_environ()\n"
   )
 }
+
+update_files <- toupper(update_files)

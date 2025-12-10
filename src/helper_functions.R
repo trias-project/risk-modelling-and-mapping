@@ -759,3 +759,40 @@ eu_eval<-function (ras,y){
   xtab<-table(indep.bil.df$predicted,indep.bil.df$observed)
   return(xtab)
 }
+
+#----------------------------------------------------------
+#-------------   update_files_logic   ----------------------
+#----------------------------------------------------------
+#' @param dest_file output file to test existance of
+#' @param update_files whether to ask, or ignore existance of 
+update_files_logic <- function(dest_file,
+                               update_files){
+  
+  if(update_files == TRUE){
+    #update_files == TRUE
+    update_files_final <- TRUE
+  }else{
+    #update_files != TRUE => ASK or FALSE
+    if(update_files == FALSE){
+      #update_files == FALSE
+      if(file.exists(dest_file)){
+        # File exists
+        update_files_final <- FALSE
+      }else{
+        update_files_final <- TRUE
+      }
+    }
+    if(update_files == "ASK"){
+      #update_files == "ASK"
+      if(file.exists(dest_file)){
+        # File exists
+        update_files_final <- askYesNo(msg = paste("Download\n", 
+                                                   dest_file,
+                                                   "\n again?"))
+      }else{
+        update_files_final <- TRUE
+      }
+    }
+  }
+  return(update_files_final)
+}
