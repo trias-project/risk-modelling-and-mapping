@@ -69,7 +69,7 @@ for(i in c("1", "4", "5", "6","7", "12","13","14","15")){
   destfile <- here::here(chelsa_current_folder,paste0("CHELSA_",layer_name,"_",i,".tif"))
   
   if( update_files_logic(dest_file = destfile,
-                         update_files)){
+                         update_files = update_files)){
     if(grepl("windows", Sys.getenv("OS"), ignore.case = TRUE)) {
       download.file(url = paste0("https://os.zhdk.cloud.switch.ch/chelsav2/GLOBAL/climatologies/1981-2010/bio/CHELSA_bio",i,"_1981-2010_V.2.1.tif"),
                     mode = "wb",
@@ -88,7 +88,7 @@ for(i in c("1", "4", "5", "6","7", "12","13","14","15")){
 #Download a V1 chelsa layer (check for marine pixels: none seem to be present)
 destfile <- here::here(chelsa_mask_folder,paste0("CHELSA_meantemp1.tif"))
 if(update_files_logic(dest_file = destfile,
-                      update_files)){
+                      update_files = update_files)){
   if(grepl("windows", Sys.getenv("OS"), ignore.case = TRUE)) {
     download.file(url = paste0("https://os.zhdk.cloud.switch.ch/chelsav1/climatologies/bio/CHELSA_bio10_01.tif"),
                   mode = "wb",
@@ -174,7 +174,7 @@ for (period in c("2041-2070","2071-2100")) {
     
     dest_files <- update_files_logic(dest_file = dest_files,
                                      dest_folder = future_folder,
-                                     update_files) %>% 
+                                     update_files = update_files) %>% 
       dplyr::pull(file)
     
     if(length(dest_files)>0){
@@ -212,7 +212,7 @@ dest_files <- data.frame(
 
 dest_files <- update_files_logic(dest_file = dest_files,
                                  dest_folder = habitat_folder,
-                                 update_files) %>% 
+                                 update_files = update_files) %>% 
   dplyr::pull(file)
 
 zen4R::download_zenodo(doi = "10.5281/zenodo.17724735", 
@@ -241,7 +241,7 @@ dest_files <- data.frame(
 
 dest_files <- update_files_logic(dest_file = dest_files,
                                  dest_folder = biasgrids_folder,
-                                 update_files) %>% 
+                                 update_files = update_files) %>% 
   dplyr::pull(file)
 
 zen4R::download_zenodo(doi="https://doi.org/10.5281/zenodo.17724735", 
