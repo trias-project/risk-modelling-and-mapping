@@ -66,13 +66,18 @@ for(i in c("1", "4", "5", "6","7", "12","13","14","15")){
                        "14"="precipDriestMon",
                        "15"="precipSeasonality")
   
-  if(grepl("windows", Sys.getenv("OS"), ignore.case = TRUE)) {
-    download.file(url = paste0("https://os.zhdk.cloud.switch.ch/chelsav2/GLOBAL/climatologies/1981-2010/bio/CHELSA_bio",i,"_1981-2010_V.2.1.tif"),
-                  mode = "wb",
-                  destfile = here::here(chelsa_current_folder,paste0("CHELSA_",layer_name,"_",i,".tif")))
-  }else{
-    download.file(url = paste0("https://os.zhdk.cloud.switch.ch/chelsav2/GLOBAL/climatologies/1981-2010/bio/CHELSA_bio",i,"_1981-2010_V.2.1.tif"),
-                  destfile = here::here(chelsa_current_folder,paste0("CHELSA_",layer_name,"_",i,".tif")))
+  destfile <- here::here(chelsa_current_folder,paste0("CHELSA_",layer_name,"_",i,".tif"))
+  
+  if( update_files_logic(dest_file = destfile,
+                         update_files)){
+    if(grepl("windows", Sys.getenv("OS"), ignore.case = TRUE)) {
+      download.file(url = paste0("https://os.zhdk.cloud.switch.ch/chelsav2/GLOBAL/climatologies/1981-2010/bio/CHELSA_bio",i,"_1981-2010_V.2.1.tif"),
+                    mode = "wb",
+                    destfile = destfile)
+    }else{
+      download.file(url = paste0("https://os.zhdk.cloud.switch.ch/chelsav2/GLOBAL/climatologies/1981-2010/bio/CHELSA_bio",i,"_1981-2010_V.2.1.tif"),
+                    destfile = destfile)
+    }
   }
 }
 
