@@ -194,37 +194,59 @@ for (period in c("2041-2070","2071-2100")) {
 # #-- Store habitat layers for the European model --
 # #-------------------------------------------------
 
+dest_files <- data.frame(
+  file = c("Agriculture.tif",
+              "Artificial.tif",
+              "Coastal_wetland.tif",
+              "Coniferous_forest.tif",
+              "Deciduous_forest.tif",
+              "Inland_wetland.tif",
+              "Mixed_forest.tif",
+              "Shrub_and_herbaceous.tif",
+              "log_distance_to_water.tif",
+              "log_total_water_length.tif",
+              "proportion_total_water_polygon_cover.tif"),
+  update_file = NA,
+  stringsAsFactors = FALSE
+)
+
+dest_files <- update_files_logic(dest_file = dest_files,
+                                 dest_folder = habitat_folder,
+                                 update_files) %>% 
+  dplyr::pull(file)
+
 zen4R::download_zenodo(doi = "10.5281/zenodo.17724735", 
                        path = habitat_folder, 
-                       files = list("Agriculture.tif",
-                                    "Artificial.tif",
-                                    "Coastal_wetland.tif",
-                                    "Coniferous_forest.tif",
-                                    "Deciduous_forest.tif",
-                                    "Inland_wetland.tif",
-                                    "Mixed_forest.tif",
-                                    "Shrub_and_herbaceous.tif",
-                                    "log_distance_to_water.tif",
-                                    "log_total_water_length.tif",
-                                    "proportion_total_water_polygon_cover.tif"),
+                       files = dest_files,
                        quiet=FALSE)
 
 
 # #-------------------------------------------------
 # #---------------- Store biasgrids  ---------------
 # #-------------------------------------------------
+dest_files <- data.frame(
+  file = c("log_amphibians_1degree_layer.tif",
+              "log_birds_1degree_layer.tif",
+              "log_fish_1degree_layer.tif",
+              "log_hydrozoa_1degree_layer.tif",
+              "log_insects_1degree_layer.tif",
+              "log_malacostraca_1degree_layer.tif",
+              "log_mammals_1degree_layer.tif",
+              "log_mollusca_1degree_layer.tif",
+              "log_plants_1degree_layer.tif",
+              "log_reptiles_1degree_layer.tif"),
+  update_file = NA,
+  stringsAsFactors = FALSE
+)
+
+dest_files <- update_files_logic(dest_file = dest_files,
+                                 dest_folder = biasgrids_folder,
+                                 update_files) %>% 
+  dplyr::pull(file)
+
 zen4R::download_zenodo(doi="https://doi.org/10.5281/zenodo.17724735", 
                        path=biasgrids_folder,
-                       files=list("log_amphibians_1degree_layer.tif",
-                                  "log_birds_1degree_layer.tif",
-                                  "log_fish_1degree_layer.tif",
-                                  "log_hydrozoa_1degree_layer.tif",
-                                  "log_insects_1degree_layer.tif",
-                                  "log_malacostraca_1degree_layer.tif",
-                                  "log_mammals_1degree_layer.tif",
-                                  "log_mollusca_1degree_layer.tif",
-                                  "log_plants_1degree_layer.tif",
-                                  "log_reptiles_1degree_layer.tif"),
+                       files=dest_files,
                        quiet=FALSE)
 
 
