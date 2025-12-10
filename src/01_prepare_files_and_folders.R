@@ -97,9 +97,9 @@ if(update_files_logic(dest_file = destfile,
     download.file(url = paste0("https://os.zhdk.cloud.switch.ch/chelsav1/climatologies/bio/CHELSA_bio10_",i,".tif"),
                   destfile = destfile)
   }
-  
-  chelsa_mask <- terra::rast(destfile)
 }
+
+chelsa_mask <- terra::rast(destfile)
 
 #-------------------------------------------------
 #----- Scale and mask current CHELSA layer  ------
