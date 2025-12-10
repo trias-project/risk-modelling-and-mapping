@@ -156,22 +156,36 @@ for (period in c("2041-2070","2071-2100")) {
     future_folder <- here::here("data","external", "climate", "chelsa_future", period, scenario)
     if(!dir.exists(future_folder)) dir.create(future_folder, recursive=TRUE)
     
-    zen4R::download_zenodo(
-      doi = "10.5281/zenodo.17724735",
-      path = future_folder,
-      files = c(paste0("scaled_layer_CHELSA_meantemp_1_",period,"_",scenario,".tif"), 
-                paste0("scaled_layer_CHELSA_temp_seasonality_4_",period,"_",scenario,".tif"), 
-                paste0("scaled_layer_CHELSA_maxTmpWarmestMon_5_",period,"_",scenario,".tif"), 
-                paste0("scaled_layer_CHELSA_minTmpColdestMon_6_",period,"_",scenario,".tif"), 
-                paste0("scaled_layer_CHELSA_temp_annRange_7_",period,"_",scenario,".tif"), 
-                paste0("scaled_layer_CHELSA_annPrecip_12_",period,"_",scenario,".tif"), 
-                paste0("scaled_layer_CHELSA_precipWettestMon_13_",period,"_",scenario,".tif"), 
-                paste0("scaled_layer_CHELSA_precipDriestMon_14_",period,"_",scenario,".tif"), 
-                paste0("scaled_layer_CHELSA_precipSeasonality_15_",period,"_",scenario,".tif")
+    dest_files <- data.frame(
+      file = c(
+        paste0("scaled_layer_CHELSA_meantemp_1_",        period, "_", scenario, ".tif"),
+        paste0("scaled_layer_CHELSA_temp_seasonality_4_",period, "_", scenario, ".tif"),
+        paste0("scaled_layer_CHELSA_maxTmpWarmestMon_5_",period, "_", scenario, ".tif"),
+        paste0("scaled_layer_CHELSA_minTmpColdestMon_6_",period, "_", scenario, ".tif"),
+        paste0("scaled_layer_CHELSA_temp_annRange_7_",   period, "_", scenario, ".tif"),
+        paste0("scaled_layer_CHELSA_annPrecip_12_",      period, "_", scenario, ".tif"),
+        paste0("scaled_layer_CHELSA_precipWettestMon_13_",period,"_", scenario, ".tif"),
+        paste0("scaled_layer_CHELSA_precipDriestMon_14_", period,"_", scenario, ".tif"),
+        paste0("scaled_layer_CHELSA_precipSeasonality_15_",period,"_",scenario,".tif")
       ),
-      timeout=600,
-      quiet = FALSE
+      update_file = NA,
+      stringsAsFactors = FALSE
     )
+    
+    dest_files <- update_files_logic(dest_file = dest_files,
+                                     dest_folder = future_folder,
+                                     update_files) %>% 
+      dplyr::pull(file)
+    
+    if(length(dest_files)>0){
+      zen4R::download_zenodo(
+        doi = "10.5281/zenodo.17724735",
+        path = future_folder,
+        files = dest_files,
+        timeout=600,
+        quiet = FALSE
+      )
+    }
   }
 }
 
