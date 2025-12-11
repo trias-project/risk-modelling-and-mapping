@@ -789,7 +789,7 @@ update_files_logic <- function(dest_file,
         if(file.exists(dest_file)){
           # File exists
           update_files_final <- askYesNo(msg = paste("Download\n", 
-                                                     dest_file,
+                                                     basename(dest_file),
                                                      "\n again?"))
         }else{
           update_files_final <- TRUE
@@ -815,7 +815,7 @@ update_files_logic <- function(dest_file,
           if(file.exists(paste0(dest_folder,"/", dest_file$file[i]))){
             # File exists
             dest_file$update_file[i] <- askYesNo(msg = paste("Download\n", 
-                                                             dest_file$file[i],
+                                                             basename(dest_file$file[i]),
                                                              "\n again?"))
           }else{
             dest_file$update_file[i] <- TRUE
