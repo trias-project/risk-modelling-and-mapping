@@ -43,7 +43,7 @@ Before you execute this workflow, specify the following configurations in the **
 
 * **country_of_interest**: Currently inactive, do not modify this parameter. The workflow currently produces predictions only for the whole of Europe. Future versions will allow masking outputs to a user-defined country.
 
-* **update_files**: Whether or not all needed files should be downloaded again. Options are *"ASK"*: the user will be prompted if a specific file should be downloaded again (any missing files are downloaded by default), *TRUE*: all files are downloaded again and *FALSE*: only missing files are downloaded  
+* **update_files**: Whether or not all needed raster input files should be downloaded again. Options are *"ASK"*: the user will be prompted if a specific file should be downloaded again (any missing files are downloaded by default), *TRUE*: all files are downloaded again and *FALSE*: only missing files are downloaded  
 
 ## Executing the workflow
 
