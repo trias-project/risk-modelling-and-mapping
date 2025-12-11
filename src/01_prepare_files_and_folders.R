@@ -104,45 +104,60 @@ chelsa_mask <- terra::rast(destfile)
 #-------------------------------------------------
 #----- Scale and mask current CHELSA layer  ------
 #-------------------------------------------------
-#List files
-chelsa_current <- list.files(here::here(chelsa_current_folder), pattern = "^CHELSA_.*\\.tif$", full.names = TRUE)
+# List files
+chelsa_current <- list.files(here::here(chelsa_current_folder),
+                             pattern = "^CHELSA_.*\\.tif$",
+                             full.names = TRUE)
 
-for (file in chelsa_current){
+
+for (i in seq_along(chelsa_current)) {
+  file <- chelsa_current[i]
+  layer_name <- sub("\\.tif$", "", basename(file))
+  out_name <- here::here(chelsa_current_folder, paste0("scaled_layer_", layer_name, ".tif"))
   
-  #Create layer name 
-  layer_name<-sub("\\.tif$", "", basename(file))
-  print(paste0("Processing ", layer_name))
+  # If output exists, ask whether to scale again, otherwise proceed
+  if (file.exists(out_name)) {
+    msg <- paste0("Scaled file\n", basename(out_name),
+                  "\n already exists. Create and overwrite it again?")
+    do_scale <- askYesNo(msg = msg)
+  } else {
+    do_scale <- TRUE
+  }
   
-  #Mask raster
-  masked_r<- terra::mask(terra::rast(file), chelsa_mask)
-  
-  #Obtain mean and sd of raster and use for scaling
-  m<-global(masked_r,"mean",na.rm=TRUE)$mean
-  s<-global(masked_r,"sd",na.rm=TRUE)$sd
-  scaled_r<-(masked_r - m) / s
-  
-  #Round the scaled layer
-  scaled_r<-terra::round(scaled_r, 2)
-  
-  #Assign name to raster
-  names(scaled_r)<-layer_name
-  
-  # #Convert units of temp seasonality layer to °C: not necessary when you scale afterwards
-  # if(names(rast_file) == "CHELSA_temp_seasonality_4"){
-  #   rast_file <- rast_file/100
-  #   print("Converted the unit of layer bio 4 (temperature seasonality) to °C") 
-  # }
-  
-  # #Write raster to disk
-  out_name <- here::here(chelsa_current_folder, paste0("scaled_layer_", layer_name,".tif"))
-  terra::writeRaster(scaled_r, filename = out_name, overwrite = TRUE)
-  
-  #Print write statement
-  print(paste0("Created rasterlayer ", basename(out_name)," in folder ", basename(chelsa_current_folder)))
-  
-  #Clean up
-  rm(masked_r, m, s, scaled_r, layer_name, out_name)
-  gc()
+  if (isTRUE(do_scale)) {
+    print(paste0("Processing ", layer_name)) 
+    
+    #Mask raster 
+    masked_r<- terra::mask(terra::rast(file), chelsa_mask) 
+    
+    #Obtain mean and sd of raster and use for scaling 
+    m<-global(masked_r,"mean",na.rm=TRUE)$mean 
+    s<-global(masked_r,"sd",na.rm=TRUE)$sd 
+    scaled_r<-(masked_r - m) / s 
+    
+    #Round the scaled layer 
+    scaled_r<-terra::round(scaled_r, 2) 
+    
+    #Assign name to raster 
+    names(scaled_r)<-layer_name 
+    
+    #Convert units of temp seasonality layer to °C: not necessary when you scale afterwards 
+    # if(names(rast_file) == "CHELSA_temp_seasonality_4"){ 
+    # rast_file <- rast_file/100 
+    # print("Converted the unit of layer bio 4 (temperature seasonality) to °C") 
+    # } 
+    
+    # Write raster to disk 
+    out_name <- here::here(chelsa_current_folder, paste0("scaled_layer_", layer_name,".tif")) 
+    terra::writeRaster(scaled_r, filename = out_name, overwrite = TRUE) 
+    
+    #Print write statement 
+    print(paste0("Created rasterlayer ", basename(out_name)," in folder ", basename(chelsa_current_folder))) 
+    
+    #Clean up 
+    rm(masked_r, m, s, scaled_r, layer_name, out_name) 
+    gc()
+  } 
 }
 
 
