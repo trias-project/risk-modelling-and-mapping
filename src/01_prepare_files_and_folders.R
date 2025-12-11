@@ -66,13 +66,18 @@ for(i in c("1", "4", "5", "6","7", "12","13","14","15")){
                        "14"="precipDriestMon",
                        "15"="precipSeasonality")
   
-  if(grepl("windows", Sys.getenv("OS"), ignore.case = TRUE)) {
-    download.file(url = paste0("https://os.zhdk.cloud.switch.ch/chelsav2/GLOBAL/climatologies/1981-2010/bio/CHELSA_bio",i,"_1981-2010_V.2.1.tif"),
-                  mode = "wb",
-                  destfile = here::here(chelsa_current_folder,paste0("CHELSA_",layer_name,"_",i,".tif")))
-  }else{
-    download.file(url = paste0("https://os.zhdk.cloud.switch.ch/chelsav2/GLOBAL/climatologies/1981-2010/bio/CHELSA_bio",i,"_1981-2010_V.2.1.tif"),
-                  destfile = here::here(chelsa_current_folder,paste0("CHELSA_",layer_name,"_",i,".tif")))
+  destfile <- here::here(chelsa_current_folder,paste0("CHELSA_",layer_name,"_",i,".tif"))
+  
+  if( update_files_logic(dest_file = destfile,
+                         update_files = update_files)){
+    if(grepl("windows", Sys.getenv("OS"), ignore.case = TRUE)) {
+      download.file(url = paste0("https://os.zhdk.cloud.switch.ch/chelsav2/GLOBAL/climatologies/1981-2010/bio/CHELSA_bio",i,"_1981-2010_V.2.1.tif"),
+                    mode = "wb",
+                    destfile = destfile)
+    }else{
+      download.file(url = paste0("https://os.zhdk.cloud.switch.ch/chelsav2/GLOBAL/climatologies/1981-2010/bio/CHELSA_bio",i,"_1981-2010_V.2.1.tif"),
+                    destfile = destfile)
+    }
   }
 }
 
@@ -81,60 +86,78 @@ for(i in c("1", "4", "5", "6","7", "12","13","14","15")){
 #----- Store CHELSA v1 layer as mask template for marine pixels  ----
 #--------------------------------------------------------------------
 #Download a V1 chelsa layer (check for marine pixels: none seem to be present)
-if(grepl("windows", Sys.getenv("OS"), ignore.case = TRUE)) {
-  download.file(url = paste0("https://os.zhdk.cloud.switch.ch/chelsav1/climatologies/bio/CHELSA_bio10_01.tif"),
-                mode = "wb",
-                destfile = here::here(chelsa_mask_folder,paste0("CHELSA_meantemp1.tif")))
-}else{
-  download.file(url = paste0("https://os.zhdk.cloud.switch.ch/chelsav1/climatologies/bio/CHELSA_bio10_",i,".tif"),
-                destfile = here::here(chelsa_mask_folder,paste0("CHELSA_meantemp1.tif")))
+destfile <- here::here(chelsa_mask_folder,paste0("CHELSA_meantemp1.tif"))
+if(update_files_logic(dest_file = destfile,
+                      update_files = update_files)){
+  if(grepl("windows", Sys.getenv("OS"), ignore.case = TRUE)) {
+    download.file(url = paste0("https://os.zhdk.cloud.switch.ch/chelsav1/climatologies/bio/CHELSA_bio10_01.tif"),
+                  mode = "wb",
+                  destfile = destfile)
+  }else{
+    download.file(url = paste0("https://os.zhdk.cloud.switch.ch/chelsav1/climatologies/bio/CHELSA_bio10_",i,".tif"),
+                  destfile = destfile)
+  }
 }
 
-chelsa_mask <- terra::rast(here::here(chelsa_mask_folder,paste0("CHELSA_meantemp1.tif")))
-
+chelsa_mask <- terra::rast(destfile)
 
 #-------------------------------------------------
 #----- Scale and mask current CHELSA layer  ------
 #-------------------------------------------------
-#List files
-chelsa_current <- list.files(here::here(chelsa_current_folder), pattern = "^CHELSA_.*\\.tif$", full.names = TRUE)
+# List files
+chelsa_current <- list.files(here::here(chelsa_current_folder),
+                             pattern = "^CHELSA_.*\\.tif$",
+                             full.names = TRUE)
 
-for (file in chelsa_current){
+
+for (i in seq_along(chelsa_current)) {
+  file <- chelsa_current[i]
+  layer_name <- sub("\\.tif$", "", basename(file))
+  out_name <- here::here(chelsa_current_folder, paste0("scaled_layer_", layer_name, ".tif"))
   
-  #Create layer name 
-  layer_name<-sub("\\.tif$", "", basename(file))
-  print(paste0("Processing ", layer_name))
+  # If output exists, ask whether to scale again, otherwise proceed
+  if (file.exists(out_name)) {
+    msg <- paste0("Scaled file\n", basename(out_name),
+                  "\n already exists. Create and overwrite it again?")
+    do_scale <- askYesNo(msg = msg)
+  } else {
+    do_scale <- TRUE
+  }
   
-  #Mask raster
-  masked_r<- terra::mask(terra::rast(file), chelsa_mask)
-  
-  #Obtain mean and sd of raster and use for scaling
-  m<-global(masked_r,"mean",na.rm=TRUE)$mean
-  s<-global(masked_r,"sd",na.rm=TRUE)$sd
-  scaled_r<-(masked_r - m) / s
-  
-  #Round the scaled layer
-  scaled_r<-terra::round(scaled_r, 2)
-  
-  #Assign name to raster
-  names(scaled_r)<-layer_name
-  
-  # #Convert units of temp seasonality layer to °C: not necessary when you scale afterwards
-  # if(names(rast_file) == "CHELSA_temp_seasonality_4"){
-  #   rast_file <- rast_file/100
-  #   print("Converted the unit of layer bio 4 (temperature seasonality) to °C") 
-  # }
-  
-  # #Write raster to disk
-  out_name <- here::here(chelsa_current_folder, paste0("scaled_layer_", layer_name,".tif"))
-  terra::writeRaster(scaled_r, filename = out_name, overwrite = TRUE)
-  
-  #Print write statement
-  print(paste0("Created rasterlayer ", basename(out_name)," in folder ", basename(chelsa_current_folder)))
-  
-  #Clean up
-  rm(masked_r, m, s, scaled_r, layer_name, out_name)
-  gc()
+  if (isTRUE(do_scale)) {
+    print(paste0("Processing ", layer_name)) 
+    
+    #Mask raster 
+    masked_r<- terra::mask(terra::rast(file), chelsa_mask) 
+    
+    #Obtain mean and sd of raster and use for scaling 
+    m<-global(masked_r,"mean",na.rm=TRUE)$mean 
+    s<-global(masked_r,"sd",na.rm=TRUE)$sd 
+    scaled_r<-(masked_r - m) / s 
+    
+    #Round the scaled layer 
+    scaled_r<-terra::round(scaled_r, 2) 
+    
+    #Assign name to raster 
+    names(scaled_r)<-layer_name 
+    
+    #Convert units of temp seasonality layer to °C: not necessary when you scale afterwards 
+    # if(names(rast_file) == "CHELSA_temp_seasonality_4"){ 
+    # rast_file <- rast_file/100 
+    # print("Converted the unit of layer bio 4 (temperature seasonality) to °C") 
+    # } 
+    
+    # Write raster to disk 
+    out_name <- here::here(chelsa_current_folder, paste0("scaled_layer_", layer_name,".tif")) 
+    terra::writeRaster(scaled_r, filename = out_name, overwrite = TRUE) 
+    
+    #Print write statement 
+    print(paste0("Created rasterlayer ", basename(out_name)," in folder ", basename(chelsa_current_folder))) 
+    
+    #Clean up 
+    rm(masked_r, m, s, scaled_r, layer_name, out_name) 
+    gc()
+  } 
 }
 
 
@@ -148,22 +171,36 @@ for (period in c("2041-2070","2071-2100")) {
     future_folder <- here::here("data","external", "climate", "chelsa_future", period, scenario)
     if(!dir.exists(future_folder)) dir.create(future_folder, recursive=TRUE)
     
-    zen4R::download_zenodo(
-      doi = "10.5281/zenodo.17724735",
-      path = future_folder,
-      files = c(paste0("scaled_layer_CHELSA_meantemp_1_",period,"_",scenario,".tif"), 
-                paste0("scaled_layer_CHELSA_temp_seasonality_4_",period,"_",scenario,".tif"), 
-                paste0("scaled_layer_CHELSA_maxTmpWarmestMon_5_",period,"_",scenario,".tif"), 
-                paste0("scaled_layer_CHELSA_minTmpColdestMon_6_",period,"_",scenario,".tif"), 
-                paste0("scaled_layer_CHELSA_temp_annRange_7_",period,"_",scenario,".tif"), 
-                paste0("scaled_layer_CHELSA_annPrecip_12_",period,"_",scenario,".tif"), 
-                paste0("scaled_layer_CHELSA_precipWettestMon_13_",period,"_",scenario,".tif"), 
-                paste0("scaled_layer_CHELSA_precipDriestMon_14_",period,"_",scenario,".tif"), 
-                paste0("scaled_layer_CHELSA_precipSeasonality_15_",period,"_",scenario,".tif")
+    dest_files <- data.frame(
+      file = c(
+        paste0("scaled_layer_CHELSA_meantemp_1_",        period, "_", scenario, ".tif"),
+        paste0("scaled_layer_CHELSA_temp_seasonality_4_",period, "_", scenario, ".tif"),
+        paste0("scaled_layer_CHELSA_maxTmpWarmestMon_5_",period, "_", scenario, ".tif"),
+        paste0("scaled_layer_CHELSA_minTmpColdestMon_6_",period, "_", scenario, ".tif"),
+        paste0("scaled_layer_CHELSA_temp_annRange_7_",   period, "_", scenario, ".tif"),
+        paste0("scaled_layer_CHELSA_annPrecip_12_",      period, "_", scenario, ".tif"),
+        paste0("scaled_layer_CHELSA_precipWettestMon_13_",period,"_", scenario, ".tif"),
+        paste0("scaled_layer_CHELSA_precipDriestMon_14_", period,"_", scenario, ".tif"),
+        paste0("scaled_layer_CHELSA_precipSeasonality_15_",period,"_",scenario,".tif")
       ),
-      timeout=600,
-      quiet = FALSE
+      update_file = NA,
+      stringsAsFactors = FALSE
     )
+    
+    dest_files <- update_files_logic(dest_file = dest_files,
+                                     dest_folder = future_folder,
+                                     update_files = update_files) %>% 
+      dplyr::pull(file)
+    
+    if(length(dest_files)>0){
+      zen4R::download_zenodo(
+        doi = "10.5281/zenodo.17724735",
+        path = future_folder,
+        files = dest_files,
+        timeout=600,
+        quiet = FALSE
+      )
+    }
   }
 }
 
@@ -172,37 +209,59 @@ for (period in c("2041-2070","2071-2100")) {
 # #-- Store habitat layers for the European model --
 # #-------------------------------------------------
 
+dest_files <- data.frame(
+  file = c("Agriculture.tif",
+              "Artificial.tif",
+              "Coastal_wetland.tif",
+              "Coniferous_forest.tif",
+              "Deciduous_forest.tif",
+              "Inland_wetland.tif",
+              "Mixed_forest.tif",
+              "Shrub_and_herbaceous.tif",
+              "log_distance_to_water.tif",
+              "log_total_water_length.tif",
+              "proportion_total_water_polygon_cover.tif"),
+  update_file = NA,
+  stringsAsFactors = FALSE
+)
+
+dest_files <- update_files_logic(dest_file = dest_files,
+                                 dest_folder = habitat_folder,
+                                 update_files = update_files) %>% 
+  dplyr::pull(file)
+
 zen4R::download_zenodo(doi = "10.5281/zenodo.17724735", 
                        path = habitat_folder, 
-                       files = list("Agriculture.tif",
-                                    "Artificial.tif",
-                                    "Coastal_wetland.tif",
-                                    "Coniferous_forest.tif",
-                                    "Deciduous_forest.tif",
-                                    "Inland_wetland.tif",
-                                    "Mixed_forest.tif",
-                                    "Shrub_and_herbaceous.tif",
-                                    "log_distance_to_water.tif",
-                                    "log_total_water_length.tif",
-                                    "proportion_total_water_polygon_cover.tif"),
+                       files = dest_files,
                        quiet=FALSE)
 
 
 # #-------------------------------------------------
 # #---------------- Store biasgrids  ---------------
 # #-------------------------------------------------
+dest_files <- data.frame(
+  file = c("log_amphibians_1degree_layer.tif",
+              "log_birds_1degree_layer.tif",
+              "log_fish_1degree_layer.tif",
+              "log_hydrozoa_1degree_layer.tif",
+              "log_insects_1degree_layer.tif",
+              "log_malacostraca_1degree_layer.tif",
+              "log_mammals_1degree_layer.tif",
+              "log_mollusca_1degree_layer.tif",
+              "log_plants_1degree_layer.tif",
+              "log_reptiles_1degree_layer.tif"),
+  update_file = NA,
+  stringsAsFactors = FALSE
+)
+
+dest_files <- update_files_logic(dest_file = dest_files,
+                                 dest_folder = biasgrids_folder,
+                                 update_files = update_files) %>% 
+  dplyr::pull(file)
+
 zen4R::download_zenodo(doi="https://doi.org/10.5281/zenodo.17724735", 
                        path=biasgrids_folder,
-                       files=list("log_amphibians_1degree_layer.tif",
-                                  "log_birds_1degree_layer.tif",
-                                  "log_fish_1degree_layer.tif",
-                                  "log_hydrozoa_1degree_layer.tif",
-                                  "log_insects_1degree_layer.tif",
-                                  "log_malacostraca_1degree_layer.tif",
-                                  "log_mammals_1degree_layer.tif",
-                                  "log_mollusca_1degree_layer.tif",
-                                  "log_plants_1degree_layer.tif",
-                                  "log_reptiles_1degree_layer.tif"),
+                       files=dest_files,
                        quiet=FALSE)
 
 

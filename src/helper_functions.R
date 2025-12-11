@@ -56,8 +56,8 @@ remove_duplicates <- function(occurrences, rast_template){
 # Remove occurrences that fall in grid cells with NA values
 #-----------------------------------------------------------------------------------
 remove_nodata_occurrences <- function(occurrences, rast_template, crs){
- 
-   #Store number of initial occurrences
+  
+  #Store number of initial occurrences
   initial_occurrences<-nrow(occurrences)
   
   #Remove occurrences in NA cells and convert to sf
@@ -66,7 +66,7 @@ remove_nodata_occurrences <- function(occurrences, rast_template, crs){
     dplyr::select(c(x,y)) %>%
     dplyr::rename(decimalLongitude = x,
                   decimalLatitude = y) %>%
- sf::st_as_sf(coords = c("decimalLongitude", "decimalLatitude"), crs = crs, remove = FALSE)
+    sf::st_as_sf(coords = c("decimalLongitude", "decimalLatitude"), crs = crs, remove = FALSE)
   
   #Print how many occurrences were removed
   print(paste(initial_occurrences - nrow(occurrences), "occurrence records in grid cells with NAs removed."))
@@ -308,17 +308,17 @@ create_folder <- function(path, name) {
 #-------------------------Export PDF new function-----------------------------------
 #-----------------------------------------------------------------------------------
 exportPDF <- function(predictions=NULL, period=NULL, scenario, occ_data=NULL, dataType, returnPredictions=FALSE,returnPNG=FALSE, providedPNG=NULL, exportPNG=FALSE, LabelValue=NULL, LabelName=NULL, Label2Value=NULL, Label2Name=NULL, PDF_title, PNG_folder=NULL, PDF_folder, filename){
- 
+  
   #Define scenario title
   scenarioTitle<- switch(paste0(period,scenario),
-    "Current" = "Current",
-    "all" = "all",
-    "2041-2070ssp126" = "2041-2070: SSP1-2.6",
-    "2041-2070ssp370" = "2041-2070: SSP3-7.0",
-    "2041-2070ssp585" = "2041-2070: SSP5-8.5",
-    "2071-2100ssp126" = "2071-2100: SSP1-2.6",
-    "2071-2100ssp370" = "2071-2100: SSP3-7.0",
-    "2071-2100ssp585" = "2071-2100: SSP5-8.5"
+                         "Current" = "Current",
+                         "all" = "all",
+                         "2041-2070ssp126" = "2041-2070: SSP1-2.6",
+                         "2041-2070ssp370" = "2041-2070: SSP3-7.0",
+                         "2041-2070ssp585" = "2041-2070: SSP5-8.5",
+                         "2071-2100ssp126" = "2071-2100: SSP1-2.6",
+                         "2071-2100ssp370" = "2071-2100: SSP3-7.0",
+                         "2071-2100ssp585" = "2071-2100: SSP5-8.5"
   )
   
   PNG_filename <- paste0(filename, ".png")
@@ -326,156 +326,156 @@ exportPDF <- function(predictions=NULL, period=NULL, scenario, occ_data=NULL, da
   
   # Define file paths
   if(!is.null(PNG_folder)){
-  plot_png_path <- file.path(PNG_folder, PNG_filename)# If not EU or Global
+    plot_png_path <- file.path(PNG_folder, PNG_filename)# If not EU or Global
   }
   plot_pdf_path <- file.path(PDF_folder, PDF_filename)
-
+  
   
   #If png is not provided, create a PNG based on the input predictions
   if(is.null(providedPNG)){
-  
-  #Get extent
-  exten<-as.vector(terra::ext(predictions))
     
-  #Settings for plot
-  if (dataType == "Diff") {
-    brks <- seq(-1, 1, by = 0.25)
-  } else if (dataType %in% c("Suit", "Conf", "Masked_Suit", "Stdev")) {
-    brks <- seq(0, 1, by = 0.2)
-  }
-
-  if (dataType != "Binary"){
-  nb <- length(brks) - 1
-  viridis_palette <- viridis::viridis(nb)
-  
-  #Create dummy raster with all values
-  template <- predictions
-  values(template) <- rep(brks, length.out = ncell(template))
-  template <- mask(template, predictions)
-  
-  #Create plot
-  suppressMessages(
-  country_plot <- ggplot() + 
-    geom_spatraster(data=template)+
-    geom_spatraster(data = predictions) +
-    scale_fill_gradientn(colors = viridis_palette, 
-                         breaks = brks, 
-                         labels = brks, 
-                         na.value = "transparent") +
-    theme_bw() +
-    theme(axis.title = element_blank())+
-    theme(plot.margin = unit(c(0.2,0.2,0.2,0.2), "cm"))+
-    coord_sf(xlim = c(exten[1] - (exten[1] * 0.12), exten[2]- (exten[2] * 0.05)), 
-             ylim = c(exten[3], exten[4] + (exten[4] * 0.04)))
-  )
-  
+    #Get extent
+    exten<-as.vector(terra::ext(predictions))
+    
+    #Settings for plot
+    if (dataType == "Diff") {
+      brks <- seq(-1, 1, by = 0.25)
+    } else if (dataType %in% c("Suit", "Conf", "Masked_Suit", "Stdev")) {
+      brks <- seq(0, 1, by = 0.2)
+    }
+    
+    if (dataType != "Binary"){
+      nb <- length(brks) - 1
+      viridis_palette <- viridis::viridis(nb)
+      
+      #Create dummy raster with all values
+      template <- predictions
+      values(template) <- rep(brks, length.out = ncell(template))
+      template <- mask(template, predictions)
+      
+      #Create plot
+      suppressMessages(
+        country_plot <- ggplot() + 
+          geom_spatraster(data=template)+
+          geom_spatraster(data = predictions) +
+          scale_fill_gradientn(colors = viridis_palette, 
+                               breaks = brks, 
+                               labels = brks, 
+                               na.value = "transparent") +
+          theme_bw() +
+          theme(axis.title = element_blank())+
+          theme(plot.margin = unit(c(0.2,0.2,0.2,0.2), "cm"))+
+          coord_sf(xlim = c(exten[1] - (exten[1] * 0.12), exten[2]- (exten[2] * 0.05)), 
+                   ylim = c(exten[3], exten[4] + (exten[4] * 0.04)))
+      )
+      
+    }else{
+      #Create plot
+      suppressMessages(
+        country_plot <- ggplot() + 
+          geom_spatraster(data = predictions) +
+          scale_fill_manual(values = c("Absent" = "lightgrey", "Present" = "#085099"),
+                            na.value = "transparent",
+                            na.translate=FALSE)+
+          theme_bw() +
+          theme(axis.title = element_blank())+
+          theme(plot.margin = unit(c(0.2,0.2,0.2,0.2), "cm"))+
+          coord_sf(xlim = c(exten[1] - (exten[1] * 0.12), exten[2]- (exten[2] * 0.05)), 
+                   ylim = c(exten[3], exten[4] + (exten[4] * 0.04)))
+      )
+    }
+    # Define text label, fill label, and hjust based on dataType
+    text_label <- ifelse(dataType=="Diff",paste(scenarioTitle, "- current"), scenarioTitle)
+    
+    fill_label <- switch(dataType,
+                         "Suit" = "Suitability",
+                         "Diff" = "Suitability difference",
+                         "Conf" = "Confidence",
+                         "Masked_Suit" = "Suitability",
+                         "Binary" = "Suitability",
+                         "Stdev" = "Standard deviation")
+    
+    hjust_value <- ifelse(dataType == "Diff", -0.264 , -0.24) 
+    x_value<-ifelse(exten[1]>180, 800000, -35)
+    # Update the plot
+    country_plot <- country_plot +
+      labs(fill = fill_label) +
+      annotate("text",
+               x = x_value, y = Inf,       # Position at top-right
+               label = text_label,     # Text to display
+               hjust = 0,
+               vjust = 2.4,            # Adjust text alignment to the right and above
+               size = 4.8,
+               color = "#636363",
+               fontface = "bold")+
+      theme(aspect.ratio=NULL)
+    
+    if(!is.null(occ_data)){
+      crs_value<-st_crs(occ_data)
+      #Only show occurrences that fall within raster cells
+      occ_data<- terra::extract(predictions, occ_data, xy = T, ID=F)%>%
+        dplyr::filter(!is.na(.[, 1]))%>% #Keep rows that do not have any NA values in value column
+        dplyr::select(c(x,y))%>%
+        dplyr::rename(decimalLongitude=x,
+                      decimalLatitude=y)%>%
+        st_as_sf(coords=c("decimalLongitude", "decimalLatitude"), crs=crs_value)
+      
+      suppressMessages(
+        country_plot<-country_plot +
+          geom_sf(data = occ_data, color = "black", fill = "red", 
+                  size = 1.5, shape = 21)+
+          coord_sf(xlim = c(exten[1] - (exten[1] * 0.12), exten[2]- (exten[2] * 0.05)), 
+                   ylim = c(exten[3], exten[4] + (exten[4] * 0.04)))
+      )
+    }
+    
+    if(!is.null(LabelValue)){
+      
+      assertthat::assert_that(!is.null(LabelName), msg = "LabelValue is provided but LabelName is not.")
+      
+      country_plot<-country_plot +
+        annotate("text",
+                 x = x_value, y = Inf,       # Position at top-right
+                 label = paste(LabelName,"=",LabelValue),     # Text to display
+                 hjust = 0,
+                 vjust = 4.5,            # Adjust text alignment to the right and above
+                 size = 4.4,
+                 color = "#919191",
+                 fontface = "bold")
+    }
+    
+    if(!is.null(Label2Value)){
+      
+      assertthat::assert_that(!is.null(Label2Name), msg = "Label2Value is provided but Label2Name is not.")
+      
+      country_plot<-country_plot +
+        annotate("text",
+                 x = x_value, y = Inf,       # Position at top-right
+                 label = paste(Label2Name,"=",Label2Value),     # Text to display
+                 hjust = 0,
+                 vjust = 6.5,            # Adjust text alignment to the right and above
+                 size = 4.4,
+                 color = "#919191",
+                 fontface = "bold")
+    }
+    
+    #Create an empty plot to fill PDF
+    empty_plot <- ggplot() + 
+      theme_void() + 
+      theme(plot.background = element_blank()) 
+    
+    #Create final plot
+    plot_final<-country_plot 
+    
+    # Save plot temporarily as a PNG file
+    ggplot2::ggsave(filename = PNG_filename, plot = plot_final, 
+                    device = "png", width =7.7 , height = 6.94, units = "in", dpi= 300, path= PDF_folder)
+    
   }else{
-    #Create plot
-    suppressMessages(
-    country_plot <- ggplot() + 
-      geom_spatraster(data = predictions) +
-      scale_fill_manual(values = c("Absent" = "lightgrey", "Present" = "#085099"),
-                        na.value = "transparent",
-                        na.translate=FALSE)+
-      theme_bw() +
-      theme(axis.title = element_blank())+
-      theme(plot.margin = unit(c(0.2,0.2,0.2,0.2), "cm"))+
-      coord_sf(xlim = c(exten[1] - (exten[1] * 0.12), exten[2]- (exten[2] * 0.05)), 
-               ylim = c(exten[3], exten[4] + (exten[4] * 0.04)))
-    )
+    # Save plot temporarily as a PNG file
+    ggplot2::ggsave(filename = PNG_filename, plot =providedPNG, 
+                    device = "png", width =7.7 , height = 6.94, units = "in", dpi= 300, path= PDF_folder)
   }
-  # Define text label, fill label, and hjust based on dataType
-  text_label <- ifelse(dataType=="Diff",paste(scenarioTitle, "- current"), scenarioTitle)
-  
-  fill_label <- switch(dataType,
-                       "Suit" = "Suitability",
-                       "Diff" = "Suitability difference",
-                       "Conf" = "Confidence",
-                       "Masked_Suit" = "Suitability",
-                       "Binary" = "Suitability",
-                       "Stdev" = "Standard deviation")
-  
-  hjust_value <- ifelse(dataType == "Diff", -0.264 , -0.24) 
-  x_value<-ifelse(exten[1]>180, 800000, -35)
-  # Update the plot
-  country_plot <- country_plot +
-    labs(fill = fill_label) +
-    annotate("text",
-             x = x_value, y = Inf,       # Position at top-right
-             label = text_label,     # Text to display
-             hjust = 0,
-             vjust = 2.4,            # Adjust text alignment to the right and above
-             size = 4.8,
-             color = "#636363",
-             fontface = "bold")+
-    theme(aspect.ratio=NULL)
-  
-  if(!is.null(occ_data)){
-    crs_value<-st_crs(occ_data)
-    #Only show occurrences that fall within raster cells
-    occ_data<- terra::extract(predictions, occ_data, xy = T, ID=F)%>%
-      dplyr::filter(!is.na(.[, 1]))%>% #Keep rows that do not have any NA values in value column
-      dplyr::select(c(x,y))%>%
-      dplyr::rename(decimalLongitude=x,
-                    decimalLatitude=y)%>%
-      st_as_sf(coords=c("decimalLongitude", "decimalLatitude"), crs=crs_value)
-    
-    suppressMessages(
-    country_plot<-country_plot +
-      geom_sf(data = occ_data, color = "black", fill = "red", 
-              size = 1.5, shape = 21)+
-      coord_sf(xlim = c(exten[1] - (exten[1] * 0.12), exten[2]- (exten[2] * 0.05)), 
-               ylim = c(exten[3], exten[4] + (exten[4] * 0.04)))
-    )
-  }
-  
-  if(!is.null(LabelValue)){
-    
-    assertthat::assert_that(!is.null(LabelName), msg = "LabelValue is provided but LabelName is not.")
-    
-    country_plot<-country_plot +
-      annotate("text",
-               x = x_value, y = Inf,       # Position at top-right
-               label = paste(LabelName,"=",LabelValue),     # Text to display
-               hjust = 0,
-               vjust = 4.5,            # Adjust text alignment to the right and above
-               size = 4.4,
-               color = "#919191",
-               fontface = "bold")
-  }
-  
-  if(!is.null(Label2Value)){
-    
-    assertthat::assert_that(!is.null(Label2Name), msg = "Label2Value is provided but Label2Name is not.")
-    
-    country_plot<-country_plot +
-      annotate("text",
-               x = x_value, y = Inf,       # Position at top-right
-               label = paste(Label2Name,"=",Label2Value),     # Text to display
-               hjust = 0,
-               vjust = 6.5,            # Adjust text alignment to the right and above
-               size = 4.4,
-               color = "#919191",
-               fontface = "bold")
-  }
-  
-  #Create an empty plot to fill PDF
-  empty_plot <- ggplot() + 
-    theme_void() + 
-    theme(plot.background = element_blank()) 
-  
-  #Create final plot
-  plot_final<-country_plot 
-  
-  # Save plot temporarily as a PNG file
-  ggplot2::ggsave(filename = PNG_filename, plot = plot_final, 
-         device = "png", width =7.7 , height = 6.94, units = "in", dpi= 300, path= PDF_folder)
-  
-   }else{
-     # Save plot temporarily as a PNG file
-     ggplot2::ggsave(filename = PNG_filename, plot =providedPNG, 
-            device = "png", width =7.7 , height = 6.94, units = "in", dpi= 300, path= PDF_folder)
-   }
   
   # Read the PNG image back in
   img <- magick::image_read(here::here(PDF_folder, PNG_filename))
@@ -525,7 +525,7 @@ exportPDF <- function(predictions=NULL, period=NULL, scenario, occ_data=NULL, da
   
   #Store plots or models
   if (returnPredictions & returnPNG) {
-   
+    
     return(list("model" = predictions,
                 "png"=country_plot,
                 "scenario"=scenario))
@@ -576,8 +576,8 @@ CPconf<-function(pA,pB,confidence){
   }else{
     predClass<-"bothClasses"
   }
-    return(predClass)
-  }
+  return(predClass)
+}
 
 
 #-----------------------------------------------------------------------------------
@@ -675,9 +675,9 @@ confidenceMaps<-function(x,original_raster,taxonName, taxonNameTitle, nameExtens
   
   #If global model is used, resample map
   if(GlobalModel){
-   rst_to_export<- rst%>%
-     terra::project(terra::crs(country_sf))%>%
-     terra::resample(resampling_rast, method="bilinear") 
+    rst_to_export<- rst%>%
+      terra::project(terra::crs(country_sf))%>%
+      terra::resample(resampling_rast, method="bilinear") 
   }else{
     
     rst_to_export<-rst
@@ -686,8 +686,8 @@ confidenceMaps<-function(x,original_raster,taxonName, taxonNameTitle, nameExtens
   #Export raster
   raster_file<-paste(taxonName, "_", taxonKey, "_", scenario, "_confidence_", regionName, ".tif", sep="")
   terra::writeRaster(rst_to_export,
-              filename=file.path(folder, raster_file),
-              overwrite=TRUE)
+                     filename=file.path(folder, raster_file),
+                     overwrite=TRUE)
   #Print
   print(paste(raster_file," has been created.", sep=""))
   
@@ -702,8 +702,8 @@ confidenceMaps<-function(x,original_raster,taxonName, taxonNameTitle, nameExtens
             returnPNG=FALSE, 
             dataType="Conf")
   return(rst)
-
-  }
+  
+}
 
 
 #----------------------------------------------------------
@@ -758,4 +758,73 @@ eu_eval<-function (ras,y){
   indep.bil.df$observed<-as.factor(indep.bil.df$observed)
   xtab<-table(indep.bil.df$predicted,indep.bil.df$observed)
   return(xtab)
+}
+
+#----------------------------------------------------------
+#-------------   update_files_logic   ----------------------
+#----------------------------------------------------------
+#' @param dest_file output file to test existance of
+#' @param update_files whether to ask, or ignore existance of 
+update_files_logic <- function(dest_file,
+                               dest_folder = NULL,
+                               update_files){
+  if(!is.data.frame(dest_file)){
+    # Single file logic
+    if(update_files == TRUE){
+      #update_files == TRUE
+      update_files_final <- TRUE
+    }else{
+      #update_files != TRUE => ASK or FALSE
+      if(update_files == FALSE){
+        #update_files == FALSE
+        if(file.exists(dest_file)){
+          # File exists
+          update_files_final <- FALSE
+        }else{
+          update_files_final <- TRUE
+        }
+      }
+      if(update_files == "ASK"){
+        #update_files == "ASK"
+        if(file.exists(dest_file)){
+          # File exists
+          update_files_final <- askYesNo(msg = paste("Download\n", 
+                                                     basename(dest_file),
+                                                     "\n again?"))
+        }else{
+          update_files_final <- TRUE
+        }
+      }
+    }
+  }else{
+    #multiple file logic
+    if(update_files == TRUE){
+      #update_files == TRUE
+      dest_file$update_file <- TRUE
+    }else{
+      #update_files != TRUE => ASK or FALSE
+      if(update_files == FALSE){
+        #update_files == FALSE
+        dest_file <- dest_file %>% 
+          dplyr::mutate(update_file = dplyr::case_when(file.exists(paste0(dest_folder,"/", file)) ~ FALSE,
+                                                       TRUE ~ TRUE))
+      }
+      if(update_files == "ASK"){
+        #update_files == "ASK"
+        for(i in 1:nrow(dest_file)){
+          if(file.exists(paste0(dest_folder,"/", dest_file$file[i]))){
+            # File exists
+            dest_file$update_file[i] <- askYesNo(msg = paste("Download\n", 
+                                                             basename(dest_file$file[i]),
+                                                             "\n again?"))
+          }else{
+            dest_file$update_file[i] <- TRUE
+          }
+        }
+      }
+    }
+    update_files_final <- dest_file %>% 
+      dplyr::filter(update_file)
+  }
+  return(update_files_final)
 }
