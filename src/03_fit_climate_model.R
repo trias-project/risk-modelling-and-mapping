@@ -769,7 +769,7 @@ with_progress({
         modeloutput[[modelmethod]]<-list(fav_raster=fav_raster,
                                          model=method_model)
         
-        rm(fav_raster, binary_1pct, binary_5pct, method_model)
+        rm(fav_raster, method_model)
       }
     })
     
@@ -952,7 +952,7 @@ with_progress({
       binary_maps[[mtp_pct]] <- list(binary_raster=binary_map_pct,
                                      EU_sensitivity=global_EU_sensitivity,
                                      mean_MTP= thr)
-      rm(binary_map_pct, binary_file)
+      rm(binary_map_pct, binary_file, mtp_value, mtp_pct, to_omit, thr)
     }
     
     
@@ -1085,6 +1085,7 @@ with_progress({
                       PDF_folder=file.path(base_dir, "Climate",period, scenario, "Predictions", "PDFs"),
                       filename=filename)
           }
+          rm(mtp_label, mtp_text, threshold, binary_map_future)
         }
       }
     }
