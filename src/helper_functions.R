@@ -309,6 +309,9 @@ create_folder <- function(path, name) {
 #-----------------------------------------------------------------------------------
 exportPDF <- function(predictions=NULL, period=NULL, scenario, occ_data=NULL, dataType, returnPredictions=FALSE,returnPNG=FALSE, providedPNG=NULL, exportPNG=FALSE, LabelValue=NULL, LabelName=NULL, Label2Value=NULL, Label2Name=NULL, PDF_title, PNG_folder=NULL, PDF_folder, filename){
   
+  #Set scenario to "" if period is Current
+  if(period=="Current") scenario<-""
+  
   #Define scenario title
   scenarioTitle<- switch(paste0(period,scenario),
                          "Current" = "Current",
