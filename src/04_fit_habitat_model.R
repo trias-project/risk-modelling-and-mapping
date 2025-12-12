@@ -697,7 +697,7 @@ with_progress({
       
       exportPDF(predictions = consensus_habitat,
                 dataType = "Suit",
-                scenario = "Current",
+                period = "Current",
                 returnPredictions = FALSE,
                 returnPNG = FALSE,
                 occ_data=occs,
@@ -722,7 +722,7 @@ with_progress({
     #Export PDFs with and without occurrences plotted
     exportPDF(predictions = consensus_habitat_sd,
               dataType = "Stdev",
-              scenario = "Current",
+              period = "Current",
               returnPredictions = FALSE,
               returnPNG = FALSE,
               occ_data=NULL,
@@ -795,7 +795,7 @@ with_progress({
         filename <- ifelse(is.null(occs), base_file, paste0(base_file, "_occ"))
         exportPDF(predictions = binary_map_pct,
                   dataType = "Binary",
-                  scenario = "Current",
+                  period = "Current",
                   returnPredictions = FALSE,
                   returnPNG = TRUE,
                   occ_data=occs,
@@ -905,7 +905,7 @@ with_progress({
       
       exportPDF(predictions = clim_hab,
                 dataType = "Suit",
-                scenario = "Current",
+                period = "Current",
                 returnPredictions = FALSE,
                 returnPNG = FALSE,
                 occ_data=occs,
@@ -965,7 +965,7 @@ with_progress({
     #Export PDFs and PNGs
     exportPDF(predictions = Final_SD,
               dataType = "Stdev",
-              scenario = "Current",
+              period = "Current",
               returnPredictions = FALSE,
               returnPNG = FALSE,
               occ_data=NULL,
@@ -1015,7 +1015,7 @@ with_progress({
         filename <- ifelse(is.null(occs), base_file, paste0(base_file, "_occ"))
         exportPDF(predictions = binary_map_pct,
                   dataType = "Binary",
-                  scenario = "Current",
+                  period = "Current",
                   returnPredictions = FALSE,
                   returnPNG = TRUE,
                   occ_data=occs,

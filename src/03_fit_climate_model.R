@@ -844,7 +844,7 @@ with_progress({
       
       exportPDF(predictions = consensus_median,
                 dataType = "Suit",
-                scenario = "Current",
+                period = "Current",
                 returnPredictions = FALSE,
                 returnPNG = FALSE,
                 occ_data=occs,
@@ -864,7 +864,7 @@ with_progress({
     
     exportPDF(predictions = consensus_sd,
               dataType = "Stdev",
-              scenario = "Current",
+              period = "Current",
               returnPredictions = FALSE,
               returnPNG = FALSE,
               occ_data=NULL,
@@ -933,7 +933,7 @@ with_progress({
         filename <- ifelse(is.null(occs), base_file, paste0(base_file, "_occ"))
         exportPDF(predictions = binary_map_pct,
                   dataType = "Binary",
-                  scenario = "Current",
+                  period = "Current",
                   returnPredictions = FALSE,
                   returnPNG = TRUE,
                   occ_data=occs,
