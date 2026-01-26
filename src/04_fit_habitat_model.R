@@ -598,12 +598,12 @@ with_progress({
     #------------------------------------------------
     #----- Check if at least 8 algorithms worked ----
     #------------------------------------------------
-    if (length(modeloutput) < 9) {
-      warning(paste0("Prediction skipped for species '", species, "': Only ",
-                     length(modeloutput), " out of 10 algorithms successfully produced predictions.\n",
-                     "At least 9 are required to continue — moving on to the next species."))
-      next  # Skip to the next species in the loop
-    }
+    # if (length(modeloutput) < 8) {
+    #   warning(paste0("Prediction skipped for species '", species, "': Only ",
+    #                  length(modeloutput), " out of 10 algorithms successfully produced predictions.\n",
+    #                  "At least 9 are required to continue — moving on to the next species."))
+    #   next  # Skip to the next species in the loop
+    # }
     
     
     #---------------------------------------------
@@ -662,7 +662,7 @@ with_progress({
     # Step 8: Compute pixel-wise mean
     consensus_habitat_mean <- mean(top5_stack, na.rm=TRUE)
     
-    # Step 9: Compute pixel-wise population standard deviation
+    # Step 10: Compute pixel-wise population standard deviation
     consensus_habitat_sd <- stdev(top5_stack, pop=TRUE)
     
     
@@ -864,8 +864,9 @@ with_progress({
     #------------------------------------------------------------    
     #-- Create final predictions combining habitat and climate --
     #------------------------------------------------------------
+    consensus_climate<-terra::crop(global_climate_for_eu, consensus_habitat)
     #Combine suitability predictions by global model (climate) and EU habitat model
-    clim_hab <- sqrt(consensus_habitat * global_climate_for_eu)
+    clim_hab <- sqrt(consensus_habitat * consensus_climate)
     
     
     #--------------------------------------------------
