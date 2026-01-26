@@ -792,8 +792,36 @@ with_progress({
     # Subset using those IDs
     top5models <- model[[top_ids]]  
     
-    # Step 6: Subset fav_stack to top 5 layers
-    top5_stack <- subset(fav_stack, top5_models)
+    #Clean up
+    rm(fav_matrix, fav_stack)
+    gc()
+    
+    #--------------------------------------------------------------
+    #-- Create final ensemble predictions for region of interest --
+    #--------------------------------------------------------------
+    #Create empty list to store models in
+    ensemblemodel<-list()
+    
+    for(modelmethod in top5_models){
+      print(modelmethod)
+      pred <- predict(model,
+                      newdata = country_climpreds_selection,
+                      method = modelmethod)
+      
+      #Apply the transformation to the raster
+      fav_pred <- favourability_from_prob(pred, prev_ratio)
+      
+      #Store
+      ensemblemodel[[modelmethod]]<-fav_pred
+      
+    }
+    
+    
+    # Combine into a SpatRaster stack
+    top5_stack <- terra::rast(ensemblemodel)
+    
+    # Assign layer names based on model methods
+    names(top5_stack) <- names(ensemblemodel)
     
     # Compute pixel-wise median = consensus model
     consensus_median <- app(top5_stack, median)
@@ -938,17 +966,17 @@ with_progress({
         print(paste("[FUTURE] Projecting:", period,scenario))
         
         #Get climate data for specific period and scenario
-        future_rast <- get(paste0(scenario, "_", period))
+        future_rast <- terra::rast(future_paths[[paste0(period, "_", scenario)]])
         
         # Keep relevant predictors in the raster stack
-        eu_future_selection <- future_rast %>%
-          subset(names(eu_climpreds.10_selection))
+        future_selection <- future_rast %>%
+          subset(names(country_climpreds_selection))
         
         # Project each of the top 5 models
         future_modeloutput <- list()
         for(modelmethod in top5_models){
           pred_raster_future <- predict(model,
-                                        newdata = eu_future_selection,
+                                        newdata = future_selection,
                                         method = modelmethod)
           fav_raster_future <- favourability_from_prob(pred_raster_future, prev_ratio)
           future_modeloutput[[modelmethod]] <- fav_raster_future
@@ -1165,7 +1193,7 @@ with_progress({
                         response_df = response_df,
                         varimp_df = varimp_df,
                         top5models = top5models,
-                        selected_predictors = names(eu_future_selection),
+                        selected_predictors = names(future_selection),
                         future_consensus_median = future_consensus_median)
     
     qs::qsave(climatemodel, file.path(base_dir, "Climate", paste0("Climate_model_",speciesName,"_",taxonkey,".qs")))
@@ -1193,7 +1221,7 @@ with_progress({
     #--------------------------------------------
     #------------------ Clean up-----------------
     #--------------------------------------------
-    rm(list = setdiff(ls(), c("p","wwf_eco_biome","eu_climpreds.10", "split_df",  "decimalplaces", "globalclimpreds_terra","bias_grid_paths", "i", "world", "project", "create_folder", "split_df_all_occs", "exportPDF", "remove_duplicates", "remove_nodata_occurrences", "favourability_from_prob", "cleaned_1km", "occurrence_thinning_method", "n_clusters", "ssp126_2041-2070","ssp370_2041-2070","ssp585_2041-2070","ssp126_2071-2100","ssp370_2071-2100","ssp585_2071-2100", "mtp_probabilities", "pseudoabsence_thinning_method")))
+    rm(list = setdiff(ls(), c("p","wwf_eco_biome","eu_climpreds_file","country_climpreds_file", "globalclimpreds_file","future_paths","globalclimpreds_5k_file","split_df",  "decimalplaces","bias_grid_paths", "i", "world", "project", "create_folder", "split_df_all_occs", "exportPDF", "remove_duplicates", "remove_nodata_occurrences", "favourability_from_prob", "cleaned_1km", "occurrence_thinning_method", "n_clusters","future_paths","mtp_probabilities", "pseudoabsence_thinning_method")))
     
   }
 })
