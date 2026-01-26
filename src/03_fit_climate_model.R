@@ -741,26 +741,24 @@ with_progress({
         fav_raster <- favourability_from_prob(pred_raster, prev_ratio)
         
         #Store
-        modeloutput[[modelmethod]]<-list(fav_raster=fav_raster,
-                                         model=method_model)
+        modeloutput[[modelmethod]]<-fav_raster
         
         rm(fav_raster, method_model)
       }
     })
     
-    # List favourability rasters
-    fav_rasters_list <- lapply(modeloutput, function(x) x$fav_raster)
-    
     # Combine into a SpatRaster stack
-    fav_stack <- terra::rast(fav_rasters_list)
+    fav_stack <- terra::rast(modeloutput)
     
     # Assign layer names based on model methods
     names(fav_stack) <- names(modeloutput)
+    gc()
     
     
     #---------------------------------------------
-    #-- Create Ensemble model using PCAm method --
+    #-- Choose five final models PCAm method --
     #---------------------------------------------
+    
     #Step 0: make PCA
     pca_result <- rasterPCA(fav_stack, nSamples = NULL, spca = FALSE, maskCheck = TRUE)
     
@@ -797,13 +795,13 @@ with_progress({
     # Step 6: Subset fav_stack to top 5 layers
     top5_stack <- subset(fav_stack, top5_models)
     
-    # Step 7: Compute pixel-wise median = consensus model
+    # Compute pixel-wise median = consensus model
     consensus_median <- app(top5_stack, median)
     
-    # Step 8: Compute pixel-wise mean for SD calculation
+    # Compute pixel-wise mean for SD calculation
     consensus_mean <- mean(top5_stack, na.rm=TRUE)
     
-    # Step 9: Compute pixel-wise population SD
+    # Compute pixel-wise population SD
     consensus_sd <- stdev(top5_stack, pop=TRUE)
     
     
