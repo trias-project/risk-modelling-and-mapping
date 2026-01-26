@@ -240,7 +240,9 @@ gc()
 #--------------------------------------------
 
 with_progress({
-  p <- progressr::progressor(along = 1:length(split_df)) 
+  p <- progressr::progressor(along = 1:length(split_df))
+  
+  
   for(i in 1:length(split_df)) {
     
     #--------------------------------------------
@@ -266,7 +268,7 @@ with_progress({
       dplyr::filter(acceptedTaxonKey == taxonkey)
     
     #Generate file for informing PA selection containing all occurrences (no thinning, in case we thinned split_df)
-    for_PA_selection <- split_df_all_occs[[i]] %>%
+    for_PA_selection <- split_df[[i]] %>%
       dplyr::select(c(decimalLongitude, decimalLatitude))%>%
       sf::st_as_sf(coords = c("decimalLongitude", "decimalLatitude"),crs = 4326)
     
@@ -333,6 +335,12 @@ with_progress({
     lapply(folder_paths, function(folder){
       create_folder(folder$path, folder$name)
     })
+    
+    
+    #--------------------------------------------
+    #------ Load environmental data -----
+    #--------------------------------------------
+    globalclimpreds_terra<-terra::rast(globalclimpreds_file)
     
     
     #--------------------------------------------
@@ -453,6 +461,9 @@ with_progress({
     #--------------------------------------------
     #------ Import right bias grid --------------
     #--------------------------------------------
+    # Re-load for lazy access (memory efficient)
+    globalclimpreds_terra_5k <- terra::rast(globalclimpreds_5k_file )
+    
     if (speciesgroup %in% names(bias_grid_paths)) {
       biasgrid <- terra::rast(bias_grid_paths[[speciesgroup]])
       if(speciesgroup %in% c("Amphibians", "Molluscs", "Mammals", "Reptiles","Birds","Plants","Fish","Malacostraca","Insects")){
