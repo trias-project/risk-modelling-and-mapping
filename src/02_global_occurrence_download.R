@@ -340,8 +340,8 @@ cleaned_1km<-cleaned%>%
 #------------------Save data-----------------
 #--------------------------------------------
 # Number of unique taxa
-unique_keys <- unique(global$acceptedTaxonKey)
-unique_names <- unique(global$acceptedScientificName)
+unique_keys <- unique(cleaned$acceptedTaxonKey)
+unique_names <- unique(cleaned$species)
 n <- length(unique_keys)
 
 #Create dataset taxa_info containing scientific name, canonical name, taxonkeys, gbif download key,...
