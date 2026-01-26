@@ -74,15 +74,93 @@ globalclimpreds_terra  <- terra::mask(
   maskvalue = 1
 )
 
+# Write to disk with compression
+processed_folder<-file.path("data", "external", "climate", "chelsa_current","processed")
+if(!dir.exists(processed_folder)) dir.create(processed_folder)
+globalclimpreds_file <- file.path(processed_folder, "globalclimpreds.tif")
+
+
+terra::writeRaster(globalclimpreds_terra,
+                   filename = globalclimpreds_file,
+                   overwrite = TRUE,
+                   wopt = list(gdal = c("COMPRESS=LZW")))
+
+
+rm(na_mask_globalclimpreds_terra)
+
+
+#---------------------------------------------------------
+#---Create predictors at 5k res. for background selection
+#---------------------------------------------------------
+#Decrease resolution to match coordinate uncertainty of global occurrences: use around 5km at equator by averaging
+globalclimpreds_terra_5k <- terra::aggregate(globalclimpreds_terra[[1]], fact = 5, fun = mean, na.rm = TRUE)
+
+# Write to disk with compression
+globalclimpreds_5k_file <- file.path(processed_folder,"globalclim_5k.tif")
+
+
+terra::writeRaster(globalclimpreds_terra_5k,
+                   filename = globalclimpreds_5k_file ,
+                   overwrite = TRUE,
+                   wopt = list(gdal = c("COMPRESS=LZW")))
+
+
+rm(globalclimpreds_terra_5k)
+gc() 
+
+
+#--------------------------------------------
+#--------Load boundary layers -------
+#--------------------------------------------
+euboundary <- terra::rast(file.path("data", "external", "habitat", "Agriculture.tif"))%>%
+  terra::project(globalclimpreds_terra[[1]])
+
+country_boundary<-sf::read_sf(here::here("data","external","GIS","Country","country.shp"))%>%
+  sf::st_transform(crs(globalclimpreds_terra))%>%
+  terra::vect()
+
+
+#--------------------------------------------
+#--------Create European climate layers -------
+#--------------------------------------------
 # Crop and mask scaled_stack to European extent
-eu_climpreds.10 <- terra::crop(globalclimpreds_terra, euboundary)
-eu_climpreds.10 <- terra::mask(eu_climpreds.10, euboundary)%>%
-  terra::crop(terra::ext(-38, 50,  24.29152732065, 72.66652712715))
+eu_climpreds.10 <- terra::mask(globalclimpreds_terra, euboundary)
+
+eu_climpreds.10 <- terra::crop(eu_climpreds.10,
+                               terra::ext(-38, 50,  24.29152732065, 72.66652712715))
+
+# Write to disk with compression
+eu_climpreds_file <- file.path(processed_folder,"euclimpreds.tif")
+
+
+terra::writeRaster(eu_climpreds.10,
+                   filename = eu_climpreds_file,
+                   overwrite = TRUE,
+                   wopt = list(gdal = c("COMPRESS=LZW")))
 
 
 #--------------------------------------------
+#--------Create country climate layers -------
+#--------------------------------------------
+country_climpreds <- terra::crop(globalclimpreds_terra, country_boundary)
+country_climpreds <- terra::mask(country_climpreds, country_boundary)
+
+# Write to disk with compression
+country_climpreds_file <- file.path(processed_folder, "country_climpreds.tif")
+terra::writeRaster(country_climpreds,
+                   filename = country_climpreds_file,
+                   overwrite = TRUE,
+                   wopt = list(gdal = c("COMPRESS=LZW")))
+
+rm(country_climpreds)
+gc()
+
+
+#---------------------------------------------
 #------ Load future climate rasters ----------
-#--------------------------------------------
+#---------------------------------------------
+# Initialize a list to store future raster stacks if needed
+future_paths <- list()
 
 for (period in c("2041-2070","2071-2100")){
   for(scenario in c("ssp126", "ssp370", "ssp585")){
@@ -93,35 +171,32 @@ for (period in c("2041-2070","2071-2100")){
     #Stack them together
     future_stack <- terra::rast(future_files)
     
-    #Aggregate at a resolution of 5km
-    future_stack <- terra::aggregate(future_stack, fact=5, fun = mean, na.rm=TRUE)
+    # #Aggregate at a resolution of 5km
+    # future_stack <- terra::aggregate(future_stack, fact=5, fun = mean, na.rm=TRUE)
     
-    #Reproject future stack to match CRS and resolution of eu_climpreds.10
-    future_aligned <- terra::project(
-      future_stack,
-      eu_climpreds.10,
-      method = "bilinear")
+    #Mask future stack to resolution of country or region of interest
+    future_country <- terra::crop(future_stack, country_boundary)
+    future_country <- terra::mask(future_country, country_boundary)
     
-    future_aligned <- future_aligned %>%
-      terra::mask(eu_climpreds.10) %>%
-      terra::crop(terra::ext(-38, 50,  24.29152732065, 72.66652712715))
+    #Define preprocessed dir
+    preprocessed_dir <- file.path("data", "external", "climate", "chelsa_future","country", period,scenario)
+    if(!dir.exists(preprocessed_dir)) dir.create(preprocessed_dir, recursive=TRUE)
     
+    # Define output file
+    out_file <- file.path(preprocessed_dir, paste0(period, "_", scenario, "_masked.tif"))
     
+    # Save processed rasterstack
+    terra::writeRaster(future_country, 
+                       filename = out_file,
+                       overwrite = TRUE,
+                       wopt = list(gdal = c("COMPRESS=LZW")))
     
-    # Get mask from future stack NA structure
-    na_mask_future <- anyNA(future_aligned)
-    
-    # Mask future stack with its own NA structure
-    future_aligned_masked <- terra::mask(
-      future_aligned,
-      na_mask_future,
-      maskvalue = 1)  
-    
-    #Assign correct name to raster stack
-    assign(paste0(scenario,"_",period), future_aligned_masked)
+    # Store path for later use
+    future_paths[[paste0(period, "_", scenario)]] <- out_file
     
     #Clean up
-    rm(future_aligned, future_aligned_masked, future_stack)
+    rm(future_country, future_stack)
+    gc()
     
   }
 }
@@ -130,7 +205,7 @@ for (period in c("2041-2070","2071-2100")){
 #--------------------------------------------
 #--------- Load shape of the world ----------
 #--------------------------------------------
-world<-rnaturalearth::ne_countries(scale=50)
+world <- rnaturalearth::ne_countries(scale=50)
 
 
 #--------------------------------------------
@@ -149,7 +224,7 @@ bias_grid_folder<-file.path("data","external", "bias_grids")
 bias_grid_paths <- list(
   Plants = file.path(bias_grid_folder, "log_plants_1degree_layer.tif"), #0-13.24
   Amphibians = file.path(bias_grid_folder, "log_amphibians_1degree_layer.tif"),#0-12.06
-  Birds = file.path(bias_grid_folder, "birds_1deg_min5.tif"),#5-1703018
+  Birds = file.path(bias_grid_folder, "log_birds_1degree_layer.tif"),#5-1703018
   Mammals = file.path(bias_grid_folder, "log_mammals_1degree_layer.tif"), #0-13.36
   Molluscs = file.path(bias_grid_folder, "log_mollusca_1degree_layer.tif"),#0-12.48
   Reptiles = file.path(bias_grid_folder, "log_reptiles_1degree_layer.tif"), #0-11.34
@@ -157,28 +232,13 @@ bias_grid_paths <- list(
   Malacostraca = file.path(bias_grid_folder, "log_malacostraca_1degree_layer.tif"),#0-13.12
   Insects = file.path(bias_grid_folder, "log_insects_1degree_layer.tif")) #0-15.78
 
-
-#--------------------------------------------
-#------- Split dataframe by taxonkey --------
-#--------------------------------------------
-sort(unique(cleaned$species))
-split_df<-split(cleaned,cleaned$species)
-split_df_all_occs <- split_df                                 #keep a copy with all occurrences
-#split_df <- thinOccurrences50(split_df_all_occs)  #split_df as filename for the rarefied occurrences
-
-
-#--------------------------------------------
-#---------------- Clean up ------------------
-#--------------------------------------------
-rm(global.occ.LL,cleaned)
 gc()
-
-names(split_df)
 
 
 #--------------------------------------------
 #-------Start loop for SDM modelling --------
 #--------------------------------------------
+
 with_progress({
   p <- progressr::progressor(along = 1:length(split_df)) 
   for(i in 1:length(split_df)) {
