@@ -23,15 +23,6 @@ source(file.path("src", "00_configurations.R"))
 
 
 #--------------------------------------------
-#---------   Load shape of Europe   ---------
-#--------------------------------------------
-euboundary <- terra::rast(file.path("data", "external", "habitat", "Agriculture.tif"))
-euboundary<-(euboundary*0+1)
-euboundary <- terra::as.polygons(euboundary, dissolve = TRUE)  # merge adjacent cells
-euboundary <- sf::st_as_sf(euboundary)  # convert to sf
-
-
-#--------------------------------------------
 #-------- Load European habitat rasters -----
 #--------------------------------------------
 # Load all habitat rasters
@@ -58,6 +49,39 @@ habitat_stack <- terra::scale(habitat_stack, center = TRUE, scale = TRUE)
 #This is to avoid that some layers have NA while others have values in certain pixels
 na_mask_habitat_stack <- anyNA(habitat_stack)
 habitat_stack <- terra::mask(habitat_stack, na_mask_habitat_stack, maskvalue=1)
+
+
+#---------------------------------------------
+#----------- Store habitat layers ------------
+#---------------------------------------------
+processed_folder<-file.path("data", "external", "habitat", "processed")
+if(!dir.exists(processed_folder)) dir.create(processed_folder)
+habitatstack_file <- file.path(processed_folder, "habitat_stack.tif")
+
+terra::writeRaster(habitat_stack,
+                   filename = habitatstack_file,
+                   overwrite = TRUE,
+                   wopt = list(gdal = c("COMPRESS=LZW")))
+
+
+#--------------------------------------------
+#---------   Load boundaries   ---------
+#--------------------------------------------
+euboundary <- terra::rast(file.path("data", "external", "habitat", "Agriculture.tif"))
+euboundary<-(euboundary*0+1)
+euboundary <- terra::as.polygons(euboundary, dissolve = TRUE)  # merge adjacent cells
+euboundary <- sf::st_as_sf(euboundary)  # convert to sf
+
+country_boundary <- sf::read_sf(here::here("data","external","GIS","Country","country.shp"))%>%
+  sf::st_transform(crs(habitat_stack[[1]]))%>%
+  terra::vect()
+
+
+#---------------------------------------------
+#----- create country habitat stack ------
+#---------------------------------------------
+country_habitat_stack <- terra::crop(habitat_stack, country_boundary)
+country_habitat_stack <- terra::mask(country_habitat_stack, country_boundary)
 
 
 #---------------------------------------------
