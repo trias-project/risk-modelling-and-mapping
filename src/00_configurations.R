@@ -1,9 +1,9 @@
 #--------------------------------------------
 #-------  Define wiSDM configurations -------
 #--------------------------------------------
-project <- "PA prob & Alternative Treshold & Ensemble Boyce"  #TIP: don't use a long project name to avoid Windows errors
+project <- "Test_final_flow"  #TIP: don't use a long project name to avoid Windows errors
 
-species_to_model <- c("Verbena bonariensis", "Erigeron karvinskianus", "Leycesteria formosa", "Asclepias syriaca L.")
+species_to_model <- c("Asclepias syriaca L.", "Amorpha fruticosa")
 
 occurrence_thinning_method <- "kmeans_clustering" #either "random" or "kmeans_clustering"
 
@@ -11,10 +11,11 @@ pseudoabsence_thinning_method <- "kmeans_clustering" #either "random" or "kmeans
 
 mtp_probabilities <- c(0.01, 0.05) #Define MTP thresholds (0.01 = 1%; 0.05 = 5%,...)
 
-country_of_interest <- "Belgium"
+country_of_interest <-"Belgium"
 
 update_files <- "ASK" #either "ask", TRUE or FALSE
 
+workflow <-"single_step" #either single_step or two_step
 
 #------------------------------------------------------------
 #!ONLY ONCE: Add your GBIF credentials to your ./Renviron file
