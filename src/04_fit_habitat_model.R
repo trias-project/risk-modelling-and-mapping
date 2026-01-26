@@ -399,70 +399,26 @@ with_progress({
       na.rm = TRUE            # ignore NA pixels
     )
     
-    #Extract environmental data in each occurrence and presence absence grid cell
-    occ_habitat_data <- terra::extract(habitat_stack, eu_occ, ID = FALSE)
-    pa_habitat_data <- terra::extract(habitat_stack, global_points, ID = FALSE)
-    
-    # Find which rows in pa_habitat_df are already in occ_habitat_df
-    rows_to_keep <- !do.call(paste, pa_habitat_data) %in% do.call(paste, occ_habitat_data)
-    
-    #Filter points that have the exact same combo of environmental variables as some presence records
-    global_points <- global_points[rows_to_keep, ]
-    
-    #Convert to sf dataframe
-    global_points <- sf::st_as_sf(global_points) %>%
-      dplyr::mutate(decimalLongitude = sf::st_coordinates(.)[,1],
-                    decimalLatitude  = sf::st_coordinates(.)[,2]) %>%
-      dplyr::select(-layer)  
-    
-    #If after filtering we have less than 10000 PA left, repeat with higher intitial sampling
-    if(nrow(global_points)< 10000) {
-      set.seed(728)
-      global_points <- terra::spatSample(
-        biasgrid_eu,
-        size = 50000, #three times the number we need
-        method = "weights",     # weighted random sampling
-        as.points = TRUE,       # return SpatVector of points
-        na.rm = TRUE            # ignore NA pixels
-      )
-      
-      #Extract environmental data in each occurrence and presence absence grid cell
-      pa_habitat_data <- terra::extract(habitat_stack, global_points, ID = FALSE)
-      
-      # Find which combo of values in pa_habitat_data are already in occ_habitat_data
-      rows_to_keep <- !do.call(paste, pa_habitat_data) %in% do.call(paste, occ_habitat_data)
-      
-      #Filter points that have the exact same combo of environmental variables as some presence records
-      global_points <- global_points[rows_to_keep, ]
-      
-      #Convert to sf dataframe
-      global_points <- sf::st_as_sf(global_points) %>%
-        dplyr::mutate(decimalLongitude = sf::st_coordinates(.)[,1],
-                      decimalLatitude  = sf::st_coordinates(.)[,2]) %>%
-        dplyr::select(-layer)  
-      
-      #If still less than 10000 points, skip species 
-      if(nrow(global_points) < 10000) {   
-        warning(paste0(
-          "Skipping species ", species, 
-          " because too many pseudoabsences with a combination of environmental values ",
-          "occurring in the presence dataset were selected."
-        ))
-        next  # Skip the rest of the loop and move to the next iteration
-      }
-    }
-    
     #Select 10000 pseudoabsences
     if(nrow(global_points) > 10000){
       if(pseudoabsence_thinning_method == "random"){
         print("Thinning pseudoabsences randomly")
         set.seed(101) 
-        global_points <- global_points[sample(nrow(global_points), 10000, replace=FALSE), ]
+        global_points <- global_points[sample(nrow(global_points), 10000, replace=FALSE), ]%>%
+          sf::st_as_sf()
+        
+        coords <- sf::st_coordinates(global_points)
+        
+        global_points<-global_points%>%
+          dplyr::mutate(decimalLongitude = coords[, "X"],
+                        decimalLatitude  = coords[, "Y"])%>%
+          dplyr::select(decimalLongitude, decimalLatitude, geometry)
+        
       }else if (pseudoabsence_thinning_method == "kmeans_clustering"){
         print("Thinning pseudoabsences based on k-means clustering")
         
         #Extract environmental data from pseudoabsences
-        pa_habitat_data <- terra::extract(habitat_stack, global_points, ID = FALSE)
+        pa_habitat_data <- terra::extract(habitat_stack, global_points, ID = FALSE, xy = TRUE)
         
         #Check how many unique rows there are and set centers to lowest of either 10000 or #unique rows
         unique_centers<-nrow(unique(pa_habitat_data))
@@ -470,8 +426,8 @@ with_progress({
         
         # K-means clustering
         set.seed(101)
-        clust <- kmeans(pa_habitat_data, centers = center_number,iter.max = 10, nstart = 1)$cluster
-        pa_habitat <- cbind(global_points, pa_habitat_data, clust)%>%
+        clust <- kmeans(pa_habitat_data[, !names(pa_habitat_data) %in% c("x", "y")], centers = center_number,iter.max = 10, nstart = 1)$cluster
+        pa_habitat <- cbind(pa_habitat_data, clust)%>%
           mutate(rID =row_number())
         
         # Keep 1 pseudoabsence per cluster
@@ -497,8 +453,11 @@ with_progress({
         }
         
         # Keep only three columns
-        global_points <- global_points%>%
-          dplyr::select(decimalLongitude, decimalLatitude, geometry)
+        global_points <- global_points %>%
+          dplyr::rename("decimalLongitude" = x,
+                        "decimalLatitude" = y)%>%
+          dplyr::select(decimalLongitude, decimalLatitude)%>%
+          sf::st_as_sf(coords=c("decimalLongitude", "decimalLatitude"), crs=crs(biasgrid_eu), remove=FALSE)
         
         rm(pa_habitat_data, pa_habitat, sampled, remaining, unique_centers, center_number, clust)
         
