@@ -30,7 +30,9 @@ source(file.path("src", "00_configurations.R"))
 #--------------------------------------------
 #--- Load global occurrences and taxa info---
 #--------------------------------------------
-global<-qs::qread( paste0("./data/projects/",project,"/",project,"_occurrences.qs"))
+global<-qs::qread(file.path("data", "projects",project,paste0(project,"_processed_occurrences.qs")))
+cleaned<-global$cleaned
+cleaned_1km<-global$cleaned_1km
 taxa_info<-read.csv2(paste0("./data/projects/",project,"/",project,"_taxa_info.csv"))
 accepted_taxonkeys<-taxa_info%>%
   dplyr::pull(acceptedTaxonKey)%>%
@@ -38,100 +40,14 @@ accepted_taxonkeys<-taxa_info%>%
 
 
 #--------------------------------------------
-#-------- Filter global occurrences----------
+#------- Split dataframe by taxonkey --------
 #--------------------------------------------
-#remove unverified records
-identificationVerificationStatus_to_discard <- c( "unverified",
-                                                  "unvalidated",
-                                                  "not validated",
-                                                  "under validation",
-                                                  "not able to validate",
-                                                  "control could not be conclusive due to insufficient knowledge",
-                                                  "1",
-                                                  "uncertain",
-                                                  "unconfirmed",
-                                                  "douteux",
-                                                  "invalide",
-                                                  "non r\u00E9alisable",
-                                                  "verification needed" ,
-                                                  "probable",
-                                                  "unconfirmed - not reviewed",
-                                                  "validation requested",
-                                                  "unconfirmed - plausible")
-
-#enter value for max coordinate uncertainty in meters, default = 5000
-#Reasoning: there are several invasive species datasets with default uncertainty of 5km
-global.occ<-global %>%
-  dplyr::filter(acceptedTaxonKey%in%accepted_taxonkeys) %>%   
-  dplyr::filter(is.na(coordinateUncertaintyInMeters)| coordinateUncertaintyInMeters <= 5000) %>% 
-  dplyr::filter(!str_to_lower(identificationVerificationStatus) %in% identificationVerificationStatus_to_discard)
-
-#Remove coordinates that for both lon and lat values, have less than 4 decimal places
-global.occ$lon_dplaces<-sapply(global.occ$decimalLongitude, function(x) decimalplaces(x))
-global.occ$lat_dplaces<-sapply(global.occ$decimalLatitude, function(x) decimalplaces(x))
-global.occ[global.occ$lon_dplaces < 4 & global.occ$lat_dplaces < 4 , ]<-NA
-global.occ<-global.occ[ which(!is.na(global.occ$lon_dplaces)),]
-global.occ<-within(global.occ,rm("lon_dplaces","lat_dplaces")) 
-
-
-#--------------------------------------------
-#------------ Define species group-----------
-#--------------------------------------------
-fish_orders <- c(
-  "Acipenseriformes", "Albuliformes", "Amiiformes", "Anguilliformes", "Atheriniformes",
-  "Batrachoidiformes", "Beloniformes", "Beryciformes", "Blenniiformes", "Carangiformes",
-  "Characiformes", "Chimaeriformes", "Clupeiformes", "Cypriniformes", "Cyprinodontiformes",
-  "Elopiformes", "Esociformes", "Gadiformes", "Gasterosteiformes", "Gonorynchiformes",
-  "Gymnotiformes", "Holocentriformes", "Istiophoriformes", "Lampriformes", "Lophiiformes",
-  "Mugiliformes", "Myliobatiformes", "Myxiniformes", "Notacanthiformes", "Ophidiiformes",
-  "Osmeriformes", "Osteoglossiformes", "Perciformes", "Percopsiformes", "Petromyzontiformes",
-  "Pleuronectiformes", "Polypteriformes", "Pristiformes", "Rajiformes", "Salmoniformes",
-  "Scorpaeniformes", "Siluriformes", "Squaliformes", "Stomiiformes", "Syngnathiformes",
-  "Tetraodontiformes", "Torpediniformes", "Trachiniformes", "Zeiformes"
-)
-
-global.occ <- global.occ %>%
-  dplyr::mutate(Group = case_when(
-    kingdom == "Plantae" ~ "Plants",
-    class == "Aves" ~ "Birds",
-    phylum == "Mollusca" ~ "Molluscs",
-    class == "Amphibia" ~ "Amphibians",
-    class == "Mammalia" ~ "Mammals",
-    class %in% c("Crocodylia", "Testudines", "Sphenodontia", "Squamata") ~ "Reptiles",
-    class == "Malacostraca" ~ "Malacostraca",
-    class == "Insecta" ~ "Insects",
-    order %in% fish_orders ~ "Fish",
-    TRUE ~ NA_character_
-  ))
-
-
-#--------------------------------------------
-#-------Prepare occurrence dataset-----------
-#--------------------------------------------
-global.occ.LL<-global.occ%>%
-  dplyr::rename(species= acceptedScientificName)%>%
-  dplyr::select(decimalLongitude, decimalLatitude, species, acceptedTaxonKey, Group, coordinateUncertaintyInMeters) 
-rm(global.occ, global)
-
-
-#--------------------------------------------
-#-----------Do coordinate cleaning-----------
-#--------------------------------------------
-# Clean coordinates based on their proximity to country centroids, capitals, biodiversity institutions, GBIF headquarters, and the 0/0 point
-cleaned<-global.occ.LL%>%
-  CoordinateCleaner::cc_cen(buffer=100) %>% # remove points within a buffer of 100m around country centroids, default 1km
-  CoordinateCleaner::cc_cap(buffer=100) %>% # remove capitals centroids (buffer 100m), default 10km
-  CoordinateCleaner::cc_inst(buffer=100) %>% # remove zoo and herbaria records buffer of 100 m around biodiversity institutes, default 100m
-  CoordinateCleaner::cc_gbif(buffer=100)%>% #remove around GBIF headquarters in Copenhagen (buffer 100m), default 100m
-  CoordinateCleaner::cc_zero() #Remove around the 0/0 point (buffer 0.5 degrees)
-
-
-#---------------------------------------------
-#--- Prepare data at 1km coord uncertainty ---
-#---------------------------------------------
-#These data will be used for the European model
-cleaned_1km<-cleaned%>%
-  dplyr::filter(is.na(coordinateUncertaintyInMeters)| coordinateUncertaintyInMeters <= 1000)
+sort(unique(cleaned$species))
+split_df<-split(cleaned,cleaned$species)
+#split_df_all_occs <- split_df #keep a copy with all occurrences
+names(split_df)
+#split_df <- thinOccurrences50(split_df_all_occs)  #split_df as filename for the rarefied occurrences
+rm(cleaned)
 
 
 #--------------------------------------------
@@ -146,16 +62,6 @@ scaled_files <- list.files(
 # Load and stack
 globalclimpreds_terra <- terra::rast(scaled_files)
 
-#Decrease resolution to match coordinate uncertainty of global occurrences: use around 5km at equator by averaging
-globalclimpreds_terra<- terra::aggregate(globalclimpreds_terra, fact=5, fun=mean, na.rm=TRUE)
-
-
-#--------------------------------------------
-#--------Load European boundary layer -------
-#--------------------------------------------
-euboundary <- terra::rast(file.path("data", "external", "habitat", "Agriculture.tif"))%>%
-  terra::project(globalclimpreds_terra[[1]])
-
 
 #---------------------------------------------
 #- Remove NA pixels and mask to European ext -
@@ -165,10 +71,7 @@ na_mask_globalclimpreds_terra <- anyNA(globalclimpreds_terra)
 globalclimpreds_terra  <- terra::mask(
   globalclimpreds_terra,
   na_mask_globalclimpreds_terra,
-  maskvalue = 1,
-  filename = "data/external/climate/masked_globalclimpreds.tif",
-  overwrite = TRUE,
-  wopt = list(gdal = c("COMPRESS=LZW"))
+  maskvalue = 1
 )
 
 # Crop and mask scaled_stack to European extent
