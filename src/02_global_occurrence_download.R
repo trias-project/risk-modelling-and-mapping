@@ -52,8 +52,8 @@ mapped_taxa <- purrr::map_dfr(
 )
 
 #Make sure that only species info is stored as it is possible that genus information is captured when the species part of the name is not clear
-mapped_taxa <- mapped_taxa %>%
-  dplyr::filter(rank == "SPECIES")
+# mapped_taxa <- mapped_taxa %>%
+#   dplyr::filter(rank == "SPECIES")
 
 #Make sure that all species were mapped to the GBIF backbone, if not an error will appear indicating which species are missing
 assertthat::assert_that(
