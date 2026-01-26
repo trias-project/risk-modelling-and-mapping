@@ -101,19 +101,25 @@ accepted_taxonkeys <- taxa_info %>%
 
 
 #--------------------------------------------
+#------------- Clean up -----------
+#--------------------------------------------
+rm(habitat_stack)
+gc()
+
+
+#--------------------------------------------
 #----------- Start modelling loop  ----------
 #--------------------------------------------
 
 with_progress({
   p <- progressr::progressor(along = 1:length(accepted_taxonkeys)) 
-  for(key in accepted_taxonkeys){ #Approx. 13 min per species
-    
+  
+  for(key in accepted_taxonkeys){ 
     #--------------------------------------------
     #---------------Map progress  ---------------
     #--------------------------------------------
     p()
     start_time <- Sys.time()
-    
     
     #--------------------------------------------
     #--------Extract species-specific data  -----
@@ -165,7 +171,7 @@ with_progress({
       globalmodels <- qs::qread(global_model_file)
       
       #Extract different data objects stored in globalmodels
-      global.occ.sf <- globalmodels$occurrences1km %>% # FULL occurrence per km²
+      global.occ.sf <- globalmodels$occurrences1km %>% # FULL occurrence with coordinateUncertainty <= 1km
         sf::st_as_sf(.,coords = c("decimalLongitude", "decimalLatitude"), crs=4326)
       
     }else{
@@ -183,9 +189,11 @@ with_progress({
                                    paste0(speciesName,"_Climate_current_ensemble.tif"))
     
     #Load rasterlayers
+    habitat_stack <- terra::rast(habitatstack_file)
     biasgrid_sub <- terra::rast(biasgrid_file)
     global_climate_for_eu <- terra::rast(global_model_file)%>%
       terra::project( habitat_stack)
+    
     
     
     #-------------------------------------------------
@@ -1206,7 +1214,7 @@ with_progress({
                   PNG_folder=file.path(base_dir, "Combined", period, scenario, "Diagnostics", "Confidence_maps", "PNGs"),
                   PDF_folder=file.path(base_dir, "Combined", period, scenario, "Diagnostics", "Confidence_maps", "PDFs"),
                   filename = filename)
-
+        
         rm(S, consensus_future_climate_mean, consensus_future_climate_sd, sd_future_climate, sd_comb, Final_future_SD)
       }
     }
