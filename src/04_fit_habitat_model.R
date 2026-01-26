@@ -546,40 +546,30 @@ with_progress({
       
       print(modelmethod)
       
-      # Wrap everything in a tryCatch for this method
-      pred_raster <- tryCatch({
+      pred_raster <- try({
         
-        # Try full raster first
-        predict(model, newdata = fullstack, method = modelmethod)
-        
-      }, error = function(e) {
-        
-        message("Full raster prediction failed for method ", modelmethod, 
-                ". Splitting into blocks...")
-        
-        nblocks <- 2
+        #Create raster with predictions for Europe
+        nblocks <- 4
         e <- terra::ext(fullstack)
         ybreaks <- seq(e$ymin, e$ymax, length.out = nblocks + 1)
         exts <- lapply(1:nblocks, function(i) ext(e$xmin, e$xmax, ybreaks[i], ybreaks[i+1]))
         
         pred_blocks <- vector("list", nblocks)
         
-        for(i in seq_along(exts)) {
-          block_r <- crop(fullstack, exts[[i]])
+        for(rasterblock in seq_along(exts)) {
+          block_r <- crop(fullstack, exts[[rasterblock]])
           
-          # If this block fails, stop the whole method immediately
-          pred_blocks[[i]] <- tryCatch({
-            predict(model,
-                    newdata = block_r, 
-                    method = modelmethod)
-          }, error = function(e_block) {
-            stop("Block ", i, " prediction failed: ", conditionMessage(e_block))
-          })
+          # Make predictions for each block
+          pred_blocks[[rasterblock]] <- predict(model,
+                                                newdata = block_r,
+                                                method = modelmethod)
         }
         
         # Merge blocks only if all succeed
         do.call(terra::merge, pred_blocks)
-      })
+        
+      }, silent = TRUE)
+      
       
       # If prediction failed entirely (full raster + blocks), skip to next method
       if(inherits(pred_raster, "try-error")) {
@@ -606,7 +596,7 @@ with_progress({
     }
     
     #------------------------------------------------
-    #----- Check if at least 9 algorithms worked ----
+    #----- Check if at least 8 algorithms worked ----
     #------------------------------------------------
     if (length(modeloutput) < 9) {
       warning(paste0("Prediction skipped for species '", species, "': Only ",
