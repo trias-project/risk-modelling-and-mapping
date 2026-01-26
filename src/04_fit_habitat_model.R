@@ -656,10 +656,14 @@ with_progress({
     # Step 6: Subset fav_stack to top 5 layers
     top5_stack <- subset(fav_stack, top5_models)
     
-    # Step 7: Compute pixel-wise median = consensus model
+    # Step 7: Crop to extent of country
+    top5_stack<-terra::crop(top5_stack, country_boundary)
+    top5_stack<-terra::mask(top5_stack, country_boundary)
+    
+    # Step 8: Compute pixel-wise median = consensus model
     consensus_habitat <- app(top5_stack, median)
     
-    # Step 8: Compute pixel-wise mean
+    # Step 9: Compute pixel-wise mean
     consensus_habitat_mean <- mean(top5_stack, na.rm=TRUE)
     
     # Step 10: Compute pixel-wise population standard deviation
