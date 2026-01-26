@@ -690,6 +690,9 @@ with_progress({
     #Create empty list to store models in
     modeloutput<-list()
     
+    #Reduce resolution of rasters by half
+    eu_climpreds_aggregated<- aggregate(eu_climpreds.10_selection, fact = 2)
+    
     system.time({
       for(modelmethod in methods){
         
