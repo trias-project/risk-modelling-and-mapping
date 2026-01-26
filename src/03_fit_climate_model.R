@@ -650,8 +650,15 @@ with_progress({
     globalclimpreds_terra_selection <- globalclimpreds_terra %>%
       subset(!names(globalclimpreds_terra) %in% highlyCorrelated)
     
+    #Remove them from European climate stack
+    eu_climpreds.10<-terra::rast(eu_climpreds_file)
     eu_climpreds.10_selection <- eu_climpreds.10 %>%
       subset(!names(eu_climpreds.10) %in% highlyCorrelated)
+    
+    #Remove them from the country stack
+    country_climpreds <- terra::rast(country_climpreds_file)
+    country_climpreds_selection <- country_climpreds %>%
+      subset(!names(country_climpreds) %in% highlyCorrelated)
     
     
     #--------------------------------------------
@@ -674,9 +681,9 @@ with_progress({
     print(model)
     
     
-    #--------------------------------------------
-    #---  Make predictions using each model  ---
-    #-------------------------------------------- 
+    #-------------------------------------------------------------------
+    #---  Make predictions for each model that will be used for PCAm ---
+    #-------------------------------------------------------------------
     # Get model info
     info <- sdm::getModelInfo(model)
     
