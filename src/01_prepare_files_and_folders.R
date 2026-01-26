@@ -24,7 +24,7 @@ if ("rnaturalearthhires" %in% rownames(installed.packages())) {
 #--------------------------------------------
 #-Source helper functions and configurations-
 #--------------------------------------------
-source(here::here("src", "helper_functions.R"))
+source(here::here("src","helper_functions.R"))
 source(here::here("src", "00_configurations.R"))
 
 
@@ -115,13 +115,19 @@ for (i in seq_along(chelsa_current)) {
   layer_name <- sub("\\.tif$", "", basename(file))
   out_name <- here::here(chelsa_current_folder, paste0("scaled_layer_", layer_name, ".tif"))
   
-  # If output exists, ask whether to scale again, otherwise proceed
-  if (file.exists(out_name)) {
-    msg <- paste0("Scaled file\n", basename(out_name),
-                  "\n already exists. Create and overwrite it again?")
-    do_scale <- askYesNo(msg = msg)
-  } else {
+  
+  if (update_files == "yes") {
     do_scale <- TRUE
+  } else if (update_files == "no") {
+    do_scale <- !file.exists(out_name)
+  } else if (update_files == "ask") {
+    if (file.exists(out_name)) {
+      msg <- paste0("Scaled file\n", basename(out_name),
+                    "\n already exists. Create and overwrite it again?")
+      do_scale <- utils::askYesNo(msg)
+    } else {
+      do_scale <- TRUE
+    }
   }
   
   if (isTRUE(do_scale)) {
