@@ -468,7 +468,7 @@ with_progress({
       biasgrid <- terra::rast(bias_grid_paths[[speciesgroup]])
       if(speciesgroup %in% c("Amphibians", "Molluscs", "Mammals", "Reptiles","Birds","Plants","Fish","Malacostraca","Insects")){
         # Resample biasgrid to match the resolution of globalclimpreds_terra
-        biasgrid <- terra::resample(biasgrid, globalclimpreds_terra[[1]], method="bilinear")
+        biasgrid <- terra::resample(biasgrid, globalclimpreds_terra_5k, method="bilinear")
       }
     } else {
       next("No bias grid available for this species. Species has to be one of the following: Amphibians, Molluscs, Mammals, Reptiles, Birds, Plants, Fish, Malacostraca, or Insects.")
@@ -479,7 +479,7 @@ with_progress({
     #------------ Process  bias grid ------------
     #--------------------------------------------
     #Mask biasgrid with climate layers (no PA can be selected in NA climate pixels)
-    biasgrid_log <- terra::mask(biasgrid, globalclimpreds_terra[[1]])
+    biasgrid_log <- terra::mask(biasgrid, globalclimpreds_terra_5k)
     
     # Rescale raster values to range from 1 to 20
     min_val <- global(biasgrid_log, fun = "min", na.rm = TRUE)[[1]]
@@ -523,113 +523,71 @@ with_progress({
       na.rm = TRUE            # ignore NA pixels
     )
     
-    #Extract environmental data in each occurrence and presence absence grid cell
-    occ_climate_data <- terra::extract(globalclimpreds_terra, global.occ.sf, ID = FALSE)
-    pa_climate_data <- terra::extract(globalclimpreds_terra, global_points, ID = FALSE)
-    
-    # Find which combinations of climate values (rows) in pa_climate_df are already in occ_climate_df
-    rows_to_keep <- !do.call(paste, pa_climate_data) %in% do.call(paste, occ_climate_data)
-    
-    #Filter points that have the exact same combo of environmental variables as some presence records
-    global_points <- global_points[rows_to_keep, ]
-    
-    #Convert to sf dataframe
-    global_points <- sf::st_as_sf(global_points) %>%
-      dplyr::mutate(decimalLongitude = sf::st_coordinates(.)[,1],
-                    decimalLatitude  = sf::st_coordinates(.)[,2]) %>%
-      dplyr::select(-sum)  
-    
-    #If after filtering we have less than 10000 PA left, repeat with higher initial sampling
-    if(nrow(global_points)< 10000) {
-      set.seed(728)
-      global_points <- terra::spatSample(
-        biasgrid_sub,
-        size = 50000, #Five times the number we need
-        method = "weights",     # weighted random sampling
-        as.points = TRUE,       # return SpatVector of points
-        na.rm = TRUE            # ignore NA pixels
-      )
-      
-      #Extract environmental data in each occurrence and presence absence grid cell
-      pa_climate_data <- terra::extract(globalclimpreds_terra, global_points, ID = FALSE)
-      
-      # Find which combo of values in pa_climate_data are already in occ_climate_data
-      rows_to_keep <- !do.call(paste, pa_climate_data) %in% do.call(paste, occ_climate_data)
-      
-      #Filter points that have the exact same combo of environmental variables as some presence records
-      global_points <- global_points[rows_to_keep, ]
-      
-      #Convert to sf dataframe
-      global_points <- sf::st_as_sf(global_points) %>%
-        dplyr::mutate(decimalLongitude = sf::st_coordinates(.)[,1],
-                      decimalLatitude  = sf::st_coordinates(.)[,2]) %>%
-        dplyr::select(-sum)  
-      
-      #If still less than 10000 points, skip species 
-      if(nrow(global_points) < 10000) {   
-        warning(paste0(
-          "Skipping species ", species, 
-          " because too many pseudoabsences with a combination of environmental values ",
-          "occurring in the presence dataset were selected."
-        ))
-        next  # Skip the rest of the loop and move to the next iteration
-      }
-    }
-    
     #Select 10000 pseudoabsences
-    if(nrow(global_points) > 10000){
-      if(pseudoabsence_thinning_method == "random"){
-        print("Thinning pseudoabsences randomly")
-        set.seed(101) 
-        global_points <- global_points[sample(nrow(global_points), 10000, replace=FALSE), ]
-      }else if (pseudoabsence_thinning_method == "kmeans_clustering"){
-        print("Thinning pseudoabsences based on k-means clustering")
+    if(pseudoabsence_thinning_method == "random"){
+      print("Thinning pseudoabsences randomly")
+      set.seed(101) 
+      global_points <- global_points[sample(nrow(global_points), 10000, replace=FALSE), ]%>%
+        sf::st_as_sf()
+      
+      coords <- sf::st_coordinates(global_points)
+      
+      global_points<-global_points%>%
+        dplyr::mutate(decimalLongitude = coords[, "X"],
+                      decimalLatitude  = coords[, "Y"])%>%
+        dplyr::select(decimalLongitude, decimalLatitude, geometry)
+      
+    }else if (pseudoabsence_thinning_method == "kmeans_clustering"){
+      print("Thinning pseudoabsences based on k-means clustering")
+      
+      #Extract environmental data from filtered pseudoabsences
+      pa_climate_data <- terra::extract(globalclimpreds_terra, global_points, ID = FALSE, xy = TRUE)
+      
+      #Remove rows with any NA values (could happen as they are extracted from 5k aggregated pixels)
+      pa_climate_data<-na.omit(pa_climate_data)
+      
+      #Check how many unique rows there are and set centers to lowest of either 10000 or #unique rows
+      unique_centers<-nrow(unique(pa_climate_data))
+      center_number<-min(unique_centers, 10000)
+      
+      # K-means clustering
+      set.seed(101)
+      clust <- kmeans(pa_climate_data[, !names(pa_climate_data) %in% c("x", "y")], centers = center_number,iter.max = 10, nstart = 1)$cluster
+      pa_climate <- cbind(pa_climate_data, clust)%>%
+        dplyr::mutate(rID =row_number())
+      
+      # Keep 1 pseudoabsence per cluster
+      sampled <- pa_climate %>%
+        dplyr::group_by(clust) %>%
+        dplyr::slice_sample(n = 1) %>%
+        dplyr::ungroup()
+      
+      # How many pseudoabsences do we still need
+      remaining <- 10000 - nrow(sampled)
+      
+      # sample extra pseudoabsences if fewer than 10000
+      if (remaining > 0) {
+        # Randomly sample additional pseudoabsences excluding already chosen ones
+        extra_pa <- pa_climate %>%
+          dplyr::filter(!rID %in% sampled$rID)%>%
+          dplyr::slice_sample(n = remaining) 
         
-        #Extract environmental data from filtered pseudoabsences
-        pa_climate_data <- terra::extract(globalclimpreds_terra, global_points, ID = FALSE)
+        global_points <- bind_rows(sampled, extra_pa)
+        rm(extra_pa)
         
-        #Check how many unique rows there are and set centers to lowest of either 10000 or #unique rows
-        unique_centers<-nrow(unique(pa_climate_data))
-        center_number<-min(unique_centers, 10000)
-        
-        # K-means clustering
-        set.seed(101)
-        clust <- kmeans(pa_climate_data, centers = center_number,iter.max = 10, nstart = 1)$cluster
-        pa_climate <- cbind(global_points, pa_climate_data, clust)%>%
-          dplyr::mutate(rID =row_number())
-        
-        # Keep 1 pseudoabsence per cluster
-        sampled <- pa_climate %>%
-          dplyr::group_by(clust) %>%
-          dplyr::slice_sample(n = 1) %>%
-          dplyr::ungroup()
-        
-        # How many pseudoabsences do we still need
-        remaining <- 10000 - nrow(sampled)
-        
-        # sample extra pseudoabsences if fewer than 10000
-        if (remaining > 0) {
-          # Randomly sample additional pseudoabsences excluding already chosen ones
-          extra_pa <- pa_climate %>%
-            dplyr::filter(!rID %in% sampled$rID)%>%
-            dplyr::slice_sample(n = remaining) 
-          
-          global_points <- bind_rows(sampled, extra_pa)
-          rm(extra_pa)
-          
-        } else {
-          global_points <- sampled
-        }
-        
-        # Keep only occurrence columns
-        global_points <- global_points %>%
-          dplyr::select(decimalLongitude, decimalLatitude, geometry)
-        
-        rm(pa_climate_data, pa_climate, sampled, remaining, unique_centers, center_number, clust)
-        
+      } else {
+        global_points <- sampled
       }
+      
+      # Keep only occurrence columns
+      global_points <- global_points %>%
+        dplyr::rename("decimalLongitude" = x,
+                      "decimalLatitude" = y)%>%
+        dplyr::select(decimalLongitude, decimalLatitude)%>%
+        sf::st_as_sf(coords=c("decimalLongitude", "decimalLatitude"), crs=4326, remove=FALSE)
+      
+      rm(pa_climate_data, pa_climate, sampled, remaining, unique_centers, center_number, clust)
     }
-    
     
     #--------------------------------------------
     #--- Create presence-pseudoabsence dataset---
