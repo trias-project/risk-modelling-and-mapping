@@ -698,10 +698,38 @@ with_progress({
         
         print(modelmethod)
         
-        #Create raster with predictions for Europe
-        pred_raster <- predict(model,
-                               newdata = eu_climpreds.10_selection,
-                               method = modelmethod)
+        pred_raster <- try({
+          
+          #Create raster with predictions for Europe
+          nblocks <- 4
+          e <- terra::ext(eu_climpreds_aggregated)
+          ybreaks <- seq(e$ymin, e$ymax, length.out = nblocks + 1)
+          exts <- lapply(1:nblocks, function(i) ext(e$xmin, e$xmax, ybreaks[i], ybreaks[i+1]))
+          
+          pred_blocks <- vector("list", nblocks)
+          
+          for(rasterblock in seq_along(exts)) {
+            block_r <- crop(eu_climpreds_aggregated, exts[[rasterblock]])
+            
+            # Make predictions for each block
+            pred_blocks[[rasterblock]] <- predict(model,
+                                                  newdata = block_r,
+                                                  method = modelmethod)
+          }
+          
+          # Merge blocks only if all succeed
+          do.call(terra::merge, pred_blocks)
+          
+        }, silent = TRUE)
+        
+        
+        # If prediction failed entirely (full raster + blocks), skip to next method
+        if(inherits(pred_raster, "try-error")) {
+          message("Skipping method ", modelmethod, " due to prediction failure.")
+          next
+        } else{
+          message("Predictions successfully completed for method '", modelmethod, "'.")
+        }
         
         # Get model IDs
         model_ids <- info$modelID[info$method == modelmethod]
