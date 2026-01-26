@@ -1,10 +1,7 @@
 #--------------------------------------------
 #-------------- Load packages ---------------
 #--------------------------------------------
-options("rgdal_show_exportToProj4_warnings"="none")
-terra::setGDALconfig("GDAL_PAM_ENABLED", "FALSE")#Prevent terra from writing aux.xml files
-
-packages <- c( "dplyr", "stringr", "here", "qs","CoordinateCleaner","terra", "raster", "rnaturalearth", "rnaturalearthdata", "ggplot2","tidyterra", "dismo", "sdm", "caret", "viridisLite", "kableExtra","future", "future.apply","randomForest","earth", "progressr", "sf", "gbm", "PresenceAbsence","geosphere","arm", "RStoolbox", "ecospat", "viridis", "patchwork", "grid", "purrr", "magick")
+packages <- c( "dplyr", "stringr", "here", "qs","CoordinateCleaner", "raster", "rnaturalearth", "rnaturalearthdata", "ggplot2","tidyterra", "dismo", "sdm", "caret", "viridisLite", "kableExtra","future", "future.apply","randomForest","earth", "progressr", "sf", "gbm", "PresenceAbsence","geosphere","arm", "RStoolbox", "ecospat", "viridis", "patchwork", "grid", "purrr", "magick", "terra")
 
 for(package in packages) {
   print(package)
@@ -13,6 +10,14 @@ for(package in packages) {
 }
 
 sdm::installAll()
+
+options("rgdal_show_exportToProj4_warnings"="none")
+terra::setGDALconfig("GDAL_PAM_ENABLED", "FALSE")#Prevent terra from writing aux.xml files
+terraOptions(
+  memfrac = 0.4,
+  tempdir = file.path(tempdir()),
+  todisk = TRUE
+)
 
 
 #--------------------------------------------
