@@ -1204,7 +1204,7 @@ with_progress({
     elapsed<-difftime(end_time, start_time, units="mins")
     cat("Habitat and ensemble model have been created for", species_title, "in", round(elapsed, 2), "minutes\n\n")
     
-    rm(list = setdiff(ls(), c("p", "project",  "create_folder",  "euboundary", "habitat_stack",  "accepted_taxonkeys", "taxa_info", "key", "exportPDF", "remove_duplicates", "wwf_ecoregions", "remove_nodata_occurrences", "favourability_from_prob", "mtp_probabilities", "occurrence_thinning_method", "mtp_probabilities", "pseudoabsence_thinning_method")))
+    rm(list = setdiff(ls(), c("p", "project",  "habitatstack_file","create_folder", "country_boundary", "split_df","euboundary", "habitat_stack",  "accepted_taxonkeys", "taxa_info", "key", "exportPDF", "remove_duplicates", "wwf_ecoregions", "remove_nodata_occurrences", "favourability_from_prob", "mtp_probabilities", "occurrence_thinning_method", "mtp_probabilities", "pseudoabsence_thinning_method")))
     
   }
 })
