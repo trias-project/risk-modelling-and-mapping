@@ -13,7 +13,7 @@ mtp_probabilities <- c(0.01, 0.05) #Define MTP thresholds (0.01 = 1%; 0.05 = 5%,
 
 country_of_interest <-"Belgium"
 
-update_files <- "ASK" #either "ask", TRUE or FALSE
+update_files <- "ask" #either "ask", "yes", "no"
 
 workflow <-"single_step" #either single_step or two_step
 

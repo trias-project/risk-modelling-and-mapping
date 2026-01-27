@@ -767,67 +767,73 @@ eu_eval<-function (ras,y){
 #-------------   update_files_logic   ----------------------
 #----------------------------------------------------------
 #' @param dest_file output file to test existance of
-#' @param update_files whether to ask, or ignore existance of 
+#' @param update_files whether to ask, or ignore existance of input environmental layers
 update_files_logic <- function(dest_file,
                                dest_folder = NULL,
-                               update_files){
-  if(!is.data.frame(dest_file)){
-    # Single file logic
-    if(update_files == TRUE){
-      #update_files == TRUE
-      update_files_final <- TRUE
-    }else{
-      #update_files != TRUE => ASK or FALSE
-      if(update_files == FALSE){
-        #update_files == FALSE
-        if(file.exists(dest_file)){
-          # File exists
-          update_files_final <- FALSE
-        }else{
-          update_files_final <- TRUE
-        }
-      }
-      if(update_files == "ASK"){
-        #update_files == "ASK"
-        if(file.exists(dest_file)){
-          # File exists
-          update_files_final <- askYesNo(msg = paste("Download\n", 
-                                                     basename(dest_file),
-                                                     "\n again?"))
-        }else{
-          update_files_final <- TRUE
-        }
-      }
-    }
-  }else{
-    #multiple file logic
-    if(update_files == TRUE){
-      #update_files == TRUE
-      dest_file$update_file <- TRUE
-    }else{
-      #update_files != TRUE => ASK or FALSE
-      if(update_files == FALSE){
-        #update_files == FALSE
-        dest_file <- dest_file %>% 
-          dplyr::mutate(update_file = dplyr::case_when(file.exists(paste0(dest_folder,"/", file)) ~ FALSE,
-                                                       TRUE ~ TRUE))
-      }
-      if(update_files == "ASK"){
-        #update_files == "ASK"
-        for(i in 1:nrow(dest_file)){
-          if(file.exists(paste0(dest_folder,"/", dest_file$file[i]))){
-            # File exists
-            dest_file$update_file[i] <- askYesNo(msg = paste("Download\n", 
-                                                             basename(dest_file$file[i]),
-                                                             "\n again?"))
-          }else{
-            dest_file$update_file[i] <- TRUE
-          }
-        }
-      }
-    }
-    update_files_final <- dest_file %>% 
-      dplyr::filter(update_file)
+                               update_files) {
+  
+  # normalize update_files
+  if (is.factor(update_files)) update_files <- as.character(update_files)
+  update_files <- trimws(tolower(update_files))  # remove spaces, make lowercase
+  
+  if (!update_files %in% c("yes","no","ask")) {
+    stop("update_files must be 'yes', 'no', or 'ask'")
   }
+  
+  # ---------- SINGLE FILE ----------
+  if (!is.data.frame(dest_file)) {
+    
+    if (update_files == "yes") {
+      
+      update_files_final <- TRUE
+      
+    } else if (update_files == "no") {
+      
+      update_files_final <- !file.exists(dest_file)
+      
+    } else {  # "ask"
+      
+      if (file.exists(dest_file)) {
+        update_files_final <- askYesNo(
+          paste("Download\n", basename(dest_file), "\n again?")
+        )
+      } else {
+        update_files_final <- TRUE
+      }
+    }
+    
+    # ---------- MULTIPLE FILES ----------
+  } else {
+    
+    if (update_files == "yes") {
+      
+      dest_file$update_file <- TRUE
+      
+    } else if (update_files == "no") {
+      
+      dest_file$update_file <- !file.exists(
+        file.path(dest_folder, dest_file$file)
+      )
+      
+    } else {  # "ask"
+      
+      dest_file$update_file <- FALSE
+      
+      for (i in seq_len(nrow(dest_file))) {
+        f <- file.path(dest_folder, dest_file$file[i])
+        
+        if (!file.exists(f)) {
+          dest_file$update_file[i] <- TRUE
+        } else {
+          dest_file$update_file[i] <- askYesNo(
+            paste("Download\n", basename(f), "\n again?")
+          )
+        }
+      }
+    }
+    
+    update_files_final <- dplyr::filter(dest_file, update_file)
+  }
+  
   return(update_files_final)
 }
