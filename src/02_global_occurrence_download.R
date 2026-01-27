@@ -1,13 +1,16 @@
 #--------------------------------------------
 #-----------------Load packages--------------
 #--------------------------------------------
-packages <- c("rgbif", "dplyr", "purrr", "assertthat", "readr", "here", "qs", "retry", "CoordinateCleaner")
+packages <- c("rgbif", "dplyr", "purrr", "assertthat", "readr", "here", "retry", "CoordinateCleaner", "remotes", "stringr")
 
 for (package in packages) {
   print(package)
   if (!package %in% rownames(installed.packages()) ) { install.packages( package ) }
   library(package, character.only = TRUE)
 }
+
+remotes::install_version("qs", version = "0.27.3")
+library(qs)
 
 
 #--------------------------------------------
