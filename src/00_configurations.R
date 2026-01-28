@@ -42,4 +42,4 @@ if (length(missing_vars) > 0) {
   )
 }
 
-update_files <- toupper(update_files)
+update_files <- tolower(update_files)
