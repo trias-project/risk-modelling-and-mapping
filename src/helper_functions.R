@@ -837,3 +837,45 @@ update_files_logic <- function(dest_file,
   
   return(update_files_final)
 }
+
+#----------------------------------------------------------
+#-------------   safe_download_zenodo   -------------------
+#----------------------------------------------------------
+
+#' a wrapper for zen4R::download_zenodo to delete the failed file and thus trigger 
+#' a redownload with update_files == FALSE
+
+safe_download_zenodo <- function(doi, path, files, timeout = 600, quiet = FALSE) {
+  tryCatch(
+    {
+      zen4R::download_zenodo(
+        doi    = doi,
+        path   = path,
+        files  = files,
+        timeout = timeout,
+        quiet  = quiet
+      )
+    },
+    error = function(e) {
+      msg <- conditionMessage(e)
+      
+      # Try to extract the dest_file name from the error message
+      # Adapt the regex to match the actual message format
+      m <- regexpr("dest_file ['\"]?([^'\" ]+)['\"]?", msg)
+      if (m[1] != -1) {
+        fname <- regmatches(msg, m)
+        # fname now contains something like \"dest_file 'myfile.ext'\"
+        # extract just the filename part
+        fname_only <- sub(".*dest_file ['\"]?([^'\" ]+)['\"]?.*", "\\1", fname)
+        
+        file_to_remove <- file.path(path, fname_only)
+        if (file.exists(file_to_remove)) {
+          unlink(file_to_remove)
+        }
+      }
+      
+      # Re-display the original error
+      stop(e)
+    }
+  )
+}
