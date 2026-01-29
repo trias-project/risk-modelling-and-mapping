@@ -3,13 +3,37 @@
 #--------------------------------------------
 packages <- c("rgbif", "dplyr", "purrr", "assertthat", "readr", "here", "retry", "CoordinateCleaner", "remotes", "stringr")
 
+installed_packages <- installed.packages() |>
+  as.data.frame()
+
 for (package in packages) {
   print(package)
-  if (!package %in% rownames(installed.packages()) ) { install.packages( package ) }
+  if (!package %in% rownames(installed.packages()) ) { 
+    install.packages( package ) 
+    }
   library(package, character.only = TRUE)
 }
 
-remotes::install_version("qs", version = "0.27.3")
+# Install correct version of qs
+req_qs_version <- "0.27.3"
+
+if (!"qs" %in% installed_packages$Package){
+  warning("qs is not installed => installing")
+  remotes::install_version("qs", version = req_qs_version)
+}else{
+  qs_version <- installed_packages |>
+    dplyr::filter(Package == "qs") |>
+    dplyr::pull(Version)
+  
+  if(qs_version != req_qs_version){
+    warning(paste("Version", qs_version, "of qs is installed, while", req_qs_version, 
+                  "is required => installing correct version"))
+    remotes::install_version("qs", version = req_qs_version)
+  }else{
+    print("Correct version of qs installed")
+  }
+}
+
 library(qs)
 
 
