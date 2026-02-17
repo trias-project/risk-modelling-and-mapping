@@ -199,7 +199,7 @@ for (period in c("2041-2070","2071-2100")) {
       dplyr::pull(file)
     
     if(length(dest_files)>0){
-      zen4R::download_zenodo(
+      safe_download_zenodo(
         doi = "10.5281/zenodo.17724735",
         path = future_folder,
         files = dest_files,
