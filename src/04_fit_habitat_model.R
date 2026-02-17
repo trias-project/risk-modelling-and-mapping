@@ -4,7 +4,7 @@
 options("rgdal_show_exportToProj4_warnings"="none")
 terra::setGDALconfig("GDAL_PAM_ENABLED", "FALSE")#Prevent terra from writing aux.xml files
 
-packages <- c( "viridis","dplyr", "here", "qs", "tidyterra","sf", "ggplot2","RColorBrewer","magick","patchwork","grid", "randomForest", "progressr", "raster", "dismo", "caret", "caretEnsemble", "kableExtra","gbm", "PresenceAbsence", "RStoolbox", "sdm", "purrr", "terra")
+packages <- c( "viridis","dplyr", "here", "qs", "tidyterra","sf", "ggplot2","RColorBrewer","magick","patchwork","grid", "randomForest", "progressr", "raster", "dismo", "caret", "caretEnsemble", "kableExtra","gbm", "PresenceAbsence", "RStoolbox", "sdm", "purrr", "terra", "rJava")
 
 for(package in packages) {
   print(package)

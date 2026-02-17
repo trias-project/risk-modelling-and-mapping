@@ -1,7 +1,7 @@
 #--------------------------------------------
 #-------------- Load packages ---------------
 #--------------------------------------------
-packages <- c( "dplyr", "stringr", "here", "qs","CoordinateCleaner", "raster", "rnaturalearth", "rnaturalearthdata", "ggplot2","tidyterra", "dismo", "sdm", "caret", "viridisLite", "kableExtra","future", "future.apply","randomForest","earth", "progressr", "sf", "gbm", "PresenceAbsence","geosphere","arm", "RStoolbox", "ecospat", "viridis", "patchwork", "grid", "purrr", "magick", "terra")
+packages <- c( "dplyr", "stringr", "here", "qs","CoordinateCleaner", "raster", "rnaturalearth", "rnaturalearthdata", "ggplot2","tidyterra", "dismo", "sdm", "caret", "viridisLite", "kableExtra","future", "future.apply","randomForest","earth", "progressr", "sf", "gbm", "PresenceAbsence","geosphere","arm", "RStoolbox", "ecospat", "viridis", "patchwork", "grid", "purrr", "magick", "terra", "rJava")
 
 for(package in packages) {
   print(package)
