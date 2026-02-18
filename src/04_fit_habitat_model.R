@@ -65,23 +65,25 @@ terra::writeRaster(habitat_stack,
 
 
 #--------------------------------------------
-#---------   Load boundaries   ---------
+#---------   Load euboundary  ---------
 #--------------------------------------------
 euboundary <- terra::rast(file.path("data", "external", "habitat", "Agriculture.tif"))
 euboundary<-(euboundary*0+1)
 euboundary <- terra::as.polygons(euboundary, dissolve = TRUE)  # merge adjacent cells
 euboundary <- sf::st_as_sf(euboundary)  # convert to sf
 
-country_boundary <- sf::read_sf(here::here("data","external","GIS","Country","country.shp"))%>%
-  sf::st_transform(crs(habitat_stack[[1]]))%>%
-  terra::vect()
-
 
 #---------------------------------------------
-#----- create country habitat stack ------
+#----- Load country boundary ------
 #---------------------------------------------
-country_habitat_stack <- terra::crop(habitat_stack, country_boundary)
-country_habitat_stack <- terra::mask(country_habitat_stack, country_boundary)
+if(country_of_interest!="Europe"){
+  country_boundary <- sf::read_sf(here::here("data","external","GIS","Country","country.shp"))%>%
+    sf::st_transform(crs(habitat_stack[[1]]))%>%
+    terra::vect()
+}else{
+  country_boundary<-euboundary%>%
+    terra::vect()
+}
 
 
 #---------------------------------------------
@@ -657,8 +659,10 @@ with_progress({
     top5_stack <- subset(fav_stack, top5_models)
     
     # Step 7: Crop to extent of country
-    top5_stack<-terra::crop(top5_stack, country_boundary)
-    top5_stack<-terra::mask(top5_stack, country_boundary)
+    if(tolower(country_of_interest)!="europe"){
+      top5_stack<-terra::crop(top5_stack, country_boundary)
+      top5_stack<-terra::mask(top5_stack, country_boundary)
+    }
     
     # Step 8: Compute pixel-wise median = consensus model
     consensus_habitat <- app(top5_stack, median)

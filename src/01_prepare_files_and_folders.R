@@ -279,11 +279,12 @@ if(length(dest_files)>0){
 #----- Store the country boundary shapefile  -----
 #-------------------------------------------------
 #This may take some time!
+if(country_of_interest!="Europe"){
 country <- rnaturalearth::ne_countries(country=country_of_interest, scale=10)[1]
 country_vector <- terra::vect(country) #Convert to a SpatVector, used for masking
 country_ext <- terra::ext(country_vector) 
 sf::write_sf(country, here::here(country_folder,"country.shp"))
-
+}
 
 #--------------------------------------------
 #---------- Clean R environment--------------

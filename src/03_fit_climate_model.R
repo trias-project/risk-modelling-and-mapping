@@ -113,21 +113,26 @@ gc()
 #--------Load boundary layers -------
 #--------------------------------------------
 euboundary <- terra::rast(file.path("data", "external", "habitat", "Agriculture.tif"))%>%
-  terra::project(globalclimpreds_terra[[1]])
+  terra::project(globalclimpreds_terra[[1]])%>%
+  terra::crop(terra::ext(-38, 50,  24.29152732065, 72.66652712715))
 
+if(tolower(country_of_interest)!="europe"){
 country_boundary<-sf::read_sf(here::here("data","external","GIS","Country","country.shp"))%>%
   sf::st_transform(crs(globalclimpreds_terra))%>%
   terra::vect()
+}else{
+  country_boundary<-euboundary
+}
 
 
 #--------------------------------------------
 #--------Create European climate layers -------
 #--------------------------------------------
 # Crop and mask scaled_stack to European extent
-eu_climpreds.10 <- terra::mask(globalclimpreds_terra, euboundary)
-
-eu_climpreds.10 <- terra::crop(eu_climpreds.10,
-                               terra::ext(-38, 50,  24.29152732065, 72.66652712715))
+eu_climpreds.10 <- globalclimpreds_terra %>%
+  terra::crop(euboundary)%>%
+  terra::mask(euboundary) 
+  
 
 # Write to disk with compression
 eu_climpreds_file <- file.path(processed_folder,"euclimpreds.tif")
@@ -142,6 +147,7 @@ terra::writeRaster(eu_climpreds.10,
 #--------------------------------------------
 #--------Create country climate layers -------
 #--------------------------------------------
+if(tolower(country_of_interest)!="europe"){
 country_climpreds <- terra::crop(globalclimpreds_terra, country_boundary)
 country_climpreds <- terra::mask(country_climpreds, country_boundary)
 
@@ -154,6 +160,9 @@ terra::writeRaster(country_climpreds,
 
 rm(country_climpreds)
 gc()
+}else{
+  country_climpreds_file<-eu_climpreds_file
+}
 
 
 #---------------------------------------------
@@ -656,9 +665,15 @@ with_progress({
       subset(!names(eu_climpreds.10) %in% highlyCorrelated)
     
     #Remove them from the country stack
+    if(tolower(country_of_interest)!="europe"){
     country_climpreds <- terra::rast(country_climpreds_file)
     country_climpreds_selection <- country_climpreds %>%
       subset(!names(country_climpreds) %in% highlyCorrelated)
+    rm(country_climpreds)
+    gc()
+    }else{
+      country_climpreds_selection <- eu_climpreds.10_selection
+    }
     
     
     #--------------------------------------------
@@ -795,6 +810,7 @@ with_progress({
     #Clean up
     rm(fav_matrix, fav_stack)
     gc()
+    
     
     #--------------------------------------------------------------
     #-- Create final ensemble predictions for region of interest --

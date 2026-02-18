@@ -11,7 +11,7 @@ pseudoabsence_thinning_method <- "kmeans_clustering" #either "random" or "kmeans
 
 mtp_probabilities <- c(0.01, 0.05) #Define MTP thresholds (0.01 = 1%; 0.05 = 5%,...)
 
-country_of_interest <-"Belgium"
+country_of_interest <- "Europe"
 
 update_files <- "ask" #either "ask", "yes", "no"
 
