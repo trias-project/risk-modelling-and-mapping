@@ -879,3 +879,48 @@ safe_download_zenodo <- function(doi, path, files, timeout = 600, quiet = FALSE)
     }
   )
 }
+
+
+#----------------------------------------------------------
+#---- Check, and if necessary, redownloaded tif files -----
+#----------------------------------------------------------
+read_or_redownload <- function(file, folder, doi, max_attempts = 3) {
+  
+  file_path <- file.path(folder, file)
+  attempt <- 1
+  
+  while (attempt <= max_attempts) {
+    
+    r <- tryCatch({
+      r <- terra::rast(file_path)
+      terra::ncell(r)
+      
+    }, error = function(e) {
+      NULL
+    })
+    
+    if (!is.null(r)) {
+      return(r)  # success
+    }
+    
+    message(paste("Corrupt file detected:", file, "- redownloading (attempt", attempt, ")"))
+    
+    # Remove corrupt file if it exists
+    if (file.exists(file_path)) {
+      file.remove(file_path)
+    }
+    
+    # Redownload
+    zen4R::download_zenodo(
+      doi = doi,
+      path = folder,
+      files = file,
+      timeout = 600,
+      quiet = FALSE
+    )
+    
+    attempt <- attempt + 1
+  }
+  
+  stop(paste("Failed to obtain valid raster after", max_attempts, "attempts:", file))
+}
