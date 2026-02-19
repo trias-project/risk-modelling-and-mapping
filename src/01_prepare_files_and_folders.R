@@ -207,6 +207,13 @@ for (period in c("2041-2070","2071-2100")) {
         quiet = FALSE
       )
     }
+    
+    #Check if file is not corrupt, if so, redownload
+    for(file in dest_files){
+     read_or_redownload(file=file, 
+                        folder = future_folder,
+                        doi =  "10.5281/zenodo.17724735")
+    }
   }
 }
 
@@ -244,6 +251,14 @@ if(length(dest_files)>0){
                          quiet=FALSE)
 }
 
+#Check if file is not corrupt, if so, redownload
+for(file in dest_files){
+  read_or_redownload(file = file, 
+                     folder = habitat_folder,
+                     doi =  "10.5281/zenodo.17724735")
+}
+
+
 # #-------------------------------------------------
 # #---------------- Store biasgrids  ---------------
 # #-------------------------------------------------
@@ -274,6 +289,14 @@ if(length(dest_files)>0){
                          timeout = 600,
                          quiet=FALSE)
 }
+
+#Check if file is not corrupt, if so, redownload
+for(file in dest_files){
+  read_or_redownload(file = file, 
+                     folder = biasgrids_folder,
+                     doi =  "10.5281/zenodo.17724735")
+}
+
 
 #-------------------------------------------------
 #----- Store the country boundary shapefile  -----
