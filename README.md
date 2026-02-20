@@ -1,6 +1,6 @@
 # Alien species risk modelling and mapping
 
-This repository contains the framework and R code for predicting the distribution of alien species throughout Belgium and greater Europe at 1 km<sup>2</sup> resolution as part of the TrIAS project. 
+This repository contains the framework and R code for predicting the distribution of alien species in Europe at 5 km<sup>2</sup> (climate model) and 1 km<sup>2</sup> resolution (habitat/land cover model) as part of the TrIAS project. 
 <br>
 
 ## Repo structure
@@ -12,7 +12,7 @@ This repository contains the framework and R code for predicting the distributio
 ├── .gitignore             : Files and directories to be ignored by git
 │
 ├── data
-│   ├── external          : external files required to run the model. The majority of these files will be downloaded and stored in the right folders by running script 00_prepare_files_and_folders.R.
+│   ├── external          : external files required to run the model. The majority of these files will be downloaded and stored in the right folders by running script 01_prepare_files_and_folders.R.
 │   
 │
 └── src                    : R Code
@@ -21,37 +21,62 @@ This repository contains the framework and R code for predicting the distributio
 
 ## Requirements to run this workflow
 1.  **RStudio** installed on your local computer.
-2.   Have an active **GBIF account**. In script 01, you will need to enter your GBIF username, password, and email address to enable the species occurrence data download.
+2.   Have an active **GBIF account**. Before running the workflow for the first time, store your GBIF username, password, and email address in your `~/.Renviron` file as instructed in the script 00_configurations.R.
 3. **Clone this repository** to your local computer.
-4. Provide a **project name** and the **name(s) of the study species** in the respective scripts. 
+4. Set your specific configurations for the workflow in the **00_configurations** script (see below). 
 <br>
+
+## Prior to running the workflow
+
+Before you execute this workflow, specify the following configurations in the **00_configurations script**, which is stored in the `src` folder:
+
+* **project**: The name of your project. A folder with this name will be created automatically in the `./data/projects` folder, and all workflow outputs will be stored there.
+
+* **species_to_model**: Specify the species you want to model as a character string (e.g., `"Vespa velutina"`). Multiple species can be provided as a character vector (e.g., `c("Vespa velutina", "Aedes albopictus")`). Use Latin binomials only (no authorship or year).
+
+* **occurrence_thinning_method**: When a species has more than 10000 occurrences, records are thinned to 10000 to match the number of pseudoabsences. Options:<ul>
+<li><code>"random"</code>: randomly samples 10000 occurrences.</li>
+<li><code>"kmeans_clustering"</code>: performs k-means clustering in environmental space and selects 10000 cluster centroids, ensuring the thinned occurrences represent the broadest environmental variation.</li>
+</ul>
+
+* **mtp_probabilities**: Defines the minimum training presence (MTP) thresholds used to convert continuous favorability predictions into binary presence/absence maps. For each value in `mtp_probabilities`, the workflow removes the lowest *x*% of occurrence probabilities and uses the next-lowest value as the threshold. Example: `mtp_probabilities = c(0.01, 0.05)` will produce binarized maps where the threshold corresponds to the lowest favorability that remains after the 1% and 5% lowest-favorability occurrences are removed.
+
+* **country_of_interest**: Currently inactive, do not modify this parameter. The workflow currently produces predictions only for the whole of Europe. Future versions will allow masking outputs to a user-defined country.
+
+* **update_files**: Whether or not all needed raster input files should be downloaded again. Options are *"ASK"*: the user will be prompted if a specific file should be downloaded again (any missing files are downloaded by default), *TRUE*: all files are downloaded again and *FALSE*: only missing files are downloaded  
 
 ## Executing the workflow
- 
-To execute this workflow, run the following scripts (stored in the `src` folder) in the designated order:
 
-0. **Script 00_prepare_files_and_folders**: Sets up the folder structure and downloads the files (climate rasters, habitat predictors, spatial boundaries,...) necessary to run the workflow.
-1. **Script 01_global_occurrence_download.R**: After specifying the name of your project and your species of interest, this script creates a project folder on your local computer and retrieves occurrence data for the respective species from the Global Biodiversity Information Facility (GBIF). To allow this data download, a pop-up will appear, requesting you to enter your GBIF username, password, and email address.
-2. **Script 02_fit_global_model.R**: Builds a global-scale climate-only species distribution model (SDM) for each species specified in script 01. Ensure you use the same project name as in the former script.
-3. **Script 03_fit_European_model.R**: Generates European-level SDMs for the specified species. Again, use the same project name as in script 01.
-4. **Script 04_Make_country_level_predictions.R**: Predicts species distributions and generates confidence maps under different climate change scenarios (RCP 2.6, RCP 4.5, and RCP 8.5) for a country or region of interest. At the moment, the workflow is only operational for Belgium, but this will be adjusted soon to incorporate more countries.
+To execute this workflow, run the **06_run_wiSDM.R** script, stored in the `src` folder. This script automatically runs the following scripts  in the designated order:
+
+0. **Script 00_configurations**: Specifies the workflow's configurations (e.g., project name, species to model, thinning method, MTP threshold settings). IMPORTANT: users must actively set these fields themselves prior to running the workflow.
+1. **Script 01_prepare_files_and_folders**: Sets up the folder structure and downloads the files (climate rasters, habitat predictors, spatial boundaries,...) necessary to run the workflow.
+2. **Script 02_global_occurrence_download.R**: Retrieves occurrence data for the species of interest defined in script 00 from the Global Biodiversity Information Facility (GBIF). 
+3. **Script 03_fit_climate_model.R**: Builds a global-scale climate-only species distribution model (SDM) for each species of interest, at a resolution of 5 km<sup>2</sup>. The results of this model are presented at the level of Europe and can be found in the folder `./data/projects/<your project>/species/Climate`.
+4. **Script 04_fit_habitat_model.R**: Generates a European-scale habitat-only species distribution model for the specified species at a resolution of 1 km<sup>2</sup> and integrates these predictions with the 5 km² climate-only predictions from script 03. The two prediction layers are integrated by using the geometric mean to generate a final suitability map at 1 km<sup>2</sup> resolution that reflects both climate suitability and habitat (land cover) suitability. Final predictions are generated for both current conditions and for two future periods, 2041-2070 and 2071-2100, under different climate change scenarios (SSP1-2.6, SSP3-7.0, and SSP5-8.5). The results of the habitat model can be found in the folder `./data/projects/<your project>/species/Habitat`, while the final predictions, combining both the habitat and the climate suitability, can be found in the `./data/projects/<your project>/species/Combined` folder.
 <br>
  
-## What does the Trias modeling workflow do?
-1.	Automatically generates habitat suitability maps using machine learning. 
-Our workflow requires only a species name and generates an ensemble of machine learning algorithms stacked together as a meta-model to produce the final habitat suitability map at 1 km<sup>2</sup> resolution. Maps are generated automatically for standard IPCC greenhouse gas emission scenarios (RCP's 2.6, 4.5, and 8.5).  
-2.	Automatically generates confidence maps for each habitat suitability map. These illustrate confidence of each individual prediction across your study extent.
-3.	Addresses geographic sampling bias
-4.	Incorporates best practices for the placement of pseudo-absences: pseudo absences are placed in the same ecoregions where presences occur. We use the global model to restrict pseudo-absences to areas of low predicted suitability. We use the taxonomic occurrence grid (aka bias grid) to not place pseudoabsences in areas of low sampling effort. The taxonomic occurrence grid summarizes the sampling effort of the higher taxon the modelled species belongs to.
-5.	Detects and removes highly correlated predictors. Highly correlated predictors can have undesirable effects and confuse the interpretation of variable importance
-6.	Integrates multiple machine learning algorithms to predict habitat suitabilities. It has been consistently demonstrated that the choice of algorithm has the largest impact on predicted suitability.
-7.	Assesses spatial autocorrelation in the residuals to assess the impacts of clustering. If high, we recommend the employment of thinning.
+## What does the TrIAS modelling workflow do?
+1.	**Generates habitat suitability maps using machine learning.**
+The workflow requires only a species name and then fits an ensemble of ten machine-learning algorithms to estimate both climate suitability (using global occurrences) and habitat suitability (using European occurrences). For each type (habitat and climate), the favourability maps from all ten algorithms are first stacked and analysed using Principal Component Analysis (PCA). For each algorithm, the spatial variance of its predictions projected onto the first principal component (PC1) is calculated. The five algorithms with the highest variance along PC1, representing those that contribute most strongly to the dominant pattern of variation across the study area, are then used to generate the final suitability map. These two maps (one for the climate model and one for the habitat model) are then combined using the geometric mean in order to produce a final overall suitability prediction. All maps are generated automatically for current conditions, and climate suitability maps, along with the final combined maps, are also produced for three standard Shared Socioeconomic Pathways (SSP1-2.6, SSP3-7.0, and SSP5-8.5) for the periods 2041–2070 and 2071–2100.
+2.	**Implements best practices for pseudoabsence placement:** 
+    * **Climate model**: Pseudoabsences are sampled within the same biomes as species presences but excluded from presence grid cells. A taxonomic sampling effort grid (bias grid) captures the sampling intensity of the higher taxon and is used to weight grid cells, assigning greater weight to well-sampled areas.
+    * **Habitat model**: Pseudoabsences are sampled across all of Europe, excluding presence grid cells. In ecoregions with presences, grid cells are weighted using the bias grid, while outside these ecoregions all cells are assigned the minimum weight (1).
+3.	**Detects and removes highly correlated predictors.**<br>
+Highly correlated predictors can have undesirable effects and confuse the interpretation of variable importance.
+4.	**Automatic generation of confidence maps** for each suitability map. These maps illustrate prediction uncertainty across the study area by calculating the population standard deviation of the predictions produced by the five algorithms for both the climate and habitat models. The standard deviation of the combined prediction is then computed using the appropriate error-propagation formula for the geometric mean. Note that the standard deviation is always calculated from the mean of the five algorithms, whereas the final suitability predictions are based on their median. Consequently, the confidence maps provide a relative measure of model uncertainty but should not be interpreted as the uncertainty of the median prediction itself.
+<br>
+
+## Future functionalities
+1.	**Evaluation of spatial autocorrelation** in model residuals to detect clustering effects. If autocorrelation is high, the workflow will recommend (but not automatically apply) occurrence thinning.
+2.  **Cross-validated Boyce Index calculation** to provide a robust, presence-only model performance measure.
 <br>
 
 ## Contributors
 
 [List of contributors](https://github.com/trias-project/risk-modelling-and-mapping/contributors)
 <br>
+
 ## License
 
 [MIT License](https://github.com/trias-project/risk-modelling-and-mapping/blob/master/LICENSE)
