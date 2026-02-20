@@ -1,7 +1,7 @@
 #--------------------------------------------
 #-------------- Load packages ---------------
 #--------------------------------------------
-packages <- c( "dplyr", "stringr", "here", "qs","CoordinateCleaner", "raster", "rnaturalearth", "rnaturalearthdata", "ggplot2","tidyterra", "dismo", "sdm", "caret", "viridisLite", "kableExtra","future", "future.apply","randomForest","earth", "progressr", "sf", "gbm", "PresenceAbsence","geosphere","arm", "RStoolbox", "ecospat", "viridis", "patchwork", "grid", "purrr", "magick", "terra", "rJava")
+packages <- c( "dplyr", "stringr", "here", "qs","CoordinateCleaner", "raster", "rnaturalearth", "rnaturalearthdata", "ggplot2","tidyterra", "dismo", "sdm", "caret", "viridisLite", "kableExtra","future", "future.apply","randomForest","earth", "progressr", "sf", "gbm", "PresenceAbsence","geosphere","arm", "RStoolbox", "ecospat", "viridis", "patchwork", "grid", "purrr", "magick", "terra")
 
 for(package in packages) {
   print(package)
@@ -110,7 +110,7 @@ gc()
 
 
 #--------------------------------------------
-#--------Load boundary layers -------
+#----------- Load boundary layers -----------
 #--------------------------------------------
 euboundary <- terra::rast(file.path("data", "external", "habitat", "Agriculture.tif"))%>%
   terra::project(globalclimpreds_terra[[1]])%>%
@@ -131,17 +131,18 @@ country_boundary<-sf::read_sf(here::here("data","external","GIS","Country","coun
 # Crop and mask scaled_stack to European extent
 eu_climpreds.10 <- globalclimpreds_terra %>%
   terra::crop(euboundary)%>%
-  terra::mask(euboundary) 
-  
+  terra::mask(euboundary)
 
 # Write to disk with compression
 eu_climpreds_file <- file.path(processed_folder,"euclimpreds.tif")
-
-
 terra::writeRaster(eu_climpreds.10,
                    filename = eu_climpreds_file,
                    overwrite = TRUE,
                    wopt = list(gdal = c("COMPRESS=LZW")))
+
+#Clean up
+rm(eu_climpreds.10)
+gc()
 
 
 #--------------------------------------------
@@ -1237,7 +1238,7 @@ with_progress({
     #--------------------------------------------
     #------------------ Clean up-----------------
     #--------------------------------------------
-    rm(list = setdiff(ls(), c("p","wwf_eco_biome","eu_climpreds_file","country_climpreds_file", "globalclimpreds_file","future_paths","globalclimpreds_5k_file","split_df",  "decimalplaces","bias_grid_paths", "i", "world", "project", "create_folder", "split_df_all_occs", "exportPDF", "remove_duplicates", "remove_nodata_occurrences", "favourability_from_prob", "cleaned_1km", "occurrence_thinning_method", "n_clusters","future_paths","mtp_probabilities", "pseudoabsence_thinning_method")))
+    rm(list = setdiff(ls(), c("p","wwf_eco_biome","eu_climpreds_file","country_climpreds_file", "globalclimpreds_file","future_paths","globalclimpreds_5k_file","split_df",  "decimalplaces","bias_grid_paths", "i", "world", "project", "create_folder", "split_df_all_occs", "exportPDF", "remove_duplicates", "remove_nodata_occurrences", "favourability_from_prob", "cleaned_1km", "occurrence_thinning_method", "n_clusters","future_paths","mtp_probabilities", "pseudoabsence_thinning_method", "country_of_interest")))
     
   }
 })
