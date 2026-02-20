@@ -516,6 +516,7 @@ exportPDF <- function(predictions=NULL, period=NULL, scenario, occ_data=NULL, da
   
   # Remove the temporary PNG file
   file.remove(here::here(PDF_folder, PNG_filename))
+  gc()
   
   #Store PNG file in PNG folder if exportPNG is TRUE
   if(exportPNG){
