@@ -1,6 +1,6 @@
 # Alien species risk modelling and mapping
 
-This repository contains the framework and R code for predicting the distribution of alien species in Europe at 5 km<sup>2</sup> (climate model) and 1 km<sup>2</sup> resolution (habitat/land cover model) as part of the TrIAS project. 
+This repository contains the framework and R code for predicting the distribution of alien species in Europe at 1 km<sup>2</sup> (climate model) and 1 km<sup>2</sup> resolution (habitat/land cover model) as part of the TrIAS project. 
 <br>
 
 ## Repo structure
@@ -41,24 +41,24 @@ Before you execute this workflow, specify the following configurations in the **
 
 * **mtp_probabilities**: Defines the minimum training presence (MTP) thresholds used to convert continuous favorability predictions into binary presence/absence maps. For each value in `mtp_probabilities`, the workflow removes the lowest *x*% of occurrence probabilities and uses the next-lowest value as the threshold. Example: `mtp_probabilities = c(0.01, 0.05)` will produce binarized maps where the threshold corresponds to the lowest favorability that remains after the 1% and 5% lowest-favorability occurrences are removed.
 
-* **country_of_interest**: Currently inactive, do not modify this parameter. The workflow currently produces predictions only for the whole of Europe. Future versions will allow masking outputs to a user-defined country.
+* **country_of_interest**: Either "Europe" or a European country. If a specific European country is provided, all output maps (PNG, PDF, and raster format) will be generated for that country only.
 
-* **update_files**: Whether or not all needed raster input files should be downloaded again. Options are *"ASK"*: the user will be prompted if a specific file should be downloaded again (any missing files are downloaded by default), *TRUE*: all files are downloaded again and *FALSE*: only missing files are downloaded  
+* **update_files**: Whether or not all needed raster input files should be downloaded again. Options are *"ask"*: the user will be prompted if a specific file should be downloaded again (any missing files are downloaded by default), *"yes"*: all files are downloaded again and *"no"*: only missing files are downloaded. When you select "ask", a pop-up window will appear for each layer asking whether it should be downloaded again. The workflow will pause and cannot continue automatically until you respond to each prompt. Note that these pop-ups may sometimes open behind the RStudio window, so you may need to minimize RStudio to locate them. 
 
 ## Executing the workflow
 
-To execute this workflow, run the **06_run_wiSDM.R** script, stored in the `src` folder. This script automatically runs the following scripts  in the designated order:
+To execute this workflow, run the **06_run_wiSDM.R** script, stored in the `src` folder. This script automatically runs the following scripts in the designated order:
 
 0. **Script 00_configurations**: Specifies the workflow's configurations (e.g., project name, species to model, thinning method, MTP threshold settings). IMPORTANT: users must actively set these fields themselves prior to running the workflow.
 1. **Script 01_prepare_files_and_folders**: Sets up the folder structure and downloads the files (climate rasters, habitat predictors, spatial boundaries,...) necessary to run the workflow.
 2. **Script 02_global_occurrence_download.R**: Retrieves occurrence data for the species of interest defined in script 00 from the Global Biodiversity Information Facility (GBIF). 
-3. **Script 03_fit_climate_model.R**: Builds a global-scale climate-only species distribution model (SDM) for each species of interest, at a resolution of 5 km<sup>2</sup>. The results of this model are presented at the level of Europe and can be found in the folder `./data/projects/<your project>/species/Climate`.
-4. **Script 04_fit_habitat_model.R**: Generates a European-scale habitat-only species distribution model for the specified species at a resolution of 1 km<sup>2</sup> and integrates these predictions with the 5 km² climate-only predictions from script 03. The two prediction layers are integrated by using the geometric mean to generate a final suitability map at 1 km<sup>2</sup> resolution that reflects both climate suitability and habitat (land cover) suitability. Final predictions are generated for both current conditions and for two future periods, 2041-2070 and 2071-2100, under different climate change scenarios (SSP1-2.6, SSP3-7.0, and SSP5-8.5). The results of the habitat model can be found in the folder `./data/projects/<your project>/species/Habitat`, while the final predictions, combining both the habitat and the climate suitability, can be found in the `./data/projects/<your project>/species/Combined` folder.
+3. **Script 03_fit_climate_model.R**: Builds a global-scale climate-only species distribution model (SDM) for each species of interest, at a resolution of 1 km<sup>2</sup>. The results of this model are presented at the level of the country of interest that was specified in the configurations script and they can be found in the folder `./data/projects/<your project>/species/Climate`.
+4. **Script 04_fit_habitat_model.R**: Generates a European-scale habitat-only species distribution model for the specified species at a resolution of 1 km<sup>2</sup> and integrates these predictions with the 1 km² climate-only predictions from script 03. The two prediction layers are integrated by using the geometric mean to generate a final suitability map at 1 km<sup>2</sup> resolution that reflects both climate suitability and habitat (land cover) suitability. Final predictions are generated for both current conditions and for two future periods, 2041-2070 and 2071-2100, under different climate change scenarios (SSP1-2.6, SSP3-7.0, and SSP5-8.5). The results of the habitat model can be found in the folder `./data/projects/<your project>/species/Habitat`, while the final predictions, combining both the habitat and the climate suitability, can be found in the `./data/projects/<your project>/species/Combined` folder.
 <br>
  
 ## What does the TrIAS modelling workflow do?
 1.	**Generates habitat suitability maps using machine learning.**
-The workflow requires only a species name and then fits an ensemble of ten machine-learning algorithms to estimate both climate suitability (using global occurrences) and habitat suitability (using European occurrences). For each type (habitat and climate), the favourability maps from all ten algorithms are first stacked and analysed using Principal Component Analysis (PCA). For each algorithm, the spatial variance of its predictions projected onto the first principal component (PC1) is calculated. The five algorithms with the highest variance along PC1, representing those that contribute most strongly to the dominant pattern of variation across the study area, are then used to generate the final suitability map. These two maps (one for the climate model and one for the habitat model) are then combined using the geometric mean in order to produce a final overall suitability prediction. All maps are generated automatically for current conditions, and climate suitability maps, along with the final combined maps, are also produced for three standard Shared Socioeconomic Pathways (SSP1-2.6, SSP3-7.0, and SSP5-8.5) for the periods 2041–2070 and 2071–2100.
+The workflow requires only a species name and then fits an ensemble of ten machine-learning algorithms to estimate both climate suitability (using global occurrences) and habitat suitability (using European occurrences). For each type (habitat and climate), the favourability maps from all ten algorithms are first stacked and analysed using Principal Component Analysis (PCA). For each algorithm, the spatial variance of its predictions projected onto the first principal component (PC1) is calculated. The five algorithms with the highest variance along PC1, representing those that contribute most strongly to the dominant pattern of variation across the study area, are then used to generate the final suitability map. These two maps (one for the climate model and one for the habitat model) are then combined using the geometric mean in order to produce a final overall suitability prediction. All maps are generated automatically for current conditions. Climate suitability maps, along with the final combined maps, are also produced for three standard Shared Socioeconomic Pathways (SSP1-2.6, SSP3-7.0, and SSP5-8.5) for the periods 2041–2070 and 2071–2100.
 2.	**Implements best practices for pseudoabsence placement:** 
     * **Climate model**: Pseudoabsences are sampled within the same biomes as species presences but excluded from presence grid cells. A taxonomic sampling effort grid (bias grid) captures the sampling intensity of the higher taxon and is used to weight grid cells, assigning greater weight to well-sampled areas.
     * **Habitat model**: Pseudoabsences are sampled across all of Europe, excluding presence grid cells. In ecoregions with presences, grid cells are weighted using the bias grid, while outside these ecoregions all cells are assigned the minimum weight (1).
@@ -69,13 +69,18 @@ Highly correlated predictors can have undesirable effects and confuse the interp
 
 ## Future functionalities
 1.	**Evaluation of spatial autocorrelation** in model residuals to detect clustering effects. If autocorrelation is high, the workflow will recommend (but not automatically apply) occurrence thinning.
-2.  **Cross-validated Boyce Index calculation** to provide a robust, presence-only model performance measure.
+2.  **Cross-validated Boyce Index calculation** to provide a robust, presence-only model performance measure. This will be implemented in script 05_cross_validation.R, which is not functional yet.
 <br>
 
 ## Contributors
 
 [List of contributors](https://github.com/trias-project/risk-modelling-and-mapping/contributors)
 <br>
+
+## References
+Davis AJS, Groom Q, Adriaens T, Vanderhoeven S, De Troch R, Oldoni D, Desmet P, Reyserhove L, Lens L and Strubbe D (2024) Reproducible WiSDM: a workflow for reproducible invasive alien species risk maps under climate change scenarios using standardized open data. Front. Ecol. Evol. 12:1148895. doi: [10.3389/fevo.2024.1148895](https://doi.org/10.3389/fevo.2024.1148895)
+
+**Important note**: The wiSDM version on the current main branch (v2.0.0) represents a complete restructuring and substantial update of the workflow and does not exactly reproduce the implementation described in Davis et al. (2024). The published workflow is preserved in release v1.1.0.
 
 ## License
 
