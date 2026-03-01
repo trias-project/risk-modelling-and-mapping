@@ -50,166 +50,56 @@ names(split_df)
 rm(cleaned)
 
 
-#--------------------------------------------
-#------- Load global climate rasters --------
-#--------------------------------------------
-# Only include files that start with "scaled_layer_" and end with .tif: 
-scaled_files <- list.files(
-  file.path("data", "external","climate","chelsa_current"),
-  pattern = "^scaled_layer.*\\.tif$",
-  full.names = TRUE)
-
-# Load and stack
-globalclimpreds_terra <- terra::rast(scaled_files)
-
-
-#---------------------------------------------
-#- Remove NA pixels and mask to European ext -
-#---------------------------------------------
-# This ensures all rasters have the same NA structure
-na_mask_globalclimpreds_terra <- anyNA(globalclimpreds_terra)
-globalclimpreds_terra  <- terra::mask(
-  globalclimpreds_terra,
-  na_mask_globalclimpreds_terra,
-  maskvalue = 1
-)
-
-# Write to disk with compression
+#---------------------------------------------------
+#-Define file paths of current environmental layers -
+#----------------------------------------------------
 processed_folder<-file.path("data", "external", "climate", "chelsa_current","processed")
-if(!dir.exists(processed_folder)) dir.create(processed_folder)
 globalclimpreds_file <- file.path(processed_folder, "globalclimpreds.tif")
-
-
-terra::writeRaster(globalclimpreds_terra,
-                   filename = globalclimpreds_file,
-                   overwrite = TRUE,
-                   wopt = list(gdal = c("COMPRESS=LZW")))
-
-
-rm(na_mask_globalclimpreds_terra)
-
-
-#---------------------------------------------------------
-#---Create predictors at 5k res. for background selection
-#---------------------------------------------------------
-#Decrease resolution to match coordinate uncertainty of global occurrences: use around 5km at equator by averaging
-globalclimpreds_terra_5k <- terra::aggregate(globalclimpreds_terra[[1]], fact = 5, fun = mean, na.rm = TRUE)
-
-# Write to disk with compression
 globalclimpreds_5k_file <- file.path(processed_folder,"globalclim_5k.tif")
-
-
-terra::writeRaster(globalclimpreds_terra_5k,
-                   filename = globalclimpreds_5k_file ,
-                   overwrite = TRUE,
-                   wopt = list(gdal = c("COMPRESS=LZW")))
-
-
-rm(globalclimpreds_terra_5k)
-gc() 
-
-
-#--------------------------------------------
-#----------- Load boundary layers -----------
-#--------------------------------------------
-euboundary <- terra::rast(file.path("data", "external", "habitat", "Agriculture.tif"))%>%
-  terra::project(globalclimpreds_terra[[1]])%>%
-  terra::crop(terra::ext(-38, 50,  24.29152732065, 72.66652712715))
-
-if(tolower(country_of_interest)!="europe"){
-country_boundary<-sf::read_sf(here::here("data","external","GIS","Country","country.shp"))%>%
-  sf::st_transform(crs(globalclimpreds_terra))%>%
-  terra::vect()
-}else{
-  country_boundary<-euboundary
-}
-
-
-#--------------------------------------------
-#--------Create European climate layers -------
-#--------------------------------------------
-# Crop and mask scaled_stack to European extent
-eu_climpreds.10 <- globalclimpreds_terra %>%
-  terra::crop(euboundary)%>%
-  terra::mask(euboundary)
-
-# Write to disk with compression
 eu_climpreds_file <- file.path(processed_folder,"euclimpreds.tif")
-terra::writeRaster(eu_climpreds.10,
-                   filename = eu_climpreds_file,
-                   overwrite = TRUE,
-                   wopt = list(gdal = c("COMPRESS=LZW")))
-
-#Clean up
-rm(eu_climpreds.10)
-gc()
-
-
-#--------------------------------------------
-#--------Create country climate layers -------
-#--------------------------------------------
 if(tolower(country_of_interest)!="europe"){
-country_climpreds <- terra::crop(globalclimpreds_terra, country_boundary)
-country_climpreds <- terra::mask(country_climpreds, country_boundary)
-
-# Write to disk with compression
-country_climpreds_file <- file.path(processed_folder, "country_climpreds.tif")
-terra::writeRaster(country_climpreds,
-                   filename = country_climpreds_file,
-                   overwrite = TRUE,
-                   wopt = list(gdal = c("COMPRESS=LZW")))
-
-rm(country_climpreds)
-gc()
+  country_climpreds_file <- file.path(processed_folder, "country_climpreds.tif")
 }else{
   country_climpreds_file<-eu_climpreds_file
 }
 
 
-#---------------------------------------------
-#------ Load future climate rasters ----------
-#---------------------------------------------
-# Initialize a list to store future raster stacks if needed
+#--------------------------------------------
+#-Define file paths of future environmental layers -
+#--------------------------------------------
 future_paths <- list()
-
 for (period in c("2041-2070","2071-2100")){
   for(scenario in c("ssp126", "ssp370", "ssp585")){
     
-    # List future raster files
-    future_files<- list.files( file.path("data", "external", "climate", "chelsa_future", period,scenario), pattern = "^scaled_layer.*\\.tif$", full.names = TRUE)
-    
-    #Stack them together
-    future_stack <- terra::rast(future_files)
-    
-    # #Aggregate at a resolution of 5km
-    # future_stack <- terra::aggregate(future_stack, fact=5, fun = mean, na.rm=TRUE)
-    
-    #Mask future stack to resolution of country or region of interest
-    future_country <- terra::crop(future_stack, country_boundary)
-    future_country <- terra::mask(future_country, country_boundary)
-    
     #Define preprocessed dir
     preprocessed_dir <- file.path("data", "external", "climate", "chelsa_future","country", period,scenario)
-    if(!dir.exists(preprocessed_dir)) dir.create(preprocessed_dir, recursive=TRUE)
     
     # Define output file
     out_file <- file.path(preprocessed_dir, paste0(period, "_", scenario, "_masked.tif"))
     
-    # Save processed rasterstack
-    terra::writeRaster(future_country, 
-                       filename = out_file,
-                       overwrite = TRUE,
-                       wopt = list(gdal = c("COMPRESS=LZW")))
-    
     # Store path for later use
     future_paths[[paste0(period, "_", scenario)]] <- out_file
-    
-    #Clean up
-    rm(future_country, future_stack)
-    gc()
-    
   }
 }
+
+
+#--------------------------------------------
+#----------- Load boundary layers -----------
+#--------------------------------------------
+chelsa_example_raster<-terra::rast(globalclimpreds_file)
+euboundary <- terra::rast(file.path("data", "external", "habitat", "Agriculture.tif"))%>%
+  terra::project(chelsa_example_raster[[1]])%>%
+  terra::crop(terra::ext(-38, 50,  24.29152732065, 72.66652712715))
+
+if(tolower(country_of_interest)!="europe"){
+country_boundary<-sf::read_sf(here::here("data","external","GIS","Country","country.shp"))%>%
+  sf::st_transform(crs(chelsa_example_raster))%>%
+  terra::vect()
+}else{
+  country_boundary<-euboundary
+}
+rm(chelsa_example_raster)
+gc()
 
 
 #--------------------------------------------

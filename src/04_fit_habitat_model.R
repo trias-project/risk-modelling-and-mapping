@@ -23,45 +23,10 @@ source(file.path("src", "00_configurations.R"))
 
 
 #--------------------------------------------
-#-------- Load European habitat rasters -----
+#---- Define habitat raster file paths ------
 #--------------------------------------------
-# Load all habitat rasters
-habitat_files <- list.files(file.path("./data/external/habitat"), pattern = 'tif$', full.names = TRUE)
-habitat_rasters <- lapply(habitat_files, terra::rast)
-
-# compute common intersection extent across all rasters
-common_ext <- Reduce(intersect, lapply(habitat_rasters, ext))
-
-# Crop all rasters to the common (smallest) extent
-habitat_rasters <- lapply(habitat_rasters, terra::crop, common_ext)
-
-# Combine into raster stack 
-habitat_stack <- terra::rast(habitat_rasters)
-rm(habitat_rasters)
-
-#Scale habitat rasters
-habitat_stack <- terra::scale(habitat_stack, center = TRUE, scale = TRUE)
-
-
-#---------------------------------------------
-#----- Remove NA pixels from predictors ------
-#---------------------------------------------
-#This is to avoid that some layers have NA while others have values in certain pixels
-na_mask_habitat_stack <- anyNA(habitat_stack)
-habitat_stack <- terra::mask(habitat_stack, na_mask_habitat_stack, maskvalue=1)
-
-
-#---------------------------------------------
-#----------- Store habitat layers ------------
-#---------------------------------------------
 processed_folder<-file.path("data", "external", "habitat", "processed")
-if(!dir.exists(processed_folder)) dir.create(processed_folder)
 habitatstack_file <- file.path(processed_folder, "habitat_stack.tif")
-
-terra::writeRaster(habitat_stack,
-                   filename = habitatstack_file,
-                   overwrite = TRUE,
-                   wopt = list(gdal = c("COMPRESS=LZW")))
 
 
 #--------------------------------------------
@@ -76,7 +41,8 @@ euboundary <- sf::st_as_sf(euboundary)  # convert to sf
 #---------------------------------------------
 #----- Load country boundary ------
 #---------------------------------------------
-if(country_of_interest!="Europe"){
+habitat_stack<-terra::rast(habitatstack_file)
+if(tolower(country_of_interest)!="europe"){
   country_boundary <- sf::read_sf(here::here("data","external","GIS","Country","country.shp"))%>%
     sf::st_transform(crs(habitat_stack[[1]]))%>%
     terra::vect()
@@ -84,13 +50,6 @@ if(country_of_interest!="Europe"){
   country_boundary<-euboundary%>%
     terra::vect()
 }
-
-
-#---------------------------------------------
-#--------- Load WWF ecoregions file ----------
-#---------------------------------------------
-wwf_ecoregions <- sf::st_read(here("./data/external/GIS/official/wwf_terr_ecos.shp")) %>%
-  sf::st_transform(crs = st_crs(habitat_stack))
 
 
 #--------------------------------------------
@@ -155,6 +114,7 @@ with_progress({
     basefile<-  paste0(speciesName, "_Habitat_")
     combined_basefile<-  paste0(speciesName, "_Combined_")
     global_basefile<-  paste0(speciesName, "_Climate_")
+    
     
     #--------------------------------------------
     #-- Define file path of global model file  --
