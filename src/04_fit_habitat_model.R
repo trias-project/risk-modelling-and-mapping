@@ -641,20 +641,33 @@ with_progress({
     # Step 6: Subset fav_stack to top 5 layers
     top5_stack <- subset(fav_stack, top5_models)
     
-    # Step 7: Crop to extent of country
-    if(tolower(country_of_interest)!="europe"){
-      top5_stack<-terra::crop(top5_stack, country_boundary)
-      top5_stack<-terra::mask(top5_stack, country_boundary)
-    }
-    
-    # Step 8: Compute pixel-wise median = consensus model
+    # Step 7: Compute pixel-wise median = consensus model
     consensus_habitat <- app(top5_stack, median)
     
-    # Step 9: Compute pixel-wise mean
+    # Step 8: Compute pixel-wise mean
     consensus_habitat_mean <- mean(top5_stack, na.rm=TRUE)
     
-    # Step 10: Compute pixel-wise population standard deviation
+    # Step 9: Compute pixel-wise population standard deviation
     consensus_habitat_sd <- stdev(top5_stack, pop=TRUE)
+    
+    # Step 10: Crop to extent of country if relevant
+    if(tolower(country_of_interest)=="europe"){
+      ensemble_habitat_suitability<-consensus_habitat
+      ensemble_habitat_sd <- consensus_habitat_sd
+      ensemble_habitat_mean<- consensus_habitat_mean 
+    }else{
+      ensemble_habitat_suitability<- consensus_habitat%>%
+        terra::crop(country_boundary)%>%
+        terra::mask(country_boundary)
+      
+      ensemble_habitat_sd <- consensus_habitat_sd%>%
+        terra::crop(country_boundary)%>%
+        terra::mask(country_boundary)
+      
+      ensemble_habitat_mean <- consensus_habitat_mean%>%
+        terra::crop(country_boundary)%>%
+        terra::mask(country_boundary)
+    }
     
     
     #--------------------------------------------------
@@ -667,7 +680,7 @@ with_progress({
     for (occs in list(NULL, eu_occ)){
       filename <- ifelse(is.null(occs), base_file, paste0(base_file, "_occ"))
       
-      exportPDF(predictions = consensus_habitat,
+      exportPDF(predictions = ensemble_habitat_suitability,
                 dataType = "Suit",
                 period = "Current",
                 returnPredictions = FALSE,
@@ -683,7 +696,7 @@ with_progress({
     # Export ensemble raster (favorability) 
     current_habitat_folder <- file.path(base_dir, "Habitat", "Current", "Predictions", "Rasters")
     habitat_ensemble_file <- file.path(current_habitat_folder, paste0(base_file,".tif"))
-    terra::writeRaster(consensus_habitat, filename = habitat_ensemble_file, overwrite = TRUE)
+    terra::writeRaster(ensemble_habitat_suitability, filename = habitat_ensemble_file, overwrite = TRUE)
     
     
     #--------------------------------------------------
@@ -693,7 +706,7 @@ with_progress({
     filename <- paste0(basefile, "current_ensemble_SD")
     
     #Export PDFs with and without occurrences plotted
-    exportPDF(predictions = consensus_habitat_sd,
+    exportPDF(predictions = ensemble_habitat_sd,
               dataType = "Stdev",
               period = "Current",
               returnPredictions = FALSE,
@@ -708,7 +721,7 @@ with_progress({
     # Export ensemble raster (favorability) 
     current_sd_habitat_folder <- file.path(base_dir, "Habitat", "Current", "Diagnostics", "Confidence_maps", "Rasters")
     habitat_sd_ensemble_file <- file.path(current_sd_habitat_folder, paste0(filename,".tif"))
-    terra::writeRaster(consensus_habitat_sd, filename = habitat_sd_ensemble_file, overwrite = TRUE)
+    terra::writeRaster(ensemble_habitat_sd, filename = habitat_sd_ensemble_file, overwrite = TRUE)
     
     
     #------------------------------------------
@@ -748,7 +761,7 @@ with_progress({
       cat(paste0("Mean ",mtp_pct," minimum training presence threshold habitat model: ", round(thr, 4), "\n"))
       
       # Create binary raster using MTP threshold
-      binary_map_pct <- consensus_habitat >= thr  
+      binary_map_pct <- ensemble_habitat_suitability >= thr  
       binary_map_pct <- as.factor( binary_map_pct*1) #Convert TRUE/FALSE to 1/0 and then to Present/Absent
       levels( binary_map_pct) <- data.frame(ID = c(0, 1),
                                             class = c("Absent", "Present"))
@@ -866,6 +879,15 @@ with_progress({
     #--------------------------------------------------
     #--Export maps with final suitability predictions -
     #--------------------------------------------------
+    # Crop to extent of country if relevant
+    if(tolower(country_of_interest)=="europe"){
+      ensemble_combined_suitability<-clim_hab
+    }else{
+      ensemble_combined_suitability<- clim_hab%>%
+        terra::crop(country_boundary)%>%
+        terra::mask(country_boundary)
+    }
+    
     #Define name of files
     base_file <- paste0(combined_basefile, "current_ensemble")
     
@@ -873,13 +895,13 @@ with_progress({
     # Export continuous suitability raster
     clim_hab_file <- file.path(base_dir, "Combined", "Current", "Predictions", "Rasters",
                                paste0(base_file,".tif"))
-    terra::writeRaster(clim_hab, filename = clim_hab_file, overwrite = T)
+    terra::writeRaster(ensemble_combined_suitability, filename = clim_hab_file, overwrite = T)
     
     #Export PDFs with and without occurrences plotted
     for (occs in list(NULL, eu_occ)){
       filename <- ifelse(is.null(occs), base_file, paste0(base_file, "_occ"))
       
-      exportPDF(predictions = clim_hab,
+      exportPDF(predictions = ensemble_combined_suitability,
                 dataType = "Suit",
                 period = "Current",
                 returnPredictions = FALSE,
@@ -906,10 +928,10 @@ with_progress({
     
     #reproject mean climate to mean habitat crs
     consensus_climate_mean <- terra::project(consensus_climate_mean,
-                                             consensus_habitat_mean,
+                                             ensemble_habitat_mean,
                                              method = "bilinear")
     consensus_climate_sd <- terra::project(consensus_climate_sd,
-                                           consensus_habitat_mean,
+                                           ensemble_habitat_mean,
                                            method = "bilinear")
     
     # small floor to avoid division by zero
@@ -1020,10 +1042,10 @@ with_progress({
         future_folder <- file.path(base_dir, "Climate", period, scenario, "Predictions", "Rasters")
         ensemble_file <- file.path(future_folder, paste0(global_basefile, period,"_",scenario,"_ensemble.tif"))
         future_climate <- terra::rast(ensemble_file)%>%
-          terra::project(consensus_habitat)
+          terra::project(ensemble_habitat_suitability)
         
         #Final ensemble predictions
-        final_ensemble<-sqrt(consensus_habitat * future_climate)
+        final_ensemble<-sqrt(ensemble_habitat_suitability * future_climate)
         
         # Export future ensemble raster (favorability) 
         future_folder <- file.path(base_dir, "Combined", period, scenario, "Predictions", "Rasters")
@@ -1067,8 +1089,8 @@ with_progress({
                                                    class = c("Absent", "Present"))
           
           #Store raster
-          future_europe_folder <- file.path(base_dir, "Combined", period, scenario, "Predictions", "Rasters")
-          binary_file <- file.path(future_europe_folder, paste0(combined_basefile, period,"_",scenario,"_binary",mtp_thr,".tif"))
+          future_combined_folder <- file.path(base_dir, "Combined", period, scenario, "Predictions", "Rasters")
+          binary_file <- file.path(future_combined_folder, paste0(combined_basefile, period,"_",scenario,"_binary",mtp_thr,".tif"))
           terra::writeRaster(binary_map_future, filename = binary_file, overwrite = TRUE)
           
           # Export binarized ensemble predictions as PDF and PNG with and without occurrences 
@@ -1107,21 +1129,21 @@ with_progress({
         
         #reproject mean future_climate to mean habitat crs
         consensus_future_climate_mean <- terra::project(consensus_future_climate_mean,
-                                                        consensus_habitat_mean,
+                                                        ensemble_habitat_mean,
                                                         method = "bilinear")
         consensus_future_climate_sd <- terra::project(consensus_future_climate_sd,
-                                                      consensus_habitat_mean,
+                                                      ensemble_habitat_mean,
                                                       method = "bilinear")
         
         # small floor to avoid division by zero; adjust if needed
         eps <- 1e-6    
         
         # compute geometric mean
-        S <- sqrt(consensus_future_climate_mean * consensus_habitat_mean)
+        S <- sqrt(consensus_future_climate_mean * ensemble_habitat_mean)
         
         # compute relative SDs safely
         sd_future_climate <- consensus_future_climate_sd / (consensus_future_climate_mean + eps)
-        sd_habitat <- consensus_habitat_sd / (consensus_habitat_mean + eps)
+        sd_habitat <- ensemble_habitat_sd / (ensemble_habitat_mean + eps)
         
         # combined relative uncertainty (root-sum-of-squares)
         sd_comb <- sqrt(sd_future_climate^2 + sd_habitat^2)
@@ -1169,8 +1191,8 @@ with_progress({
                          prevalence_ratio = prev_ratio, # used for favourability scaling
                          habitat_5pct_threshold = `5pct_habitat_threshold`,# 5% mtp threshold habitat model
                          habitat_1pct_threshold = `1pct_habitat_threshold`,# 1% mtp threshold habitat model
-                         ensemble_5pct_threshold = `5pct`, # 5% min training presence threshold ensemble model
-                         ensemble_1pct_threshold = `1pct`, # 1% min training presence threshold ensemble model
+                         climhab_5pct_threshold = `5pct`, # 5% min training presence threshold ensemble model
+                         climhab_1pct_threshold = `1pct`, # 1% min training presence threshold ensemble model
                          response_df = response_df,
                          varimp_df = varimp_df,
                          top5models = top5models #model object holding selected models
