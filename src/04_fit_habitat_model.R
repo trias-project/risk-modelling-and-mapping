@@ -142,6 +142,13 @@ with_progress({
     }
     
     
+    #---------------------------------------------
+    #------------- Define folders ----------------
+    #---------------------------------------------
+    raster_folder <- file.path(base_dir, "Habitat","Current", "Predictions", "Rasters")
+    climate_raster_folder <- file.path( base_dir,"Climate", "Current", "Predictions", "Rasters")
+    
+    
     #--------------------------------------------
     #------------ Import raster layers ----------
     #--------------------------------------------
