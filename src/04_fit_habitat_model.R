@@ -602,26 +602,28 @@ with_progress({
     rm(modeloutput)
     gc()
     
+    #reduce resolution of fav_stack by half to make rasterPCA more efficient
+    fav_stack_aggregated<- aggregate(fav_stack, fact = 2)
     
     #make PCA
-    pca_result <- rasterPCA(fav_stack, nSamples = NULL, spca = FALSE, maskCheck = TRUE)
+    pca_result <- rasterPCA(fav_stack_aggregated, nSamples = NULL, spca = FALSE, maskCheck = TRUE)
     
     
     #-----------------GET TOP 5 variance models----------------
     # Step 1: Recover original raster stack used in rasterPCA
-    fav_stack <- eval(pca_result$call$img)
+    fav_stack_aggregated <- eval(pca_result$call$img)
     
     # Step 2: Extract PC1 loadings from princomp object
     loadings <- pca_result$model$loadings[, 1]  # Comp.1 = PC1
     names(loadings) <- rownames(pca_result$model$loadings)
     
     # Step 3: Convert raster stack to matrix (rows = pixels, cols = models)
-    fav_matrix <- as.matrix(fav_stack)
+    fav_matrix <- as.matrix(fav_stack_aggregated)
     
     # Step 4: Calculate variance along PC1 for each model
-    model_variances <- setNames(numeric(nlyr(fav_stack)), names(fav_stack))
+    model_variances <- setNames(numeric(nlyr(fav_stack_aggregated)), names(fav_stack_aggregated))
     
-    for (lyr in 1:nlyr(fav_stack)) {
+    for (lyr in 1:nlyr(fav_stack_aggregated)) {
       model_vals <- fav_matrix[, lyr]
       centered <- model_vals - mean(model_vals, na.rm = TRUE)
       projection <- centered * loadings[lyr]
