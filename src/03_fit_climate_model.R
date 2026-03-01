@@ -846,7 +846,7 @@ with_progress({
       cat(paste0("Mean ",mtp_pct," minimum training presence threshold: ", round(thr, 4), "\n"))
       
       # Create binary raster using MTP threshold
-      binary_map_pct <- consensus_median >= thr 
+      binary_map_pct <- ensemble_suitability >= thr 
       binary_map_pct <- as.factor( binary_map_pct*1) #Convert TRUE/FALSE to 1/0 and then to Present/Absent
       levels( binary_map_pct) <- data.frame(ID = c(0, 1),
                                             class = c("Absent", "Present"))
@@ -1127,15 +1127,27 @@ with_progress({
                                    paste0(basefile, "current_ensemble_SD.tif"))
     
     terra::writeRaster(biasgrid_sub, filename = biasgrid_file, overwrite = TRUE)
-    terra::writeRaster(consensus_median, filename = ensemble_median_file, overwrite = TRUE)
-    terra::writeRaster(consensus_mean, filename = ensemble_mean_file, overwrite = TRUE)
-    terra::writeRaster(consensus_sd, filename = ensemble_sd_file, overwrite = TRUE)
+
+    
+    #Export suitability predictions for europe (needed for mtp calculation in habitat script) and, if relevant, for country of interest
+    if(tolower(country_of_interest)=="europe"){
+      terra::writeRaster(consensus_median, filename = ensemble_median_file, overwrite = TRUE)
+      terra::writeRaster(consensus_mean, filename = ensemble_mean_file, overwrite = TRUE)
+      terra::writeRaster(consensus_sd, filename = ensemble_sd_file, overwrite = TRUE)
+    }else{
+      europe_ensemble_median_file<- file.path( base_dir,"Climate", "Current", "Predictions", "Rasters",
+                                                paste0(basefile, "current_ensemble_Europe.tif"))
+      terra::writeRaster(consensus_median, filename = europe_ensemble_median_file, overwrite = TRUE)
+      terra::writeRaster(ensemble_suitability, filename = ensemble_median_file, overwrite = TRUE)
+      terra::writeRaster(ensemble_mean, filename = ensemble_mean_file, overwrite = TRUE)
+      terra::writeRaster(ensemble_sd, filename = ensemble_sd_file, overwrite = TRUE)
+    }
     
     
     #--------------------------------------------
     #------------------ Clean up-----------------
     #--------------------------------------------
-    rm(list = setdiff(ls(), c("p","wwf_eco_biome","eu_climpreds_file","country_climpreds_file", "globalclimpreds_file","future_paths","globalclimpreds_5k_file","split_df",  "decimalplaces","bias_grid_paths", "i", "world", "project", "create_folder", "split_df_all_occs", "exportPDF", "remove_duplicates", "remove_nodata_occurrences", "favourability_from_prob", "cleaned_1km", "occurrence_thinning_method", "n_clusters","future_paths","mtp_probabilities", "pseudoabsence_thinning_method", "country_of_interest")))
+    rm(list = setdiff(ls(), c("p","wwf_eco_biome","eu_climpreds_file","country_climpreds_file", "globalclimpreds_file","future_paths","globalclimpreds_5k_file","split_df",  "decimalplaces","bias_grid_paths", "i", "world", "project", "create_folder", "split_df_all_occs", "exportPDF", "remove_duplicates", "remove_nodata_occurrences", "favourability_from_prob", "cleaned_1km", "occurrence_thinning_method", "n_clusters","future_paths","mtp_probabilities", "pseudoabsence_thinning_method", "country_of_interest", "country_boundary")))
     
   }
 })
