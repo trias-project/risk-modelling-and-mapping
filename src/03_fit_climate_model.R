@@ -720,7 +720,7 @@ with_progress({
     for(modelmethod in top5_models){
       print(modelmethod)
       pred <- predict(model,
-                      newdata = country_climpreds_selection,
+                      newdata = eu_climpreds.10_selection,
                       method = modelmethod)
       
       #Apply the transformation to the raster
@@ -745,6 +745,25 @@ with_progress({
     # Compute pixel-wise population SD
     consensus_sd <- stdev(top5_stack, pop=TRUE)
     
+    #Create country_level layers if relevant
+    if(tolower(country_of_interest)=="europe"){
+      ensemble_suitability<-consensus_median
+      ensemble_sd <- consensus_sd
+      ensemble_mean<-consensus_mean
+    }else{
+      ensemble_suitability<- consensus_median%>%
+        terra::crop(country_boundary)%>%
+        terra::mask(country_boundary)
+      
+      ensemble_sd<- consensus_sd%>%
+        terra::crop(country_boundary)%>%
+        terra::mask(country_boundary)
+      
+      ensemble_mean<- consensus_mean%>%
+        terra::crop(country_boundary)%>%
+        terra::mask(country_boundary)
+    }
+    
     
     #------------------------------------------
     #-- Create map with ensemble suitability --
@@ -756,7 +775,7 @@ with_progress({
     for (occs in list(NULL, global.occ.sf)){
       filename <- ifelse(is.null(occs), base_file, paste0(base_file, "_occ"))
       
-      exportPDF(predictions = consensus_median,
+      exportPDF(predictions = ensemble_suitability,
                 dataType = "Suit",
                 period = "Current",
                 returnPredictions = FALSE,
@@ -776,7 +795,7 @@ with_progress({
     #Define name of files
     filename <- paste0(basefile, "current_ensemble_SD")
     
-    exportPDF(predictions = consensus_sd,
+    exportPDF(predictions = ensemble_sd,
               dataType = "Stdev",
               period = "Current",
               returnPredictions = FALSE,
@@ -822,7 +841,7 @@ with_progress({
       mtp_pct <- paste0(mtp_value, "%")
       
       # Obtain threshold
-      to_omit <- floor(probs * nrow(fav_vals)) #Define how many of lowest ranked occs to omit based on mtp threshold
+      to_omit <- floor(probs * nrow(fav_vals)) #Define how many lowest ranked occs to omit based on mtp threshold
       thr <- sort(fav_vals$median)[to_omit + 1]
       cat(paste0("Mean ",mtp_pct," minimum training presence threshold: ", round(thr, 4), "\n"))
       
