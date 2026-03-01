@@ -154,15 +154,9 @@ with_progress({
     #--------------------------------------------
     #Define file paths
     biasgrid_file <- file.path(base_dir,"Climate", "Current", "Interim", paste0("Biasgrid_",speciesName,"_",taxonkey,".tif"))
-    global_model_file <- file.path(base_dir,"Climate", "Current","Predictions","Rasters",
-                                   paste0(speciesName,"_Climate_current_ensemble.tif"))
-    
     #Load rasterlayers
     habitat_stack <- terra::rast(habitatstack_file)
     biasgrid_sub <- terra::rast(biasgrid_file)
-    global_climate_for_eu <- terra::rast(global_model_file)%>%
-      terra::project( habitat_stack)
-    
     
     
     #-------------------------------------------------
@@ -855,7 +849,16 @@ with_progress({
     #------------------------------------------------------------    
     #-- Create final predictions combining habitat and climate --
     #------------------------------------------------------------
-    consensus_climate<-terra::crop(global_climate_for_eu, consensus_habitat)
+    if(tolower(country_of_interest)=="europe"){
+     consensus_climate<-terra::rast( file.path(climate_raster_folder,
+                                                paste0(speciesName,"_Climate_current_ensemble.tif")))%>%
+       terra::project(consensus_habitat)
+    }else{
+     consensus_climate<-terra::rast(file.path( climate_raster_folder,
+                                               paste0(speciesName, "_Climate_current_ensemble_Europe.tif")))%>%
+       terra::project(consensus_habitat)
+    }
+    
     #Combine suitability predictions by global model (climate) and EU habitat model
     clim_hab <- sqrt(consensus_habitat * consensus_climate)
     
