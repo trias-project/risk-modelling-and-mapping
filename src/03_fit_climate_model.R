@@ -238,6 +238,14 @@ with_progress({
     
     
     #--------------------------------------------
+    #------ Define folders-----
+    #--------------------------------------------
+    raster_folder <- file.path(base_dir, "Climate","Current", "Predictions", "Rasters")
+    future_folder <- file.path(base_dir, "Climate", period, scenario, "Predictions", "Rasters")
+    future_sd_folder <- file.path(base_dir, "Climate", period, scenario, "Diagnostics", "Confidence_maps", "Rasters")
+    
+    
+    #--------------------------------------------
     #------ Load environmental data -----
     #--------------------------------------------
     globalclimpreds_terra<-terra::rast(globalclimpreds_file)
@@ -720,9 +728,7 @@ with_progress({
       
       #Store
       ensemblemodel[[modelmethod]]<-fav_pred
-      
     }
-    
     
     # Combine into a SpatRaster stack
     top5_stack <- terra::rast(ensemblemodel)
@@ -897,26 +903,17 @@ with_progress({
         future_consensus_sd <- stdev(future_fav_stack, pop=TRUE)
         
         # Export future ensemble raster (favorability) 
-        future_folder <- file.path(base_dir, "Climate", period, scenario, "Predictions", "Rasters")
         ensemble_file <- file.path(future_folder, paste0(basefile, period,"_",scenario,"_ensemble.tif"))
         terra::writeRaster(future_consensus_median, filename = ensemble_file, overwrite = TRUE)
-        
-        # Export future sd raster 
-        future_sd_folder <- file.path(base_dir, "Climate", period, scenario, "Diagnostics", "Confidence_maps", "Rasters")
-        ensemble_sd_file <- file.path(future_sd_folder, paste0(basefile, period,"_",scenario,"_ensemble_SD.tif"))
-        terra::writeRaster(future_consensus_sd, filename = ensemble_sd_file, overwrite = TRUE)
         
         # Export future mean raster 
         future_mean_folder <- file.path(base_dir, "Climate", "Current", "Interim")
         ensemble_mean_file <- file.path(future_mean_folder, paste0(basefile, period,"_",scenario,"_ensemble_mean.tif"))
         terra::writeRaster(future_consensus_mean, filename = ensemble_mean_file, overwrite = TRUE)
         
-        # # Export future single-model rasters
-        # for (mod in top5_models) {
-        #   singlemodfile <- file.path(future_folder,
-        #                               paste0(basefile, period, "_",scenario,"_", mod, ".tif"))
-        #   terra::writeRaster(future_fav_stack[[mod]], filename = singlemodfile, overwrite = TRUE)
-        # }
+        # Export future sd raster 
+        ensemble_sd_file <- file.path(future_sd_folder, paste0(basefile, period,"_",scenario,"_ensemble_SD.tif"))
+        terra::writeRaster(future_consensus_sd, filename = ensemble_sd_file, overwrite = TRUE)
         
         # Export ensemble predictions as PDF and PNG with and without occurrences
         base_file <- paste0(basefile, scenario,"_", period,"_ensemble")
@@ -969,7 +966,8 @@ with_progress({
                                                    class = c("Absent", "Present"))
           
           #Store raster
-          binary_file <- file.path(future_folder, paste0(basefile, period,"_",scenario,"_binary",mtp_text,".tif"))
+          binary_file <- file.path(future_folder, 
+                                   paste0(basefile, period,"_",scenario,"_binary",mtp_text,".tif"))
           terra::writeRaster(binary_map_future, filename = binary_file, overwrite = TRUE)
           
           # Export binarized ensemble predictions as PDF and PNG with and without occurrences 
