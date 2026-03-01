@@ -324,6 +324,10 @@ with_progress({
     #-------------------------------------------
     #------- Select invaded WWF ecoregions------
     #-------------------------------------------
+    #Load WWF ecoregions
+    wwf_ecoregions <- sf::st_read(here("./data/external/GIS/official/wwf_terr_ecos.shp")) %>%
+      sf::st_transform(crs = st_crs(habitat_stack))
+    
     # Identify which polygons contain at least one occurrence
     polygons_with_points <- lengths(sf::st_intersects(wwf_ecoregions, eu_occ)) > 0
     
@@ -1164,7 +1168,7 @@ with_progress({
     elapsed<-difftime(end_time, start_time, units="mins")
     cat("Habitat and ensemble model have been created for", species_title, "in", round(elapsed, 2), "minutes\n\n")
     
-    rm(list = setdiff(ls(), c("p", "project",  "habitatstack_file","create_folder", "country_boundary", "split_df","euboundary", "habitat_stack",  "accepted_taxonkeys", "taxa_info", "key", "exportPDF", "remove_duplicates", "wwf_ecoregions", "remove_nodata_occurrences", "favourability_from_prob", "mtp_probabilities", "occurrence_thinning_method", "mtp_probabilities", "pseudoabsence_thinning_method", "country_of_interest")))
+    rm(list = setdiff(ls(), c("p", "project",  "habitatstack_file","create_folder", "country_boundary", "split_df","euboundary", "habitat_stack",  "accepted_taxonkeys", "taxa_info", "key", "exportPDF", "remove_duplicates", "remove_nodata_occurrences", "favourability_from_prob", "mtp_probabilities", "occurrence_thinning_method", "mtp_probabilities", "pseudoabsence_thinning_method", "country_of_interest")))
     
   }
 })
