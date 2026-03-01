@@ -938,11 +938,11 @@ with_progress({
     eps <- 1e-6    
     
     # compute geometric mean
-    S <- sqrt(consensus_climate_mean * consensus_habitat_mean)
+    S <- sqrt(consensus_climate_mean * ensemble_habitat_mean)
     
     # compute relative SDs 
     sd_climate <- consensus_climate_sd / (consensus_climate_mean + eps)
-    sd_habitat <- consensus_habitat_sd / (consensus_habitat_mean + eps)
+    sd_habitat <- ensemble_habitat_sd / (ensemble_habitat_mean + eps)
     
     # combined relative uncertainty 
     sd_comb <- sqrt(sd_climate^2 + sd_habitat^2)
@@ -1123,7 +1123,9 @@ with_progress({
         future_sd_folder <- file.path(base_dir, "Climate", period, scenario, "Diagnostics", "Confidence_maps", "Rasters")
         sd_future_climate_path <-  file.path(future_sd_folder, paste0(global_basefile, period,"_",scenario,"_ensemble_SD.tif"))
         future_mean_folder <- file.path(base_dir, "Climate", "Current", "Interim")
-        mean_future_climate_path <-  file.path(future_mean_folder, paste0(global_basefile, period,"_",scenario,"_ensemble_mean.tif"))
+        mean_future_climate_path <- file.path(future_mean_folder, paste0(global_basefile, period,"_",scenario,"_ensemble_mean.tif"))
+        
+        #Load future climate SD and mean files
         consensus_future_climate_mean <- terra::rast(mean_future_climate_path)
         consensus_future_climate_sd <- terra::rast(sd_future_climate_path)
         
