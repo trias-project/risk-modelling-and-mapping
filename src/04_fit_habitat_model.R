@@ -219,6 +219,8 @@ with_progress({
       sf::st_filter(euboundary) %>%
       sf::st_coordinates() %>%
       as.data.frame()
+    rm(global.occ.sf)
+    gc()
     
     
     #-----------------------------------------------
@@ -334,6 +336,10 @@ with_progress({
     # Subset only those polygons
     wwf_ecoregions_filtered <- wwf_ecoregions[polygons_with_points, ]
     # plot(wwf_ecoregions_filtered[4], key.pos = NULL)
+    
+    #Clean up ecoregions
+    rm(wwf_ecoregions)
+    gc()
     
     
     #----------------------------------------------------------------------------------------
@@ -591,6 +597,11 @@ with_progress({
     
     # Assign layer names based on model methods
     names(fav_stack) <- names(modeloutput)
+   
+    #Clean up
+    rm(modeloutput)
+    gc()
+    
     
     #make PCA
     pca_result <- rasterPCA(fav_stack, nSamples = NULL, spca = FALSE, maskCheck = TRUE)
@@ -626,6 +637,10 @@ with_progress({
     
     # Subset using those IDs
     top5models <- model[[top_ids]]  
+    
+    #Clean up
+    rm(fav_stack_aggregated)
+    gc()
     
     # Step 6: Subset fav_stack to top 5 layers
     top5_stack <- subset(fav_stack, top5_models)
