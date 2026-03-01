@@ -832,12 +832,7 @@ with_progress({
       levels( binary_map_pct) <- data.frame(ID = c(0, 1),
                                             class = c("Absent", "Present"))
       
-      # Calculate sensitivity in Europe
-      occ_values <- terra::extract(binary_map_pct, vect(global.occ.sf))[,2]  
-      global_EU_sensitivity <- sum(occ_values == "Present", na.rm = TRUE) / sum(occ_values %in% c("Present", "Absent"), na.rm = TRUE)
-      
       #Store raster
-      raster_folder <- file.path(base_dir, "Climate","Current", "Predictions", "Rasters")
       binary_file <- file.path (raster_folder, paste0(basefile,"current_binary",mtp_value,"pct.tif"))
       terra::writeRaster(binary_map_pct, filename = binary_file, overwrite = TRUE)
       
@@ -854,8 +849,6 @@ with_progress({
                   exportPNG=TRUE,
                   LabelValue= round(thr,3),
                   LabelName=paste0(mtp_pct, " MTP threshold"),
-                  Label2Value=round(global_EU_sensitivity,3),
-                  Label2Name="Sensitivity",
                   PDF_title = PDF_title,
                   PNG_folder=file.path(base_dir, "Climate","Current", "Predictions", "PNGs"),
                   PDF_folder=file.path(base_dir,"Climate" ,"Current", "Predictions", "PDFs"),
@@ -864,7 +857,6 @@ with_progress({
       
       assign(paste0(mtp_value,"pct"), thr)
       binary_maps[[mtp_pct]] <- list(binary_raster=binary_map_pct,
-                                     EU_sensitivity=global_EU_sensitivity,
                                      mean_MTP= thr)
       rm(binary_map_pct, binary_file, mtp_value, mtp_pct, to_omit, thr)
     }
@@ -1093,8 +1085,6 @@ with_progress({
                         sdm_model = model,
                         pca_result = pca_result,
                         top5_models = top5_models,
-                        global_EU_sensitivity_5pct_threshold =  binary_maps$`5%`$EU_sensitivity,
-                        global_EU_sensitivity_1pct_threshold =  binary_maps$`1%`$EU_sensitivity,
                         response_df = response_df,
                         varimp_df = varimp_df,
                         top5models = top5models,

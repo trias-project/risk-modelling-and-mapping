@@ -347,7 +347,7 @@ with_progress({
     # scale_fill_continuous(na.value = "transparent",low = "blue", high = "orange")+
     # labs(x="Longitude", y="Latitude")+
     # theme_bw()
-    
+
     
     #--------------------------------------------------------------
     #Generate pseudoabsences weighted by sampling bias---------
@@ -557,14 +557,15 @@ with_progress({
       rm(fav_raster, method_model)
     }
     
+    
     #------------------------------------------------
     #----- Check if at least 8 algorithms worked ----
     #------------------------------------------------
     # if (length(modeloutput) < 8) {
     #   warning(paste0("Prediction skipped for species '", species, "': Only ",
     #                  length(modeloutput), " out of 10 algorithms successfully produced predictions.\n",
-    #                  "At least 9 are required to continue — moving on to the next species."))
-    #   next  # Skip to the next species in the loop
+    #                  "At least 9 are required to continue: moving on to the next species."))
+    #   next  # Skip to the next species 
     # }
     
     
@@ -656,6 +657,7 @@ with_progress({
                 PDF_folder=file.path(base_dir, "Habitat", "Current", "Predictions","PDFs"),
                 filename = filename)
     }
+    
     # Export ensemble raster (favorability) 
     current_habitat_folder <- file.path(base_dir, "Habitat", "Current", "Predictions", "Rasters")
     habitat_ensemble_file <- file.path(current_habitat_folder, paste0(base_file,".tif"))
@@ -729,12 +731,7 @@ with_progress({
       levels( binary_map_pct) <- data.frame(ID = c(0, 1),
                                             class = c("Absent", "Present"))
       
-      # Calculate sensitivity in Europe
-      occ_values <- terra::extract(binary_map_pct, vect(eu_occ))[,2]  
-      global_EU_sensitivity <- sum(occ_values == "Present", na.rm = TRUE) / sum(occ_values %in% c("Present", "Absent"), na.rm = TRUE)
-      
       #Store raster
-      raster_folder <- file.path(base_dir, "Habitat","Current", "Predictions", "Rasters")
       binary_file <- file.path (raster_folder, paste0(basefile,"current_binary",mtp_value,"pct.tif"))
       terra::writeRaster(binary_map_pct, filename = binary_file, overwrite = TRUE)
       
@@ -751,8 +748,6 @@ with_progress({
                   exportPNG=TRUE,
                   LabelValue= round(thr,3),
                   LabelName=paste0(mtp_pct, " MTP threshold"),
-                  Label2Value=round(global_EU_sensitivity,3),
-                  Label2Name="Sensitivity",
                   PDF_title = PDF_title,
                   PNG_folder=file.path(base_dir, "Habitat","Current", "Predictions", "PNGs"),
                   PDF_folder=file.path(base_dir,"Habitat" ,"Current", "Predictions", "PDFs"),
@@ -955,10 +950,6 @@ with_progress({
       binary_file <- file.path (raster_folder, paste0(combined_basefile,"current_binary",mtp_value,"pct.tif"))
       terra::writeRaster(binary_map_pct, filename = binary_file, overwrite = TRUE)
       
-      # Calculate sensitivity in Europe
-      occ_values <- terra::extract(binary_map_pct, vect(eu_occ))[,2]  
-      combined_EU_sensitivity <- sum(occ_values == "Present", na.rm = TRUE) / sum(occ_values %in% c("Present", "Absent"), na.rm = TRUE)
-      
       # export as PDF and PNG with and without occurrences plotted 
       base_file<- paste0(combined_basefile, "current_binary",mtp_value,"pct")
       for (occs in list(NULL, eu_occ)){
@@ -972,8 +963,6 @@ with_progress({
                   exportPNG=TRUE,
                   LabelValue= round(thr,3),
                   LabelName=paste0(mtp_pct, " MTP threshold"),
-                  Label2Value=round(combined_EU_sensitivity,3),
-                  Label2Name="Sensitivity",
                   PDF_title = PDF_title,
                   PNG_folder=file.path(base_dir, "Combined","Current", "Predictions", "PNGs"),
                   PDF_folder=file.path(base_dir,"Combined" ,"Current", "Predictions", "PDFs"),
@@ -981,7 +970,7 @@ with_progress({
       }
       
       assign(paste0(mtp_value,"pct"), thr)
-      rm(binary_map_pct, binary_file, thr, combined_EU_sensitivity)
+      rm(binary_map_pct, binary_file, thr)
     }
     
     
@@ -1077,7 +1066,7 @@ with_progress({
         #--------------------------------
         #---- Create confidence maps ----
         #--------------------------------
-        #Calculate SD on final future predictions
+        #Define file paths for future climate SD and mean files
         future_sd_folder <- file.path(base_dir, "Climate", period, scenario, "Diagnostics", "Confidence_maps", "Rasters")
         sd_future_climate_path <-  file.path(future_sd_folder, paste0(global_basefile, period,"_",scenario,"_ensemble_SD.tif"))
         future_mean_folder <- file.path(base_dir, "Climate", "Current", "Interim")
