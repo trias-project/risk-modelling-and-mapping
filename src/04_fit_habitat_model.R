@@ -596,37 +596,32 @@ with_progress({
     rm(modeloutput)
     gc()
     
-    #reduce resolution of fav_stack by half to make rasterPCA more efficient
-    fav_stack_aggregated<- aggregate(fav_stack, fact = 2)
-    
-    #make PCA
-    pca_result <- rasterPCA(fav_stack_aggregated, nSamples = NULL, spca = FALSE, maskCheck = TRUE)
-    
+    #make PCA: sample a representative number of pixels (in total less than 6000000 non NA cells)
+    set.seed(100)
+    pca_result <- rasterPCA(fav_stack, nSamples = 100000, spca = FALSE, maskCheck = TRUE)
+
     
     #-----------------GET TOP 5 variance models----------------
-    # Step 1: Recover original raster stack used in rasterPCA
-    fav_stack_aggregated <- eval(pca_result$call$img)
-    
-    # Step 2: Extract PC1 loadings from princomp object
+    # Step 1: Extract PC1 loadings from princomp object
     loadings <- pca_result$model$loadings[, 1]  # Comp.1 = PC1
     names(loadings) <- rownames(pca_result$model$loadings)
     
-    # Step 3: Convert raster stack to matrix (rows = pixels, cols = models)
-    fav_matrix <- as.matrix(fav_stack_aggregated)
+    # Step 2: Convert raster stack to matrix (rows = pixels, cols = models)
+    fav_matrix <- as.matrix(fav_stack)
     
-    # Step 4: Calculate variance along PC1 for each model
-    model_variances <- setNames(numeric(nlyr(fav_stack_aggregated)), names(fav_stack_aggregated))
+    # Step 3: Calculate variance along PC1 for each model
+    model_variances <- setNames(numeric(nlyr(fav_stack)), names(fav_stack))
     
-    for (lyr in 1:nlyr(fav_stack_aggregated)) {
+    for (lyr in 1:nlyr(fav_stack)) {
       model_vals <- fav_matrix[, lyr]
       centered <- model_vals - mean(model_vals, na.rm = TRUE)
       projection <- centered * loadings[lyr]
       model_variances[lyr] <- var(projection, na.rm = TRUE)
     }
     
-    # Step 5: Select top 5 models with highest variance on PC1
+    # Step 4: Select top 5 models with highest variance on PC1
     top5_models <- names(sort(model_variances, decreasing = TRUE))[1:5]
-    cat(paste("Top 5 models by variance along PC1:\n", top5_models))
+    cat("Top 5 models by variance along PC1:\n", paste(top5_models, collapse = ", "), "\n")
     
     # Get model IDs
     top_ids <- info$modelID[info$method %in% top5_models]
@@ -635,22 +630,21 @@ with_progress({
     top5models <- model[[top_ids]]  
     
     #Clean up
-    rm(fav_stack_aggregated)
     gc()
     
-    # Step 6: Subset fav_stack to top 5 layers
+    # Step 5: Subset fav_stack to top 5 layers
     top5_stack <- subset(fav_stack, top5_models)
     
-    # Step 7: Compute pixel-wise median = consensus model
+    # Step 6: Compute pixel-wise median = consensus model
     consensus_habitat <- app(top5_stack, median)
     
-    # Step 8: Compute pixel-wise mean
+    # Step 7: Compute pixel-wise mean
     consensus_habitat_mean <- mean(top5_stack, na.rm=TRUE)
     
-    # Step 9: Compute pixel-wise population standard deviation
+    # Step 8: Compute pixel-wise population standard deviation
     consensus_habitat_sd <- stdev(top5_stack, pop=TRUE)
     
-    # Step 10: Crop to extent of country if relevant
+    # Step 9: Crop to extent of country if relevant
     if(tolower(country_of_interest)=="europe"){
       ensemble_habitat_suitability<-consensus_habitat
       ensemble_habitat_sd <- consensus_habitat_sd
