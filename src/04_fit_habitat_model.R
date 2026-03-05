@@ -632,6 +632,7 @@ with_progress({
     #Clean up
     gc()
     
+    #--------Create ensemble predictions using those 5 models------
     # Step 5: Subset fav_stack to top 5 layers
     top5_stack <- subset(fav_stack, top5_models)
     

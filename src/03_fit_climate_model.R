@@ -604,10 +604,6 @@ with_progress({
     #Create empty list to store models in
     modeloutput<-list()
     
-    #Reduce resolution of rasters by half
-    eu_climpreds_aggregated<- aggregate(eu_climpreds.10_selection, fact = 2)
-    
-    system.time({
       for(modelmethod in methods){
         
         print(modelmethod)
@@ -616,14 +612,14 @@ with_progress({
           
           #Create raster with predictions for Europe
           nblocks <- 4
-          e <- terra::ext(eu_climpreds_aggregated)
+          e <- terra::ext(eu_climpreds.10_selection)
           ybreaks <- seq(e$ymin, e$ymax, length.out = nblocks + 1)
           exts <- lapply(1:nblocks, function(i) ext(e$xmin, e$xmax, ybreaks[i], ybreaks[i+1]))
           
           pred_blocks <- vector("list", nblocks)
           
           for(rasterblock in seq_along(exts)) {
-            block_r <- crop(eu_climpreds_aggregated, exts[[rasterblock]])
+            block_r <- crop(eu_climpreds.10_selection, exts[[rasterblock]])
             
             # Make predictions for each block
             pred_blocks[[rasterblock]] <- predict(model,
@@ -659,10 +655,11 @@ with_progress({
         
         rm(fav_raster, method_model)
       }
-    })
+
     
     # Combine into a SpatRaster stack
     fav_stack <- terra::rast(modeloutput)
+    fav_stack <- round(fav_stack, 3)
     
     # Assign layer names based on model methods
     names(fav_stack) <- names(modeloutput)
@@ -674,19 +671,17 @@ with_progress({
     #---------------------------------------------
     
     #Step 0: make PCA
-    pca_result <- rasterPCA(fav_stack, nSamples = NULL, spca = FALSE, maskCheck = TRUE)
+    pca_result <- rasterPCA(fav_stack, nSamples = 100000, spca = FALSE, maskCheck = TRUE)
     
-    # Step 1: Recover original raster stack used in rasterPCA
-    fav_stack <- eval(pca_result$call$img)
-    
-    # Step 2: Extract PC1 loadings from princomp object
+    # Step 1: Extract PC1 loadings (PC1 explains the vast majority of variance)
     loadings <- pca_result$model$loadings[, 1]  # Comp.1 = PC1
     names(loadings) <- rownames(pca_result$model$loadings)
     
-    # Step 3: Convert raster stack to matrix (rows = pixels, cols = models)
+    # Step 2: Convert raster stack to matrix (rows = pixels, cols = models)
+    gc()
     fav_matrix <- as.matrix(fav_stack)
     
-    # Step 4: Calculate variance along PC1 for each model
+    # Step 3: Calculate variance along PC1 for each model
     model_variances <- setNames(numeric(nlyr(fav_stack)), names(fav_stack))
     
     for (lyr in 1:nlyr(fav_stack)) {
@@ -696,7 +691,7 @@ with_progress({
       model_variances[lyr] <- var(projection, na.rm = TRUE)
     }
     
-    # Step 5: Select top 5 models with highest variance on PC1
+    # Step 4: Select top 5 models with highest variance on PC1
     top5_models <- names(sort(model_variances, decreasing = TRUE))[1:5]
     cat("Top 5 models by variance along PC1:\n", top5_models)
     
@@ -707,45 +702,22 @@ with_progress({
     top5models <- model[[top_ids]]  
     
     #Clean up
-    rm(fav_matrix, fav_stack)
+    rm(fav_matrix)
     gc()
     
+    # Step 5: Subset fav_stack to top 5 layers
+    top5_stack <- subset(fav_stack, top5_models)
     
-    #--------------------------------------------------------------
-    #-- Create final ensemble predictions for region of interest --
-    #--------------------------------------------------------------
-    #Create empty list to store models in
-    ensemblemodel<-list()
-    
-    for(modelmethod in top5_models){
-      print(modelmethod)
-      pred <- predict(model,
-                      newdata = eu_climpreds.10_selection,
-                      method = modelmethod)
-      
-      #Apply the transformation to the raster
-      fav_pred <- favourability_from_prob(pred, prev_ratio)
-      
-      #Store
-      ensemblemodel[[modelmethod]]<-fav_pred
-    }
-    
-    # Combine into a SpatRaster stack
-    top5_stack <- terra::rast(ensemblemodel)
-    
-    # Assign layer names based on model methods
-    names(top5_stack) <- names(ensemblemodel)
-    
-    # Compute pixel-wise median = consensus model
+    # Step 6: Compute pixel-wise median = consensus model
     consensus_median <- app(top5_stack, median)
     
-    # Compute pixel-wise mean for SD calculation
+    # Step 7: Compute pixel-wise mean for SD calculation
     consensus_mean <- mean(top5_stack, na.rm=TRUE)
     
-    # Compute pixel-wise population SD
+    # Step 8: Compute pixel-wise population SD
     consensus_sd <- stdev(top5_stack, pop=TRUE)
     
-    #Create country_level layers if relevant
+    #Step 9: Create country_level layers if relevant
     if(tolower(country_of_interest)=="europe"){
       ensemble_suitability<-consensus_median
       ensemble_sd <- consensus_sd
