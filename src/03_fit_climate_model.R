@@ -868,12 +868,45 @@ with_progress({
         future_selection <- future_rast %>%
           subset(names(country_climpreds_selection))
         
+        #Convert future climate rasters into 4 latitudinal blocks
+        nblocks <- 4
+        e <- terra::ext(future_selection)
+        ybreaks <- seq(e$ymin, e$ymax, length.out = nblocks + 1)
+        exts <- lapply(1:nblocks, function(i) ext(e$xmin, e$xmax, ybreaks[i], ybreaks[i+1]))
+        pred_blocks <- vector("list", nblocks)
+        
         # Project each of the top 5 models
         future_modeloutput <- list()
+        
         for(modelmethod in top5_models){
-          pred_raster_future <- predict(model,
-                                        newdata = future_selection,
-                                        method = modelmethod)
+          
+          pred_raster_future  <- try({
+            
+            for(rasterblock in seq_along(exts)) {
+              
+              #Crop climate rasters into one of the 4 latitudinal rasterblocks
+              block_r <- crop(future_selection, exts[[rasterblock]])
+              
+              # Make predictions for that block
+              pred_blocks[[rasterblock]] <- predict(model,
+                                                    newdata = block_r,
+                                                    method = modelmethod)
+            }
+            
+            # Merge blocks only if all succeed
+            do.call(terra::merge, pred_blocks)
+            
+          }, silent = TRUE)
+          
+          
+          # If prediction failed entirely (full raster + blocks), skip to next method
+          if(inherits( pred_raster_future , "try-error")) {
+            message("Skipping method ", modelmethod, " due to prediction failure.")
+            next
+          } else{
+            message("Predictions successfully completed for method '", modelmethod, "'.")
+          }
+          
           fav_raster_future <- favourability_from_prob(pred_raster_future, prev_ratio)
           future_modeloutput[[modelmethod]] <- fav_raster_future
           rm(fav_raster_future, pred_raster_future)
