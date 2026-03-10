@@ -601,6 +601,13 @@ with_progress({
     # Get model info
     info <- sdm::getModelInfo(model)
     
+    # Define extent to cut eu_climpreds.10_selection in 4 latitudinal blocks to make predictions more efficient
+    nblocks <- 4
+    e <- terra::ext(eu_climpreds.10_selection)
+    ybreaks <- seq(e$ymin, e$ymax, length.out = nblocks + 1)
+    exts <- lapply(1:nblocks, function(i) ext(e$xmin, e$xmax, ybreaks[i], ybreaks[i+1]))
+    pred_blocks <- vector("list", nblocks)
+    
     #Create empty list to store models in
     modeloutput<-list()
     
@@ -609,14 +616,6 @@ with_progress({
         print(modelmethod)
         
         pred_raster <- try({
-          
-          #Create raster with predictions for Europe
-          nblocks <- 4
-          e <- terra::ext(eu_climpreds.10_selection)
-          ybreaks <- seq(e$ymin, e$ymax, length.out = nblocks + 1)
-          exts <- lapply(1:nblocks, function(i) ext(e$xmin, e$xmax, ybreaks[i], ybreaks[i+1]))
-          
-          pred_blocks <- vector("list", nblocks)
           
           for(rasterblock in seq_along(exts)) {
             block_r <- crop(eu_climpreds.10_selection, exts[[rasterblock]])
@@ -868,7 +867,7 @@ with_progress({
         future_selection <- future_rast %>%
           subset(names(country_climpreds_selection))
         
-        #Convert future climate rasters into 4 latitudinal blocks
+        #Define extents to cut future climate rasters into 4 latitudinal blocks
         nblocks <- 4
         e <- terra::ext(future_selection)
         ybreaks <- seq(e$ymin, e$ymax, length.out = nblocks + 1)
