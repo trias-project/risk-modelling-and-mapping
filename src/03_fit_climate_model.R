@@ -50,166 +50,56 @@ names(split_df)
 rm(cleaned)
 
 
-#--------------------------------------------
-#------- Load global climate rasters --------
-#--------------------------------------------
-# Only include files that start with "scaled_layer_" and end with .tif: 
-scaled_files <- list.files(
-  file.path("data", "external","climate","chelsa_current"),
-  pattern = "^scaled_layer.*\\.tif$",
-  full.names = TRUE)
-
-# Load and stack
-globalclimpreds_terra <- terra::rast(scaled_files)
-
-
-#---------------------------------------------
-#- Remove NA pixels and mask to European ext -
-#---------------------------------------------
-# This ensures all rasters have the same NA structure
-na_mask_globalclimpreds_terra <- anyNA(globalclimpreds_terra)
-globalclimpreds_terra  <- terra::mask(
-  globalclimpreds_terra,
-  na_mask_globalclimpreds_terra,
-  maskvalue = 1
-)
-
-# Write to disk with compression
+#---------------------------------------------------
+#-Define file paths of current environmental layers -
+#----------------------------------------------------
 processed_folder<-file.path("data", "external", "climate", "chelsa_current","processed")
-if(!dir.exists(processed_folder)) dir.create(processed_folder)
 globalclimpreds_file <- file.path(processed_folder, "globalclimpreds.tif")
-
-
-terra::writeRaster(globalclimpreds_terra,
-                   filename = globalclimpreds_file,
-                   overwrite = TRUE,
-                   wopt = list(gdal = c("COMPRESS=LZW")))
-
-
-rm(na_mask_globalclimpreds_terra)
-
-
-#---------------------------------------------------------
-#---Create predictors at 5k res. for background selection
-#---------------------------------------------------------
-#Decrease resolution to match coordinate uncertainty of global occurrences: use around 5km at equator by averaging
-globalclimpreds_terra_5k <- terra::aggregate(globalclimpreds_terra[[1]], fact = 5, fun = mean, na.rm = TRUE)
-
-# Write to disk with compression
 globalclimpreds_5k_file <- file.path(processed_folder,"globalclim_5k.tif")
-
-
-terra::writeRaster(globalclimpreds_terra_5k,
-                   filename = globalclimpreds_5k_file ,
-                   overwrite = TRUE,
-                   wopt = list(gdal = c("COMPRESS=LZW")))
-
-
-rm(globalclimpreds_terra_5k)
-gc() 
-
-
-#--------------------------------------------
-#----------- Load boundary layers -----------
-#--------------------------------------------
-euboundary <- terra::rast(file.path("data", "external", "habitat", "Agriculture.tif"))%>%
-  terra::project(globalclimpreds_terra[[1]])%>%
-  terra::crop(terra::ext(-38, 50,  24.29152732065, 72.66652712715))
-
-if(tolower(country_of_interest)!="europe"){
-country_boundary<-sf::read_sf(here::here("data","external","GIS","Country","country.shp"))%>%
-  sf::st_transform(crs(globalclimpreds_terra))%>%
-  terra::vect()
-}else{
-  country_boundary<-euboundary
-}
-
-
-#--------------------------------------------
-#--------Create European climate layers -------
-#--------------------------------------------
-# Crop and mask scaled_stack to European extent
-eu_climpreds.10 <- globalclimpreds_terra %>%
-  terra::crop(euboundary)%>%
-  terra::mask(euboundary)
-
-# Write to disk with compression
 eu_climpreds_file <- file.path(processed_folder,"euclimpreds.tif")
-terra::writeRaster(eu_climpreds.10,
-                   filename = eu_climpreds_file,
-                   overwrite = TRUE,
-                   wopt = list(gdal = c("COMPRESS=LZW")))
-
-#Clean up
-rm(eu_climpreds.10)
-gc()
-
-
-#--------------------------------------------
-#--------Create country climate layers -------
-#--------------------------------------------
 if(tolower(country_of_interest)!="europe"){
-country_climpreds <- terra::crop(globalclimpreds_terra, country_boundary)
-country_climpreds <- terra::mask(country_climpreds, country_boundary)
-
-# Write to disk with compression
-country_climpreds_file <- file.path(processed_folder, "country_climpreds.tif")
-terra::writeRaster(country_climpreds,
-                   filename = country_climpreds_file,
-                   overwrite = TRUE,
-                   wopt = list(gdal = c("COMPRESS=LZW")))
-
-rm(country_climpreds)
-gc()
+  country_climpreds_file <- file.path(processed_folder, "country_climpreds.tif")
 }else{
   country_climpreds_file<-eu_climpreds_file
 }
 
 
-#---------------------------------------------
-#------ Load future climate rasters ----------
-#---------------------------------------------
-# Initialize a list to store future raster stacks if needed
+#--------------------------------------------
+#-Define file paths of future environmental layers -
+#--------------------------------------------
 future_paths <- list()
-
 for (period in c("2041-2070","2071-2100")){
   for(scenario in c("ssp126", "ssp370", "ssp585")){
     
-    # List future raster files
-    future_files<- list.files( file.path("data", "external", "climate", "chelsa_future", period,scenario), pattern = "^scaled_layer.*\\.tif$", full.names = TRUE)
-    
-    #Stack them together
-    future_stack <- terra::rast(future_files)
-    
-    # #Aggregate at a resolution of 5km
-    # future_stack <- terra::aggregate(future_stack, fact=5, fun = mean, na.rm=TRUE)
-    
-    #Mask future stack to resolution of country or region of interest
-    future_country <- terra::crop(future_stack, country_boundary)
-    future_country <- terra::mask(future_country, country_boundary)
-    
     #Define preprocessed dir
     preprocessed_dir <- file.path("data", "external", "climate", "chelsa_future","country", period,scenario)
-    if(!dir.exists(preprocessed_dir)) dir.create(preprocessed_dir, recursive=TRUE)
     
     # Define output file
     out_file <- file.path(preprocessed_dir, paste0(period, "_", scenario, "_masked.tif"))
     
-    # Save processed rasterstack
-    terra::writeRaster(future_country, 
-                       filename = out_file,
-                       overwrite = TRUE,
-                       wopt = list(gdal = c("COMPRESS=LZW")))
-    
     # Store path for later use
     future_paths[[paste0(period, "_", scenario)]] <- out_file
-    
-    #Clean up
-    rm(future_country, future_stack)
-    gc()
-    
   }
 }
+
+
+#--------------------------------------------
+#----------- Load boundary layers -----------
+#--------------------------------------------
+chelsa_example_raster<-terra::rast(globalclimpreds_file)
+euboundary <- terra::rast(file.path("data", "external", "habitat", "Agriculture.tif"))%>%
+  terra::project(chelsa_example_raster[[1]])%>%
+  terra::crop(terra::ext(-38, 50,  24.29152732065, 72.66652712715))
+
+if(tolower(country_of_interest)!="europe"){
+country_boundary<-sf::read_sf(here::here("data","external","GIS","Country","country.shp"))%>%
+  sf::st_transform(crs(chelsa_example_raster))%>%
+  terra::vect()
+}else{
+  country_boundary<-euboundary
+}
+rm(chelsa_example_raster)
+gc()
 
 
 #--------------------------------------------
@@ -345,6 +235,14 @@ with_progress({
     lapply(folder_paths, function(folder){
       create_folder(folder$path, folder$name)
     })
+    
+    
+    #--------------------------------------------
+    #------ Define folders-----
+    #--------------------------------------------
+    raster_folder <- file.path(base_dir, "Climate","Current", "Predictions", "Rasters")
+    future_folder <- file.path(base_dir, "Climate", period, scenario, "Predictions", "Rasters")
+    future_sd_folder <- file.path(base_dir, "Climate", period, scenario, "Diagnostics", "Confidence_maps", "Rasters")
     
     
     #--------------------------------------------
@@ -703,29 +601,24 @@ with_progress({
     # Get model info
     info <- sdm::getModelInfo(model)
     
+    # Define extent to cut eu_climpreds.10_selection in 4 latitudinal blocks to make predictions more efficient
+    nblocks <- 4
+    e <- terra::ext(eu_climpreds.10_selection)
+    ybreaks <- seq(e$ymin, e$ymax, length.out = nblocks + 1)
+    exts <- lapply(1:nblocks, function(i) ext(e$xmin, e$xmax, ybreaks[i], ybreaks[i+1]))
+    pred_blocks <- vector("list", nblocks)
+    
     #Create empty list to store models in
     modeloutput<-list()
     
-    #Reduce resolution of rasters by half
-    eu_climpreds_aggregated<- aggregate(eu_climpreds.10_selection, fact = 2)
-    
-    system.time({
       for(modelmethod in methods){
         
         print(modelmethod)
         
         pred_raster <- try({
           
-          #Create raster with predictions for Europe
-          nblocks <- 4
-          e <- terra::ext(eu_climpreds_aggregated)
-          ybreaks <- seq(e$ymin, e$ymax, length.out = nblocks + 1)
-          exts <- lapply(1:nblocks, function(i) ext(e$xmin, e$xmax, ybreaks[i], ybreaks[i+1]))
-          
-          pred_blocks <- vector("list", nblocks)
-          
           for(rasterblock in seq_along(exts)) {
-            block_r <- crop(eu_climpreds_aggregated, exts[[rasterblock]])
+            block_r <- crop(eu_climpreds.10_selection, exts[[rasterblock]])
             
             # Make predictions for each block
             pred_blocks[[rasterblock]] <- predict(model,
@@ -761,10 +654,11 @@ with_progress({
         
         rm(fav_raster, method_model)
       }
-    })
+
     
     # Combine into a SpatRaster stack
     fav_stack <- terra::rast(modeloutput)
+    fav_stack <- round(fav_stack, 3)
     
     # Assign layer names based on model methods
     names(fav_stack) <- names(modeloutput)
@@ -776,19 +670,17 @@ with_progress({
     #---------------------------------------------
     
     #Step 0: make PCA
-    pca_result <- rasterPCA(fav_stack, nSamples = NULL, spca = FALSE, maskCheck = TRUE)
+    pca_result <- rasterPCA(fav_stack, nSamples = 100000, spca = FALSE, maskCheck = TRUE)
     
-    # Step 1: Recover original raster stack used in rasterPCA
-    fav_stack <- eval(pca_result$call$img)
-    
-    # Step 2: Extract PC1 loadings from princomp object
+    # Step 1: Extract PC1 loadings (PC1 explains the vast majority of variance)
     loadings <- pca_result$model$loadings[, 1]  # Comp.1 = PC1
     names(loadings) <- rownames(pca_result$model$loadings)
     
-    # Step 3: Convert raster stack to matrix (rows = pixels, cols = models)
+    # Step 2: Convert raster stack to matrix (rows = pixels, cols = models)
+    gc()
     fav_matrix <- as.matrix(fav_stack)
     
-    # Step 4: Calculate variance along PC1 for each model
+    # Step 3: Calculate variance along PC1 for each model
     model_variances <- setNames(numeric(nlyr(fav_stack)), names(fav_stack))
     
     for (lyr in 1:nlyr(fav_stack)) {
@@ -798,7 +690,7 @@ with_progress({
       model_variances[lyr] <- var(projection, na.rm = TRUE)
     }
     
-    # Step 5: Select top 5 models with highest variance on PC1
+    # Step 4: Select top 5 models with highest variance on PC1
     top5_models <- names(sort(model_variances, decreasing = TRUE))[1:5]
     cat("Top 5 models by variance along PC1:\n", top5_models)
     
@@ -809,45 +701,39 @@ with_progress({
     top5models <- model[[top_ids]]  
     
     #Clean up
-    rm(fav_matrix, fav_stack)
+    rm(fav_matrix)
     gc()
     
+    # Step 5: Subset fav_stack to top 5 layers
+    top5_stack <- subset(fav_stack, top5_models)
     
-    #--------------------------------------------------------------
-    #-- Create final ensemble predictions for region of interest --
-    #--------------------------------------------------------------
-    #Create empty list to store models in
-    ensemblemodel<-list()
-    
-    for(modelmethod in top5_models){
-      print(modelmethod)
-      pred <- predict(model,
-                      newdata = country_climpreds_selection,
-                      method = modelmethod)
-      
-      #Apply the transformation to the raster
-      fav_pred <- favourability_from_prob(pred, prev_ratio)
-      
-      #Store
-      ensemblemodel[[modelmethod]]<-fav_pred
-      
-    }
-    
-    
-    # Combine into a SpatRaster stack
-    top5_stack <- terra::rast(ensemblemodel)
-    
-    # Assign layer names based on model methods
-    names(top5_stack) <- names(ensemblemodel)
-    
-    # Compute pixel-wise median = consensus model
+    # Step 6: Compute pixel-wise median = consensus model
     consensus_median <- app(top5_stack, median)
     
-    # Compute pixel-wise mean for SD calculation
+    # Step 7: Compute pixel-wise mean for SD calculation
     consensus_mean <- mean(top5_stack, na.rm=TRUE)
     
-    # Compute pixel-wise population SD
+    # Step 8: Compute pixel-wise population SD
     consensus_sd <- stdev(top5_stack, pop=TRUE)
+    
+    #Step 9: Create country_level layers if relevant
+    if(tolower(country_of_interest)=="europe"){
+      ensemble_suitability<-consensus_median
+      ensemble_sd <- consensus_sd
+      ensemble_mean<-consensus_mean
+    }else{
+      ensemble_suitability<- consensus_median%>%
+        terra::crop(country_boundary)%>%
+        terra::mask(country_boundary)
+      
+      ensemble_sd<- consensus_sd%>%
+        terra::crop(country_boundary)%>%
+        terra::mask(country_boundary)
+      
+      ensemble_mean<- consensus_mean%>%
+        terra::crop(country_boundary)%>%
+        terra::mask(country_boundary)
+    }
     
     
     #------------------------------------------
@@ -860,7 +746,7 @@ with_progress({
     for (occs in list(NULL, global.occ.sf)){
       filename <- ifelse(is.null(occs), base_file, paste0(base_file, "_occ"))
       
-      exportPDF(predictions = consensus_median,
+      exportPDF(predictions = ensemble_suitability,
                 dataType = "Suit",
                 period = "Current",
                 returnPredictions = FALSE,
@@ -880,7 +766,7 @@ with_progress({
     #Define name of files
     filename <- paste0(basefile, "current_ensemble_SD")
     
-    exportPDF(predictions = consensus_sd,
+    exportPDF(predictions = ensemble_sd,
               dataType = "Stdev",
               period = "Current",
               returnPredictions = FALSE,
@@ -926,22 +812,17 @@ with_progress({
       mtp_pct <- paste0(mtp_value, "%")
       
       # Obtain threshold
-      to_omit <- floor(probs * nrow(fav_vals)) #Define how many of lowest ranked occs to omit based on mtp threshold
+      to_omit <- floor(probs * nrow(fav_vals)) #Define how many lowest ranked occs to omit based on mtp threshold
       thr <- sort(fav_vals$median)[to_omit + 1]
       cat(paste0("Mean ",mtp_pct," minimum training presence threshold: ", round(thr, 4), "\n"))
       
       # Create binary raster using MTP threshold
-      binary_map_pct <- consensus_median >= thr 
+      binary_map_pct <- ensemble_suitability >= thr 
       binary_map_pct <- as.factor( binary_map_pct*1) #Convert TRUE/FALSE to 1/0 and then to Present/Absent
       levels( binary_map_pct) <- data.frame(ID = c(0, 1),
                                             class = c("Absent", "Present"))
       
-      # Calculate sensitivity in Europe
-      occ_values <- terra::extract(binary_map_pct, vect(global.occ.sf))[,2]  
-      global_EU_sensitivity <- sum(occ_values == "Present", na.rm = TRUE) / sum(occ_values %in% c("Present", "Absent"), na.rm = TRUE)
-      
       #Store raster
-      raster_folder <- file.path(base_dir, "Climate","Current", "Predictions", "Rasters")
       binary_file <- file.path (raster_folder, paste0(basefile,"current_binary",mtp_value,"pct.tif"))
       terra::writeRaster(binary_map_pct, filename = binary_file, overwrite = TRUE)
       
@@ -958,8 +839,6 @@ with_progress({
                   exportPNG=TRUE,
                   LabelValue= round(thr,3),
                   LabelName=paste0(mtp_pct, " MTP threshold"),
-                  Label2Value=round(global_EU_sensitivity,3),
-                  Label2Name="Sensitivity",
                   PDF_title = PDF_title,
                   PNG_folder=file.path(base_dir, "Climate","Current", "Predictions", "PNGs"),
                   PDF_folder=file.path(base_dir,"Climate" ,"Current", "Predictions", "PDFs"),
@@ -968,7 +847,6 @@ with_progress({
       
       assign(paste0(mtp_value,"pct"), thr)
       binary_maps[[mtp_pct]] <- list(binary_raster=binary_map_pct,
-                                     EU_sensitivity=global_EU_sensitivity,
                                      mean_MTP= thr)
       rm(binary_map_pct, binary_file, mtp_value, mtp_pct, to_omit, thr)
     }
@@ -989,12 +867,45 @@ with_progress({
         future_selection <- future_rast %>%
           subset(names(country_climpreds_selection))
         
+        #Define extents to cut future climate rasters into 4 latitudinal blocks
+        nblocks <- 4
+        e <- terra::ext(future_selection)
+        ybreaks <- seq(e$ymin, e$ymax, length.out = nblocks + 1)
+        exts <- lapply(1:nblocks, function(i) ext(e$xmin, e$xmax, ybreaks[i], ybreaks[i+1]))
+        pred_blocks <- vector("list", nblocks)
+        
         # Project each of the top 5 models
         future_modeloutput <- list()
+        
         for(modelmethod in top5_models){
-          pred_raster_future <- predict(model,
-                                        newdata = future_selection,
-                                        method = modelmethod)
+          
+          pred_raster_future  <- try({
+            
+            for(rasterblock in seq_along(exts)) {
+              
+              #Crop climate rasters into one of the 4 latitudinal rasterblocks
+              block_r <- crop(future_selection, exts[[rasterblock]])
+              
+              # Make predictions for that block
+              pred_blocks[[rasterblock]] <- predict(model,
+                                                    newdata = block_r,
+                                                    method = modelmethod)
+            }
+            
+            # Merge blocks only if all succeed
+            do.call(terra::merge, pred_blocks)
+            
+          }, silent = TRUE)
+          
+          
+          # If prediction failed entirely (full raster + blocks), skip to next method
+          if(inherits( pred_raster_future , "try-error")) {
+            message("Skipping method ", modelmethod, " due to prediction failure.")
+            next
+          } else{
+            message("Predictions successfully completed for method '", modelmethod, "'.")
+          }
+          
           fav_raster_future <- favourability_from_prob(pred_raster_future, prev_ratio)
           future_modeloutput[[modelmethod]] <- fav_raster_future
           rm(fav_raster_future, pred_raster_future)
@@ -1007,26 +918,17 @@ with_progress({
         future_consensus_sd <- stdev(future_fav_stack, pop=TRUE)
         
         # Export future ensemble raster (favorability) 
-        future_folder <- file.path(base_dir, "Climate", period, scenario, "Predictions", "Rasters")
         ensemble_file <- file.path(future_folder, paste0(basefile, period,"_",scenario,"_ensemble.tif"))
         terra::writeRaster(future_consensus_median, filename = ensemble_file, overwrite = TRUE)
-        
-        # Export future sd raster 
-        future_sd_folder <- file.path(base_dir, "Climate", period, scenario, "Diagnostics", "Confidence_maps", "Rasters")
-        ensemble_sd_file <- file.path(future_sd_folder, paste0(basefile, period,"_",scenario,"_ensemble_SD.tif"))
-        terra::writeRaster(future_consensus_sd, filename = ensemble_sd_file, overwrite = TRUE)
         
         # Export future mean raster 
         future_mean_folder <- file.path(base_dir, "Climate", "Current", "Interim")
         ensemble_mean_file <- file.path(future_mean_folder, paste0(basefile, period,"_",scenario,"_ensemble_mean.tif"))
         terra::writeRaster(future_consensus_mean, filename = ensemble_mean_file, overwrite = TRUE)
         
-        # # Export future single-model rasters
-        # for (mod in top5_models) {
-        #   singlemodfile <- file.path(future_folder,
-        #                               paste0(basefile, period, "_",scenario,"_", mod, ".tif"))
-        #   terra::writeRaster(future_fav_stack[[mod]], filename = singlemodfile, overwrite = TRUE)
-        # }
+        # Export future sd raster 
+        ensemble_sd_file <- file.path(future_sd_folder, paste0(basefile, period,"_",scenario,"_ensemble_SD.tif"))
+        terra::writeRaster(future_consensus_sd, filename = ensemble_sd_file, overwrite = TRUE)
         
         # Export ensemble predictions as PDF and PNG with and without occurrences
         base_file <- paste0(basefile, scenario,"_", period,"_ensemble")
@@ -1079,7 +981,8 @@ with_progress({
                                                    class = c("Absent", "Present"))
           
           #Store raster
-          binary_file <- file.path(future_folder, paste0(basefile, period,"_",scenario,"_binary",mtp_text,".tif"))
+          binary_file <- file.path(future_folder, 
+                                   paste0(basefile, period,"_",scenario,"_binary",mtp_text,".tif"))
           terra::writeRaster(binary_map_future, filename = binary_file, overwrite = TRUE)
           
           # Export binarized ensemble predictions as PDF and PNG with and without occurrences 
@@ -1205,8 +1108,6 @@ with_progress({
                         sdm_model = model,
                         pca_result = pca_result,
                         top5_models = top5_models,
-                        global_EU_sensitivity_5pct_threshold =  binary_maps$`5%`$EU_sensitivity,
-                        global_EU_sensitivity_1pct_threshold =  binary_maps$`1%`$EU_sensitivity,
                         response_df = response_df,
                         varimp_df = varimp_df,
                         top5models = top5models,
@@ -1230,15 +1131,27 @@ with_progress({
                                    paste0(basefile, "current_ensemble_SD.tif"))
     
     terra::writeRaster(biasgrid_sub, filename = biasgrid_file, overwrite = TRUE)
-    terra::writeRaster(consensus_median, filename = ensemble_median_file, overwrite = TRUE)
-    terra::writeRaster(consensus_mean, filename = ensemble_mean_file, overwrite = TRUE)
-    terra::writeRaster(consensus_sd, filename = ensemble_sd_file, overwrite = TRUE)
+
+    
+    #Export suitability predictions for europe (needed for mtp calculation in habitat script) and, if relevant, for country of interest
+    if(tolower(country_of_interest)=="europe"){
+      terra::writeRaster(consensus_median, filename = ensemble_median_file, overwrite = TRUE)
+      terra::writeRaster(consensus_mean, filename = ensemble_mean_file, overwrite = TRUE)
+      terra::writeRaster(consensus_sd, filename = ensemble_sd_file, overwrite = TRUE)
+    }else{
+      europe_ensemble_median_file<- file.path( base_dir,"Climate", "Current", "Predictions", "Rasters",
+                                                paste0(basefile, "current_ensemble_Europe.tif"))
+      terra::writeRaster(consensus_median, filename = europe_ensemble_median_file, overwrite = TRUE)
+      terra::writeRaster(ensemble_suitability, filename = ensemble_median_file, overwrite = TRUE)
+      terra::writeRaster(ensemble_mean, filename = ensemble_mean_file, overwrite = TRUE)
+      terra::writeRaster(ensemble_sd, filename = ensemble_sd_file, overwrite = TRUE)
+    }
     
     
     #--------------------------------------------
     #------------------ Clean up-----------------
     #--------------------------------------------
-    rm(list = setdiff(ls(), c("p","wwf_eco_biome","eu_climpreds_file","country_climpreds_file", "globalclimpreds_file","future_paths","globalclimpreds_5k_file","split_df",  "decimalplaces","bias_grid_paths", "i", "world", "project", "create_folder", "split_df_all_occs", "exportPDF", "remove_duplicates", "remove_nodata_occurrences", "favourability_from_prob", "cleaned_1km", "occurrence_thinning_method", "n_clusters","future_paths","mtp_probabilities", "pseudoabsence_thinning_method", "country_of_interest")))
+    rm(list = setdiff(ls(), c("p","wwf_eco_biome","eu_climpreds_file","country_climpreds_file", "globalclimpreds_file","future_paths","globalclimpreds_5k_file","split_df",  "decimalplaces","bias_grid_paths", "i", "world", "project", "create_folder", "split_df_all_occs", "exportPDF", "remove_duplicates", "remove_nodata_occurrences", "favourability_from_prob", "cleaned_1km", "occurrence_thinning_method", "n_clusters","future_paths","mtp_probabilities", "pseudoabsence_thinning_method", "country_of_interest", "country_boundary")))
     
   }
 })
