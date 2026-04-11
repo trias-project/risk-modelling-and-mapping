@@ -925,3 +925,128 @@ read_or_redownload <- function(file, folder, doi, max_attempts = 3) {
   
   stop(paste("Failed to obtain valid raster after", max_attempts, "attempts:", file))
 }
+
+
+#------------------------------------------
+#----- Define Boyce helper functions -----
+#------------------------------------------
+#fit_vals are suitability or favourability values of a background sample or all available pixels in the target region
+#obs_vals are suitability or favourability values at occurrence locations
+
+compute_boyce_robust <- function(fit_vals, obs_vals) {
+  
+  #------------------------------------------
+  #----------- Basic checks -----------------
+  #------------------------------------------
+  #Define conditions for number of occurrences and total (or background) points
+  if (length(obs_vals) < 5 || length(fit_vals) < 200) return(NA_real_)
+  if (length(unique(fit_vals)) < 3)                   return(NA_real_)
+  
+  
+  #------------------------------------------
+  #---- Try moving window boyce ---
+  #-----------------------------------------
+  boyce_result <- try(ecospat::ecospat.boyce(fit = fit_vals, 
+                                             obs = obs_vals,
+                                             nclass = 0, #moving window boyce index
+                                             PEplot = FALSE), 
+                      silent = TRUE)
+  
+  
+  #------------------------------------------
+  #--- Return boyce index if all went well -----
+  #------------------------------------------
+  if (!inherits(boyce_result, "try-error") && !is.null(boyce_result$cor) && is.finite(boyce_result$cor)){
+    return(boyce_result$cor)
+    
+  }else{
+    
+    #------------------------------------------
+    #------------ Try binned Boyce ------------
+    #------------------------------------------
+    for (nc in c(10L, 20L)) {
+      boyce_result2 <- try(
+        ecospat::ecospat.boyce(
+          fit    = fit_vals,
+          obs    = obs_vals,
+          nclass = nc,
+          PEplot = FALSE
+        ),
+        silent = TRUE
+      )
+      
+      if (!inherits(boyce_result2, "try-error") && !is.null(boyce_result2$cor) && is.finite(boyce_result2$cor)){
+        return(boyce_result2$cor)
+      }
+    }
+  }  
+  #------------------------------------------
+  #--Return NA if binned boyce also fails ---
+  #------------------------------------------
+  return(NA_real_)
+  
+}
+
+
+#------------------------------------------
+#---Calculate model validation metrics ----
+#------------------------------------------
+compute_validation_metrics <- function(fold, all_suit_vals, occ_suit_vals, abs_suit_vals) {
+  
+  #Define number of presences and pseudoabsences
+  n_pres   <- length(occ_suit_vals)
+  n_abs    <- length(abs_suit_vals)
+  
+  #Define minimum number of presences and pseudoabsences needed
+  if (n_pres < 2L || n_abs < 2L)   return(c(fold = fold,
+                                            auc = NA_real_,
+                                            boyce = NA_real_,
+                                            tss = NA_real_))
+  
+  #---------------
+  #----- AUC -----
+  #---------------
+  # AUC via Wilcoxon statistic (exact, no ties correction needed for our use)
+  auc_val <- tryCatch({
+    wt <- wilcox.test(occ_suit_vals, abs_suit_vals, alternative = "greater", exact = FALSE)
+    as.numeric(wt$statistic) / (n_pres * n_abs)
+  }, error = function(e) NA_real_)
+  
+  
+  #---------------
+  #- Boyce index -
+  #---------------
+  boyce_val<-compute_boyce_robust(all_suit_vals, occ_suit_vals)
+  
+  
+  #---------------
+  #----- tss -----
+  #---------------
+  # max TSS: sweep candidate thresholds = unique sorted predicted values
+  tss_val <- tryCatch({
+    all_preds   <- c(occ_suit_vals, abs_suit_vals)
+    all_labels  <- c(rep(1L, n_pres), rep(0L, n_abs))
+    ord         <- order(all_preds, decreasing = TRUE)
+    preds_s     <- all_preds[ord]
+    labels_s    <- all_labels[ord]
+    # Cumulative TP and FP as threshold descends
+    tp_cum <- cumsum(labels_s == 1L)
+    fp_cum <- cumsum(labels_s == 0L)
+    sens   <- tp_cum / n_pres      # sensitivity  (= recall)
+    spec   <- 1 - fp_cum / n_abs   # specificity
+    tss_v  <- sens + spec - 1
+    max(tss_v, na.rm = TRUE)
+  }, error = function(e) NA_real_)
+  
+  
+  #------------------
+  #- Return metrics -
+  #------------------
+  return(c(test_fold = fold, 
+           n_pres = n_pres,
+           n_abs = n_abs,
+           auc = auc_val,
+           boyce = boyce_val,
+           tss = tss_val))
+ 
+}
