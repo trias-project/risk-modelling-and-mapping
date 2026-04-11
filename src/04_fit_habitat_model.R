@@ -30,12 +30,10 @@ habitatstack_file <- file.path(processed_folder, "habitat_stack.tif")
 
 
 #--------------------------------------------
-#---------   Load euboundary  ---------
+#------------ Load euboundary  --------------
 #--------------------------------------------
-euboundary <- terra::rast(file.path("data", "external", "habitat", "Agriculture.tif"))
-euboundary<-(euboundary*0+1)
-euboundary <- terra::as.polygons(euboundary, dissolve = TRUE)  # merge adjacent cells
-euboundary <- sf::st_as_sf(euboundary)  # convert to sf
+euboundary_path<-file.path("data", "external", "GIS", "Europe", "EUboundary.shp")
+euboundary<-sf::st_read(euboundary_path)
 
 
 #---------------------------------------------
