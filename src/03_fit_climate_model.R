@@ -109,7 +109,7 @@ world <- rnaturalearth::ne_countries(scale=50)
 
 
 #--------------------------------------------
-#--------------Load ecoregions --------------
+#--------------Load biomes --------------
 #--------------------------------------------
 wwf_eco_biome<-sf::st_read(file.path("./data/external/GIS/official/newRealms.shp")) 
 
@@ -1079,18 +1079,6 @@ with_progress({
     
     ggplot2::ggsave(filename = paste(basefile, "variable_importance.png"), plot = varimp_plot ,  device = "png", width =8.27 , height = 5.845, path= file.path(PNG_folder, "Variable_importance") )
     ggplot2::ggsave(filename = paste(basefile, "response_curves.png"), plot = response_plot,  device = "png", width =8.27 , height = 5.845, path=  file.path(PNG_folder, "Response_curves") )
-    
-    
-    
-    #--------------------------------------------
-    #-- Prepare global_presabs for export--------
-    #--------------------------------------------  
-    #Decimallon and decimalLat are converted to x and y, geometry is dropped
-    global_presabs<-global_presabs%>%
-      dplyr::select(decimalLongitude, decimalLatitude)%>%
-      dplyr::rename("x"= decimalLongitude,
-                    "y"= decimalLatitude)%>%
-      sf::st_drop_geometry()
     
     
     #--------------------------------------------

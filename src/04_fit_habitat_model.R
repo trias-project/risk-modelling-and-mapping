@@ -23,7 +23,7 @@ source(file.path("src", "00_configurations.R"))
 
 
 #--------------------------------------------
-#---- Define habitat raster file paths ------
+#----------- Define file paths --------------
 #--------------------------------------------
 processed_folder<-file.path("data", "external", "habitat", "processed")
 habitatstack_file <- file.path(processed_folder, "habitat_stack.tif")
@@ -1191,7 +1191,9 @@ with_progress({
                          climhab_1pct_threshold = `1pct`, # 1% min training presence threshold ensemble model
                          response_df = response_df,
                          varimp_df = varimp_df,
-                         top5models = top5models #model object holding selected models
+                         selected_predictors = names(fullstack),
+                         top5models = top5models, #model object holding selected models
+                         top5_models = top5_models
     )
     
     #Save eumodel as .qs file
