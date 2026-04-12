@@ -59,6 +59,8 @@ accepted_taxonkeys <- unique(taxa_info$acceptedTaxonKey)
 #--------------------------------------------
 euboundary_path<-file.path("data", "external", "GIS", "Europe", "EUboundary.shp")
 euboundary<-sf::st_read(euboundary_path)
+euboundary_wgs84<-euboundary%>%
+  sf::st_transform(crs = 4326)
 
 
 #--------------------------------------------
