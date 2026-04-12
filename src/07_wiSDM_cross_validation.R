@@ -895,4 +895,34 @@ for (i in seq_along(accepted_taxonkeys)) {
     
   }
   
+    #--------------------------------------------------
+    #-          OPTION 2: NO CROSS VALIDATION
+    #--------------------------------------------------
+    
+    # Extract median favourability for habitat and climate
+    hab_fav <- median_favourability_habitat
+    clim_fav <- median_favourability_climate
+    
+    #Generate ensemble favourability for background points, occs, and abs.
+    ensemble_background_fav <- sqrt(hab_fav$eu_habitat_points*clim_fav$eu_points)
+    ensemble_occ_fav <-sqrt(hab_fav$occ_hab*clim_fav$ens_occ_env)
+    ensemble_abs_fav <- sqrt(hab_fav$abs_hab*clim_fav$ens_abs_env)
+    
+    
+    #-----------------------------------------
+    #------- Compute Boyce, AUC, and TSS -----
+    #-----------------------------------------
+    message("Calculating ensemble validation metrics (no cross-validation)")
+    
+    eu_validation_ensemble <- compute_validation_metrics(
+      species= speciesName,
+      type = "Europe_ensemble",
+      fold = "No cross-validation",
+      all_suit_vals = ensemble_background_fav,
+      occ_suit_vals =  ensemble_occ_fav ,
+      abs_suit_vals = ensemble_abs_fav)
+    
+  }
+    
+
 }
