@@ -502,6 +502,18 @@ terra::writeRaster(habitat_stack,
                    wopt = list(gdal = c("COMPRESS=LZW")))
 
 
+#---------------------------------------------
+#----- Create an EU boundary shapefile -------
+#---------------------------------------------
+euboundary <- terra::rast(file.path("data", "external", "habitat", "Agriculture.tif"))
+euboundary<-(euboundary*0+1)
+euboundary <- terra::as.polygons(euboundary, dissolve = TRUE)  # merge adjacent cells
+euboundary <- sf::st_as_sf(euboundary)  # convert to sf
+euboundary_path<-file.path("data", "external", "GIS", "Europe")
+if(!dir.exists(euboundary_path)) dir.create(euboundary_path)
+sf::write_sf(euboundary, file.path(euboundary_path, "EUboundary.shp"))
+
+
 #--------------------------------------------
 #---------- Clean R environment--------------
 #--------------------------------------------
