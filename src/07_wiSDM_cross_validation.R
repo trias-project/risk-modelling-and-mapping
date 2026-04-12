@@ -148,11 +148,18 @@ for (i in seq_along(accepted_taxonkeys)) {
   
   
   #--------------------------------------------
-  #------- Define climate qs file path --------
+  #------- Define qs file paths --------
   #--------------------------------------------
   climate_qs_file <- file.path(base_dir, "Climate",
                                paste0("Climate_model_", speciesName, "_", taxonkey, ".qs"))
   
+  habitat_qs_file <- file.path(base_dir, "Habitat",
+                               paste0("Habitat_model_", speciesName, "_", taxonkey, ".qs"))
+  
+  
+  #----------------------------------------------
+  #- Only do validation if climate model exists -
+  #----------------------------------------------
   if (!file.exists(climate_qs_file)) {
     warning("No climate model could be fitted for ",species,
             "\nRun 03_fit_climate_model.R first.\n Skipping species.")
@@ -170,9 +177,9 @@ for (i in seq_along(accepted_taxonkeys)) {
   rm(climatemodel)
   
   
-  #--------------------------------------------
-  #----Define European validation or not ------
-  #--------------------------------------------
+  #--------------------------------------------------
+  #------------------Define validation types---------
+  #--------------------------------------------------
   eu_occ <- global_presabs%>%
     dplyr::filter(species==1)%>%
     st_transform(crs = st_crs(euboundary)) %>%
