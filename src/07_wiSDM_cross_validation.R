@@ -68,45 +68,40 @@ euboundary_wgs84<-euboundary%>%
 #--------------------------------------------
 #Load rasters 
 climate_stack <- terra::rast(climate_path)
-eu_climate_stack <- terra::rast(eu_climpreds_path)
 habitat_stack <- terra::rast(habitat_path)
+eu_climate_stack<- terra::rast(eu_climpreds_path)%>%
+  terra::project(habitat_stack[[1]])
 
 
 #-----------------------------------------------------------
 #- Sample background data once
 #-----------------------------------------------------------
-#Extract climate data at global points: TAKES A LONG TIME (around 1h15)
+#Extract a subsample of global pixels for Boyce calculation: around 40min-1h!
 set.seed(728)
-global_climate_sub <- terra::spatSample(
-  climate_stack,
+global_subsample<- terra::spatSample(
+  climate_stack[[1]],
   size = boyce_background_size, 
   method = "random", 
   na.rm = TRUE, #Ignore NA pixels
-  values = TRUE, #Return predictor values
-  as.points = FALSE) %>%
-  as.data.frame()
+  as.points = TRUE) 
 
-#Extract climate data at eu points (around 6min)
+#Extract a subsample of European pixels for Boyce calculation 
 set.seed(728)
-eu_climate_sub <- terra::spatSample(
-  eu_climate_stack,
+eu_subsample <- terra::spatSample(
+  habitat_stack[[1]],
   size = boyce_background_size, 
   method = "random", 
   na.rm = TRUE, #Ignore NA pixels
-  values = TRUE, #Return predictor values
-  as.points = FALSE) %>%
-  as.data.frame()   
+  as.points = TRUE)
 
-#Extract habitat data at eu points (around 6min)
-set.seed(728)
-eu_habitat_sub <- terra::spatSample(
-  habitat_stack,
-  size = boyce_background_size, 
-  method = "random", 
-  na.rm = TRUE, #Ignore NA pixels
-  values = TRUE, #Return predictor values
-  as.points = FALSE) %>%
-  as.data.frame()   
+# Extract climate data at global subsample points
+global_climate_sub <- terra::extract(climate_stack, global_subsample, ID = FALSE, xy = FALSE)
+
+# Extract climate data at eu subsample points
+eu_climate_sub <- terra::extract(eu_climate_stack, eu_subsample, ID = FALSE, xy = FALSE)
+
+# Extract habitat data at eu subsample points
+eu_habitat_sub <- terra::extract(habitat_stack, eu_subsample, ID = FALSE, xy = FALSE)
 
 
 #----------------------------------------------
