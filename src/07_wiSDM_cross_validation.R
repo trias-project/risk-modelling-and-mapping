@@ -183,11 +183,13 @@ for (i in seq_along(accepted_taxonkeys)) {
   eu_occ <- global_presabs%>%
     dplyr::filter(species==1)%>%
     st_transform(crs = st_crs(euboundary)) %>%
-    sf::st_filter(euboundary) 
   
   #Only validate climate model in Europe if 40 or more occs 
-  predict.eu <- nrow(eu_occ) >= 40
+  eu_climate_validation <- nrow(eu_occ) >= 40
   
+  #Only validate ensemble model if habitat model could be fitted
+  ensemble_validation <- file.exists(habitat_qs_file)
+
   
   #---------------------------------------------------------
   #- Select climate rasters used in 03_fit_climate_model.R -
