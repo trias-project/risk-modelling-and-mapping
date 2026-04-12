@@ -1052,3 +1052,24 @@ compute_validation_metrics <- function(species, type, fold, all_suit_vals, occ_s
            tss = tss_val))
  
 }
+
+
+#-----------------------------------------------------------------
+#--Extract raster values at presence/absence points and return----
+#-----------------------------------------------------------------
+extract_env <- function(pres_abs_points, raster) {
+  
+  env_values <- terra::extract(raster,
+                               terra::vect(pres_abs_points),
+                               ID = FALSE,
+                               xy = FALSE)
+  
+  # Combine with species label and remove NA rows
+  df <- cbind(species = pres_abs_points$species, env_values)
+  df <- df[complete.cases(df), ]
+  
+  list(
+    presences = df[df$species == 1, -1],
+    absences  = df[df$species == 0, -1]
+  )
+}
