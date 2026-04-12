@@ -991,7 +991,7 @@ compute_boyce_robust <- function(fit_vals, obs_vals) {
 #------------------------------------------
 #---Calculate model validation metrics ----
 #------------------------------------------
-compute_validation_metrics <- function(fold, all_suit_vals, occ_suit_vals, abs_suit_vals) {
+compute_validation_metrics <- function(species, type, fold, all_suit_vals, occ_suit_vals, abs_suit_vals) {
   
   #Define number of presences and pseudoabsences
   n_pres   <- length(occ_suit_vals)
@@ -1042,7 +1042,9 @@ compute_validation_metrics <- function(fold, all_suit_vals, occ_suit_vals, abs_s
   #------------------
   #- Return metrics -
   #------------------
-  return(c(test_fold = fold, 
+  return(c(Species = species,
+           Type = type,
+           test_fold = fold, 
            n_pres = n_pres,
            n_abs = n_abs,
            auc = auc_val,
