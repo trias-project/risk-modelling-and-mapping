@@ -1,15 +1,13 @@
 #-------------------------------------------------------------------------------
 #--------------------------    Load packages      ------------------------------
 #-------------------------------------------------------------------------------
-options("rgdal_show_exportToProj4_warnings" = "none")
+packages <- c( "dplyr", "qs", "terra", "tidyterra", "sf", "here",
+               "ggplot2", "dismo",  "sdm", "purrr", "ecospat", "blockCV")
 
-packages <- c( "dplyr", "qs", "terra", "tidyterra", "sf",
-               "ggplot2", "dismo",  "sdm", "purrr", "ecospat", "blockCV"
-)
-
-for(package in packages) {
+installed <- rownames(installed.packages())
+for (package in packages) {
   print(package)
-  if( ! package %in% rownames(installed.packages()) ) { install.packages( package ) }
+  if (!package %in% installed) install.packages(package)
   library(package, character.only = TRUE)
 }
 
