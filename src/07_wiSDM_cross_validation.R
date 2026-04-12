@@ -894,7 +894,62 @@ for (i in seq_along(accepted_taxonkeys)) {
       abs_suit_vals = habitat_abs_favourability)
     
   }
+
   
+  
+  #==============================================
+  #=                                            =
+  #=         PART 3: Ensemble validation        =
+  #=                                            =
+  #==============================================
+  
+  
+  #-----------------------------------------------------------------
+  #            OPTION 1: SPATIAL CROSS VALIDATION
+  #-----------------------------------------------------------------
+  if (use_cv) {
+    
+    #----------------------------------------------------------
+    #-- Combine predictions of habitat and climate model --
+    #----------------------------------------------------------
+    #Define lists to store validation metrics
+    validation_ensemble<- list()
+    
+    #Start loop per fold
+    for (fold in seq_len(cv_folds)) {
+      
+      # Extract median favourability for the current fold
+      hab_fav <- median_favourability_habitat_perfold[[fold]]
+      clim_fav <- median_favourability_climate_perfold[[fold]]
+      
+      #Generate ensemble favourability for background points, occs, and abs.
+      ensemble_background_fav <- sqrt(hab_fav$eu_habitat_points*clim_fav$eu_points)
+      ensemble_occ_fav <- sqrt(hab_fav$occ_hab*clim_fav$ens_occ_env)
+      ensemble_abs_fav <- sqrt(hab_fav$abs_hab*clim_fav$ens_abs_env)
+      
+      
+      #-----------------------------------------
+      #------- Compute Boyce, AUC, and TSS -----
+      #-----------------------------------------
+      message(sprintf("Calculating ensemble validation metrics for test fold %d/%d", fold,cv_folds))
+      
+      validation_ensemble[[fold]] <- compute_validation_metrics(
+        species= speciesName,
+        type = "Europe_ensemble",
+        fold = fold,
+        all_suit_vals = ensemble_background_fav,
+        occ_suit_vals =  ensemble_occ_fav ,
+        abs_suit_vals = ensemble_abs_fav)
+    }
+    
+    #-----------------------------------------
+    #---- Store validation metrics in df ----
+    #-----------------------------------------
+    eu_validation_ensemble <- dplyr::bind_rows(validation_ensemble)
+    
+    
+  } else{
+    
     #--------------------------------------------------
     #-          OPTION 2: NO CROSS VALIDATION
     #--------------------------------------------------
