@@ -654,12 +654,9 @@ for (i in seq_along(accepted_taxonkeys)) {
   #==============================================
   
   #--------------------------------------------
-  #--Check if a habitat model has been fitted -
+  #---- Should habitat validation be done? ----
   #--------------------------------------------
-  habitat_qs_file <- file.path(base_dir, "Habitat",
-                               paste0("Habitat_model_", speciesName, "_", taxonkey, ".qs"))
-  
-  if (!file.exists(habitat_qs_file)) {
+  if (!ensemble_validation) {
     warning("No habitat model was fitted for species ", species,
             "\n Skipping habitat model validation.")
     next
@@ -676,16 +673,10 @@ for (i in seq_along(accepted_taxonkeys)) {
   #top5_methods  <- habitatmodel$top5_models
   #habitat_predictors <- habitatmodel$selected_predictors
   #TOREMOVE
-  top5_methods  <- c("gam", "rf", "glmpoly", "mars", "maxent")
+  top5_habitat_methods  <- c("gam", "rf", "glmpoly", "mars", "maxent")
   habitat_predictors<-unique(habitatmodel[["varimp_df"]][["Predictor"]])
   rm(habitatmodel)
-  
-  
-  #--------------------------------------------
-  #--------------Define target CRS ------------
-  #--------------------------------------------
-  target_crs    <- sf::st_crs(terra::crs(habitat_stack))
-  
+
   
   #---------------------------------------------------------
   #- Select landcover rasters used in 04_fit_climate_model.R -
@@ -698,50 +689,20 @@ for (i in seq_along(accepted_taxonkeys)) {
   #-----------------------------------------------------------
   #- Obtain habitat subsample values for selected predictors
   #-----------------------------------------------------------
-  eu_points<-eu_habitat_sub %>%
+  eu_habitat_points<-eu_habitat_sub %>%
     dplyr::select(any_of(habitat_predictors))
-  
-  
-  #-----------------------------------------------------------------
-  #- Define if cross validation can be done and for how many folds -
-  #-----------------------------------------------------------------
-  n_pres <- sum(eu_presabs$species == 1)
-  k <- 0L
-  use_cv <- FALSE
-  
-  if (n_pres >= 40L) {
-    k <- min(5L, floor(n_pres / 20L))
-    use_cv <- k >= 2L
-  }
   
   
   #-----------------------------------------------------------------
   #            OPTION 1: SPATIAL CROSS VALIDATION
   #-----------------------------------------------------------------
   if (use_cv) {
-    
-    #---------------------------------
-    #----- Create spatial folds-------
-    #---------------------------------
-    sf::sf_use_s2(FALSE)
-    # Hex, class-balanced spatial folds
-    sb <- blockCV::cv_spatial(
-      x         = vect(eu_presabs),
-      column    = "species",
-      r         = habitat_selection,
-      k         = k,
-      hexagon   = TRUE,
-      selection = "random",
-      iteration = 200,
-      size      = 100000 #100 km
-    )
-    sf::sf_use_s2(TRUE)
-    
-    fold_ids <- sb$folds_ids
-    stopifnot(length(fold_ids) == nrow(eu_presabs))
-    
-    # Initiate per-fold list
-    fold_fav  <- vector("list", k)  
+
+    #--------------------------------------------
+    #--Put fold assignment data in right CRS ----
+    #--------------------------------------------
+    eu_presabs_perfold<- eu_presabs_perfold%>%
+      sf::st_transform(crs=sf::st_crs(eu_presabs))
     
     
     #----------------------------------------------------------
@@ -749,17 +710,21 @@ for (i in seq_along(accepted_taxonkeys)) {
     #----------------------------------------------------------
     #Define lists to store validation metrics
     validation_habitat <- list()
+    median_favourability_habitat_perfold <- vector("list", cv_folds)
     
     #Start loop per fold
-    for (fold in seq_len(k)) {
-      message(sprintf("Creating validation metrics (habitat) for fold %d/%d: use folds %s for training", fold, k, paste(seq_len(k)[-fold], collapse = ", ")))
+    for (fold in seq_len(cv_folds)) {
+      
+      message(sprintf("Creating validation metrics for fold %d/%d: use folds %s for training", 
+                      fold, cv_folds, paste(seq_len(cv_folds)[-fold], collapse = ", ")))
+      
       
       #--------------------------------------
       #-          Define train data         -
       #--------------------------------------
       #Create training dataset
-      train_idx <- which(fold_ids != fold)
-      train_data  <- eu_presabs[train_idx, ]
+      train_data  <- eu_presabs_perfold%>%
+        dplyr::filter(folds!=fold)
       
       # Prevalence ratio from training data
       pres_train <- sum(train_data$species == 1)
@@ -778,46 +743,34 @@ for (i in seq_along(accepted_taxonkeys)) {
       )
       
       #Fit models
-      habitat_model <- sdm::sdm(species ~ ., data = sdm_data, methods = top5_methods)
-      
-      
-      #---------------------------------------------------
-      #------ Get habitat values at pres/abs in EU  ------
-      #---------------------------------------------------
-      #Define test presences and absences
-      test_idx <- which(fold_ids == fold)
-      test_data  <- eu_presabs[test_idx, ]
-      test_presences <- test_data[test_data$species==1,]
-      test_absences <- test_data[test_data$species==0,]
-      
-      #Extract EU habitat data at presences and absences
-      occ_habitat <- terra::extract(habitat_selection, terra::vect(test_presences), ID = FALSE, xy = FALSE)
-      abs_habitat <- terra::extract(habitat_selection, terra::vect(test_absences), ID = FALSE, xy = FALSE)
-      occ_habitat <- occ_habitat[complete.cases(occ_habitat), ]
-      abs_habitat <- abs_habitat[complete.cases(abs_habitat), ]
+      habitat_model <- sdm::sdm(species ~ ., data = sdm_data, methods = top5_habitat_methods)
       
       
       #-----------------------------------------------------------
-      #---------------- List datasets for predictions-------------
+      #---- Prepare datasets with habitat data for predictions --
       #-----------------------------------------------------------
-      datasets <- list(eu_points   = eu_points,
-                       occ_habitat = occ_habitat,
-                       abs_habitat = abs_habitat)
+      #Extract data for validation in Europe
+      test_data  <- eu_presabs_perfold%>%
+        dplyr::filter(folds == fold)
       
-      
+      europe_hab<-extract_env(test_data, habitat_selection)
+      habitat_datasets <- list(eu_habitat_points = eu_habitat_points,
+                               occ_hab       = europe_hab$presences,
+                               abs_hab       = europe_hab$absences)
+    
       
       #-----------------------------------------------------------
       #---- Make predictions per model algorithm and dataset----
       #-----------------------------------------------------------
-      favourability_pred <- list()
-      for(modelmethod in top5_methods){
+      habitat_favourability <- list()
+      for(modelmethod in top5_habitat_methods){
         
         message("Predicting for method: ", modelmethod,".")
         
-        for(dataset_name in names(datasets)) {
+        for(dataset_name in names(habitat_datasets)) {
           
           #Load datasets
-          dataset <- datasets[[dataset_name]]
+          dataset <- habitat_datasets[[dataset_name]]
           
           #Predict for dataset
           dataset_suit <- predict(habitat_model,
@@ -828,38 +781,43 @@ for (i in seq_along(accepted_taxonkeys)) {
           dataset_fav<- favourability_from_prob(dataset_suit[[1]], prev_ratio)
           
           #Store in list
-          favourability_pred[[modelmethod]][[dataset_name]] <- dataset_fav
+          habitat_favourability[[modelmethod]][[dataset_name]] <- dataset_fav
           
           #Clean up
           rm(dataset_suit, dataset_fav)
-          gc()
+          
         }
       }  
+      gc()
       
       
       #-----------------------------------------
       #---- Calculate median favourability  ----
       #-----------------------------------------
-      habitat_bg_favourability = apply(do.call(cbind, lapply(favourability_pred, `[[`, "eu_points")),
-                                       1, median, na.rm = TRUE) 
-      habitat_pres_favourability = apply(do.call(cbind, lapply(favourability_pred, `[[`, "occ_habitat")),
-                                         1, median, na.rm = TRUE) 
-      habitat_abs_favourability = apply(do.call(cbind, lapply(favourability_pred, `[[`, "abs_habitat")),
-                                        1, median, na.rm = TRUE) 
-      
-      
+      median_favourability_habitat_perfold[[fold]] <- lapply(names(habitat_datasets), function(dataset_name) {
+        apply(
+          do.call(cbind, lapply(habitat_favourability, `[[`, dataset_name)),
+          1,
+          median,
+          na.rm = TRUE
+        )
+      })
+      names(median_favourability_habitat_perfold[[fold]]) <- names(habitat_datasets)
+  
       
       #-----------------------------------------
       #------- Compute Boyce, AUC, and TSS -----
       #-----------------------------------------
-      message(sprintf("Calculating habitat validation metrics for test fold %d/%d", fold,k))
+      habitat_fav<-median_favourability_habitat_perfold[[fold]]
       
       #EU
       validation_habitat[[fold]] <- compute_validation_metrics(
+        species= speciesName,
+        type = "Europe_habitat",
         fold = fold,
-        all_suit_vals = habitat_bg_favourability,
-        occ_suit_vals = habitat_pres_favourability,
-        abs_suit_vals = habitat_abs_favourability)
+        all_suit_vals = habitat_fav$eu_habitat_points,
+        occ_suit_vals = habitat_fav$occ_hab,
+        abs_suit_vals = habitat_fav$abs_hab)
       
       #Clean
       terra::tmpFiles(remove = TRUE)
@@ -869,7 +827,7 @@ for (i in seq_along(accepted_taxonkeys)) {
     #-----------------------------------------
     #---- Store validation metrics in dfs ----
     #-----------------------------------------
-    eu_validation_habitat <- as.data.frame(do.call(rbind, validation_habitat))
+    eu_validation_habitat <- dplyr::bind_rows(validation_habitat)
     
     
   } else {
