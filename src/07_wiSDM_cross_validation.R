@@ -249,22 +249,95 @@ for (i in seq_along(accepted_taxonkeys)) {
     #---------------------------------
     #----- Create spatial folds-------
     #---------------------------------
-    sf::sf_use_s2(FALSE)
-    # Hex, class-balanced spatial folds
-    sb <- blockCV::cv_spatial(
-      x         = vect(global_presabs),
-      column    = "species",
-      r         = climate_selection,
-      k         = k,
-      hexagon   = TRUE,
-      selection = "random",
-      iteration = 200,
-      size      = 100000 #100 km
-    )
-    sf::sf_use_s2(TRUE)
     
-    fold_ids <- sb$folds_ids
-    stopifnot(length(fold_ids) == nrow(global_presabs))
+    if(ensemble_validation){
+      
+      #--------------------------------------------------------------
+      #---Prepare combined dataset of global_presabs and eu_presabs
+      #--------------------------------------------------------------
+      # Combine data
+      all_presabs<-eu_presabs%>%
+        sf::st_transform(crs=sf::st_crs(global_presabs))%>%
+        dplyr::mutate(decimalLatitude = sf::st_coordinates(.)[, "Y"],
+               decimalLongitude = sf::st_coordinates(.)[, "X"])%>%
+        dplyr::bind_rows(global_presabs)
+      
+      #Remove duplicates
+      all_presabs$cell <- terra::cellFromXY( climate_stack[[1]], 
+                                             all_presabs%>%
+                                            st_coordinates%>%
+                                            as.data.frame()) 
+      
+      all_presabs <- all_presabs %>%
+        dplyr::filter(!is.na(cell))%>%
+        group_by(cell) %>%
+        dplyr::distinct(cell, .keep_all=TRUE)%>%
+        dplyr::ungroup()
+
+  
+      #-----------------------------
+      #---Generate spatial folds
+      #-----------------------------
+      sf::sf_use_s2(FALSE)
+      set.seed(123)
+      sb <- blockCV::cv_spatial(
+        x         = vect(all_presabs),
+        column    = "species",
+        k         = cv_folds,
+        hexagon   = TRUE,
+        selection = "random",
+        iteration = 200,
+        size      = 100000) #100 km
+      
+      sf::sf_use_s2(TRUE)
+      fold_structure<-sb$blocks["folds"]
+      
+      
+      #------------------------------------------
+      #- Assign occs of ensemble model to folds -
+      #------------------------------------------
+      eu_presabs_perfold <- sf::st_join(sf::st_transform(eu_presabs, crs=sf::st_crs(global_presabs)),
+                                        fold_structure,  
+                                        join = sf::st_within,        
+                                        left = TRUE)%>%
+                            dplyr::filter(!is.na(folds))
+      
+      if(nrow(eu_presabs_perfold)!=nrow(eu_presabs)){
+        warning(nrow(eu_presabs)- nrow(eu_presabs_perfold)," Ensemble model point(s) not assigned to a fold and removed from dataset.")
+      }
+      
+    }else{
+      
+      sf::sf_use_s2(FALSE)
+      # Hex, class-balanced spatial folds
+      set.seed(123)
+      sb <- blockCV::cv_spatial(
+        x         = vect(global_presabs),
+        column    = "species",
+        k         = cv_folds,
+        hexagon   = TRUE,
+        selection = "random",
+        iteration = 200,
+        size      = 100000) #100 km
+      
+      sf::sf_use_s2(TRUE)
+      fold_structure<-sb$blocks["folds"]
+    }
+    
+    
+    #-----------------------------------------
+    #- Assign occs of climate model to folds -
+    #-----------------------------------------
+    global_presabs_perfold <- sf::st_join(global_presabs,
+                                      fold_structure,  
+                                      join = sf::st_within,        
+                                      left = TRUE)%>%
+                              dplyr::filter(!is.na(folds))
+    
+    if(nrow(global_presabs_perfold)!=nrow(global_presabs)){
+      warning(nrow(global_presabs)- nrow(global_presabs_perfold)," global point(s) not assigned to a fold and removed from dataset.")
+    }
+    
     
     # Initiate per-fold list
     fold_fav  <- vector("list", k)  
