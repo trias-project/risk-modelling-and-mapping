@@ -182,7 +182,7 @@ for (i in seq_along(accepted_taxonkeys)) {
   #--------------------------------------------------
   eu_occ <- global_presabs%>%
     dplyr::filter(species==1)%>%
-    st_transform(crs = st_crs(euboundary)) %>%
+    sf::st_filter(euboundary_wgs84) 
   
   #Only validate climate model in Europe if 40 or more occs 
   eu_climate_validation <- nrow(eu_occ) >= 40
@@ -197,9 +197,6 @@ for (i in seq_along(accepted_taxonkeys)) {
   climate_selection <- terra::subset(climate_stack,
                                      climate_predictors[climate_predictors %in%
                                                           names(climate_stack)])
-  eu_climate_selection  <- terra::subset(eu_climate_stack,
-                                         climate_predictors[climate_predictors %in%
-                                                              names(eu_climate_stack)])
   
   
   #-----------------------------------------------------------
@@ -208,7 +205,7 @@ for (i in seq_along(accepted_taxonkeys)) {
   global_points<-global_climate_sub %>%
     dplyr::select(any_of(climate_predictors))
   
-  if(predict.eu){
+  if(eu_climate_validation || ensemble_validation){
     eu_points <- eu_climate_sub %>%
       dplyr::select(any_of(climate_predictors))
   }
@@ -217,13 +214,30 @@ for (i in seq_along(accepted_taxonkeys)) {
   #-----------------------------------------------------------------
   #- Define if cross validation can be done and for how many folds -
   #-----------------------------------------------------------------
-  n_pres <- sum(global_presabs$species == 1)
-  k <- 0L
+  #Default is 0 folds and no CV
+  cv_folds <- 0L
   use_cv <- FALSE
   
-  if (n_pres >= 40L) {
-    k <- min(5L, floor(n_pres / 20L))
-    use_cv <- k >= 2L
+  #If ensemble validation is done, let EU data drive number of folds
+  if(ensemble_validation){
+    
+    habitatmodel   <- qs::qread(habitat_qs_file)
+    eu_presabs <- habitatmodel$eu_presabs
+    rm(habitatmodel)
+    
+    n_pres_ensemble <- sum(eu_presabs$species == 1)
+    if (n_pres_ensemble>= 40L) {
+      use_cv <- TRUE
+      cv_folds <- min(5L, floor(n_pres_ensemble / 20L))
+      }
+    
+  }else{
+    n_pres_global <- sum(global_presabs$species == 1)
+    if (n_pres_global  >= 40L) {
+      use_cv <- TRUE
+      cv_folds <- min(5L, floor(n_pres_global / 20L))
+      }
+    
   }
   
   
