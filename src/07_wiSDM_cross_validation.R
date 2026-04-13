@@ -847,7 +847,7 @@ for (i in seq_along(accepted_taxonkeys)) {
     )
     
     #Fit models
-    habitat_model <- sdm::sdm(species ~ ., data = sdm_data, methods = top5_methods)
+    habitat_model <- sdm::sdm(species ~ ., data = sdm_data, methods = top5_habitat_methods)
     
     
     #--------------------------------------
@@ -858,40 +858,28 @@ for (i in seq_along(accepted_taxonkeys)) {
     prev_ratio <- pres_total / abs_total
     
     
-    #--------------------------------------
-    #-        Extract climate data        -
-    #--------------------------------------
-    #Define presences and absences
-    presences <- eu_presabs[eu_presabs$species==1,]
-    absences <- eu_presabs[eu_presabs$species==0,]
-    
-    #Extract global climate data at presences and absences
-    occ_habitat <- terra::extract(habitat_selection, terra::vect(presences), ID = FALSE, xy = FALSE)
-    abs_habitat <- terra::extract(habitat_selection, terra::vect(absences), ID = FALSE, xy = FALSE)
-    occ_habitat <- occ_habitat[complete.cases(occ_habitat), ]
-    abs_habitat <- abs_habitat[complete.cases(abs_habitat), ]
-    
-    
     #-----------------------------------------------------------
-    #---------------- List datasets for predictions-------------
+    #---- Prepare datasets with habitat data for predictions --
     #-----------------------------------------------------------
-    datasets <- list(eu_points = eu_points,
-                     occ_habitat       = occ_habitat,
-                     abs_habitat       = abs_habitat)
+    #Extract data for validation in Europe
+    europe_hab<-extract_env(eu_presabs, habitat_selection)
+    habitat_datasets <- list(eu_habitat_points = eu_habitat_points,
+                             occ_hab       = europe_hab$presences,
+                             abs_hab       = europe_hab$absences)
     
-    
+   
     #-----------------------------------------------------------
     #---- Make predictions per model algorithm and dataset----
     #-----------------------------------------------------------
-    favourability_pred <- list()
-    for(modelmethod in top5_methods){
+    habitat_favourability <- list()
+    for(modelmethod in top5_habitat_methods){
       
       message("Predicting for method: ", modelmethod,".")
       
-      for(dataset_name in names(datasets)) {
+      for(dataset_name in names(habitat_datasets)) {
         
         #Load datasets
-        dataset <- datasets[[dataset_name]]
+        dataset <- habitat_datasets[[dataset_name]]
         
         #Predict for dataset
         dataset_suit <- predict(habitat_model,
@@ -902,7 +890,7 @@ for (i in seq_along(accepted_taxonkeys)) {
         dataset_fav<- favourability_from_prob(dataset_suit[[1]], prev_ratio)
         
         #Store in list
-        favourability_pred[[modelmethod]][[dataset_name]] <- dataset_fav
+        habitat_favourability[[modelmethod]][[dataset_name]] <- dataset_fav
         
         #Clean up
         rm(dataset_suit, dataset_fav)
@@ -915,22 +903,28 @@ for (i in seq_along(accepted_taxonkeys)) {
     #-----------------------------------------
     #---- Calculate median favourability  ----
     #-----------------------------------------
-    habitat_bg_favourability = apply(do.call(cbind, lapply(favourability_pred, `[[`, "eu_points")),
-                                     1, median, na.rm = TRUE) 
-    habitat_pres_favourability = apply(do.call(cbind, lapply(favourability_pred, `[[`, "occ_habitat")),
-                                       1, median, na.rm = TRUE) 
-    habitat_abs_favourability = apply(do.call(cbind, lapply(favourability_pred, `[[`, "abs_habitat")),
-                                      1, median, na.rm = TRUE) 
+    median_favourability_habitat <- lapply(names(habitat_datasets), function(dataset_name) {
+      apply(
+        do.call(cbind, lapply(habitat_favourability, `[[`, dataset_name)),
+        1,
+        median,
+        na.rm = TRUE
+      )
+    })
+    names(median_favourability_habitat) <- names(habitat_datasets)
     
     
     #-----------------------------------------
     #------- Compute Boyce, AUC, and TSS -----
     #-----------------------------------------
     eu_validation_habitat <- compute_validation_metrics(
+      species= speciesName,
+      type = "Europe_habitat",
       fold = "No cross-validation",
-      all_suit_vals = habitat_bg_favourability,
-      occ_suit_vals = habitat_pres_favourability,
-      abs_suit_vals = habitat_abs_favourability)
+      all_suit_vals = median_favourability_habitat$eu_habitat_points,
+      occ_suit_vals = median_favourability_habitat$occ_hab,
+      abs_suit_vals = median_favourability_habitat$abs_hab)
+
     
   }
 
