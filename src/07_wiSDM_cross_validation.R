@@ -341,25 +341,25 @@ for (i in seq_along(accepted_taxonkeys)) {
     
     # Initiate per-fold list
     fold_fav  <- vector("list", k)  
+    #- Create lists for storing results -
     
     
     #----------------------------------------------------------
     #-- Fit models on each training set and predict test set --
     #----------------------------------------------------------
-    #Define lists to store validation metrics
-    global_validation_climate <- list()
-    if(predict.eu) eu_validation_climate <- list()
-    
     #Start loop per fold
-    for (fold in seq_len(k)) {
-      message(sprintf("Creating validation metrics for fold %d/%d: use folds %s for training", fold, k, paste(seq_len(k)[-fold], collapse = ", ")))
+    for (fold in seq_len(cv_folds)) {
+      
+      message(sprintf("Creating validation metrics for fold %d/%d: use folds %s for training", 
+                      fold, cv_folds, paste(seq_len(cv_folds)[-fold], collapse = ", ")))
+      
       
       #--------------------------------------
       #-          Define train data         -
       #--------------------------------------
       #Create training dataset
-      train_idx <- which(fold_ids != fold)
-      train_data  <- global_presabs[train_idx, ]
+      train_data  <- global_presabs_perfold%>%
+        dplyr::filter(folds!=fold)
       
       # Prevalence ratio from training data
       pres_train <- sum(train_data$species == 1)
@@ -381,51 +381,46 @@ for (i in seq_along(accepted_taxonkeys)) {
       model <- sdm::sdm(species ~ ., data = sdm_data, methods = top5_methods)
       
       
-      #---------------------------------------------------
-      #- Get climate values at pres/abs in EU and global -
-      #---------------------------------------------------
-      #Define test presences and absences
-      test_idx <- which(fold_ids == fold)
-      test_data  <- global_presabs[test_idx, ]
-      test_presences <- test_data[test_data$species==1,]
-      test_absences <- test_data[test_data$species==0,]
+      #-----------------------------------------------------------
+      #---- Prepare datasets with climate data for predictions --
+      #-----------------------------------------------------------
+      #Extract data for global validation
+      test_data  <- global_presabs_perfold%>%
+        dplyr::filter(folds == fold)
       
-      #Extract global climate data at presences and absences
-      occ_env <- terra::extract(climate_selection, terra::vect(test_presences), ID = FALSE, xy = FALSE)
-      abs_env <- terra::extract(climate_selection, terra::vect(test_absences), ID = FALSE, xy = FALSE)
-      occ_env <- occ_env[complete.cases(occ_env), ]
-      abs_env <- abs_env[complete.cases(abs_env), ]
+      global_env <- extract_env(test_data, climate_selection)
+      datasets <- list(global_points = global_points,
+                       occ_env       = global_env$presences,
+                       abs_env       = global_env$absences)
       
-      #Extract EU climate data at presences and absences
-      if(predict.eu){
-        eu_occ_env <- terra::extract(eu_climate_selection, terra::vect(test_presences), ID = FALSE, xy = FALSE)
-        eu_abs_env <- terra::extract(eu_climate_selection, terra::vect(test_absences), ID = FALSE, xy = FALSE)
-        eu_occ_env <- eu_occ_env[complete.cases(eu_occ_env), ]
-        eu_abs_env <- eu_abs_env[complete.cases(eu_abs_env), ]
+      #Extract data for validation in Europe
+      if(eu_climate_validation){
+        eu_test_data  <- test_data%>%
+          sf::st_filter(euboundary_wgs84)
+        
+        eu_env<-extract_env(eu_test_data, climate_selection)
+        datasets$eu_occ_env <- eu_env$presences
+        datasets$eu_abs_env <- eu_env$absences
       }
       
-      
-      #-----------------------------------------------------------
-      #---------------- List datasets for predictions-------------
-      #-----------------------------------------------------------
-      if(predict.eu){
-        datasets <- list(global_points = global_points,
-                         occ_env       = occ_env,
-                         abs_env       = abs_env,
-                         eu_points     = eu_points,
-                         eu_occ_env    = eu_occ_env,
-                         eu_abs_env    = eu_abs_env)
-      }else{
-        datasets <- list(global_points = global_points,
-                         occ_env       = occ_env,
-                         abs_env       = abs_env)
+      #Extract data for validation of ensemble model
+      if(ensemble_validation){
+        ensemble_test_data<-eu_presabs_perfold%>%
+          dplyr::filter(folds == fold)
+        
+        ensemble_env<-extract_env(ensemble_test_data, climate_selection)
+        datasets$ens_occ_env <- ensemble_env$presences
+        datasets$ens_abs_env <- ensemble_env$absences
       }
+      
+      #Add EU background data for validation of ensemble and Europe
+      if (eu_climate_validation || ensemble_validation) {datasets$eu_points  <- eu_points}
       
       
       #-----------------------------------------------------------
       #---- Make predictions per model algorithm and dataset----
       #-----------------------------------------------------------
-      favourability_pred <- list()
+      climate_favourability <- list()
       for(modelmethod in top5_methods){
         
         message("Predicting for method: ", modelmethod,".")
@@ -444,56 +439,54 @@ for (i in seq_along(accepted_taxonkeys)) {
           dataset_fav<- favourability_from_prob(dataset_suit[[1]], prev_ratio)
           
           #Store in list
-          favourability_pred[[modelmethod]][[dataset_name]] <- dataset_fav
+          climate_favourability[[modelmethod]][[dataset_name]] <- dataset_fav
           
           #Clean up
           rm(dataset_suit, dataset_fav)
-          gc()
+    
         }
       }  
+      gc()
       
       
       #-----------------------------------------
       #---- Calculate median favourability  ----
       #-----------------------------------------
-      #Global
-      global_bg_favourability = apply(do.call(cbind, lapply(favourability_pred, `[[`, "global_points")),
-                                      1, median, na.rm = TRUE) 
-      global_pres_favourability = apply(do.call(cbind, lapply(favourability_pred, `[[`, "occ_env")),
-                                        1, median, na.rm = TRUE) 
-      global_abs_favourability = apply(do.call(cbind, lapply(favourability_pred, `[[`, "abs_env")),
-                                       1, median, na.rm = TRUE) 
-      
-      #Europe
-      if(predict.eu){
-        eu_bg_favourability = apply(do.call(cbind, lapply(favourability_pred, `[[`, "eu_points")),
-                                    1, median, na.rm = TRUE) 
-        eu_pres_favourability = apply(do.call(cbind, lapply(favourability_pred, `[[`, "eu_occ_env")),
-                                      1, median, na.rm = TRUE) 
-        eu_abs_favourability = apply(do.call(cbind, lapply(favourability_pred, `[[`, "eu_abs_env")),
-                                     1, median, na.rm = TRUE) 
-      }
+      median_favourability_climate_perfold[[fold]] <- lapply(names(datasets), function(dataset_name) {
+        apply(
+          do.call(cbind, lapply(climate_favourability, `[[`, dataset_name)),
+          1,
+          median,
+          na.rm = TRUE
+        )
+      })
+      names(median_favourability_climate_perfold[[fold]]) <- names(datasets)
+    
       
       
       #-----------------------------------------
       #------- Compute Boyce, AUC, and TSS -----
       #-----------------------------------------
-      message(sprintf("Calculating validation metrics for test fold %d/%d", fold,k))
+      climate_fav<-median_favourability_climate_perfold[[fold]]
       
       #Global
       global_validation_climate[[fold]] <- compute_validation_metrics(
+        species= speciesName,
+        type = "Global_climate",
         fold = fold,
-        all_suit_vals = global_bg_favourability,
-        occ_suit_vals = global_pres_favourability,
-        abs_suit_vals = global_abs_favourability)
+        all_suit_vals = climate_fav$global_points,
+        occ_suit_vals = climate_fav$occ_env,
+        abs_suit_vals = climate_fav$abs_env)
       
       #EU
-      if(predict.eu){
+      if(eu_climate_validation){
         eu_validation_climate[[fold]] <- compute_validation_metrics(
+          species= speciesName,
+          type = "Europe_climate",
           fold = fold,
-          all_suit_vals = eu_bg_favourability,
-          occ_suit_vals = eu_pres_favourability,
-          abs_suit_vals = eu_abs_favourability)
+          all_suit_vals = climate_fav$eu_points,
+          occ_suit_vals = climate_fav$eu_occ_env,
+          abs_suit_vals = climate_fav$eu_abs_env)
       }
       
       #Clean
@@ -504,8 +497,13 @@ for (i in seq_along(accepted_taxonkeys)) {
     #-----------------------------------------
     #---- Store validation metrics in dfs ----
     #-----------------------------------------
-    global_validation_climate <- as.data.frame(do.call(rbind, global_validation_climate))
-    if(predict.eu) eu_validation_climate <- as.data.frame(do.call(rbind, eu_validation_climate))
+    #Set AUC and tss to NA in global validation as these are calculated for different regions per species and, hence, are not comparable
+    global_validation_climate <- dplyr::bind_rows(global_validation_climate) %>%
+      dplyr::mutate(auc = NA_real_,
+                    tss = NA_real_)
+    if(eu_climate_validation){
+      eu_validation_climate <- dplyr::bind_rows(eu_validation_climate)
+    } 
     
     
   } else {
