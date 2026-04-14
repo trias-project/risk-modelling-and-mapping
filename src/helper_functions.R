@@ -1064,8 +1064,12 @@ extract_env <- function(pres_abs_points, raster) {
                                ID = FALSE,
                                xy = FALSE)
   
-  # Combine with species label and remove NA rows
-  df <- cbind(species = pres_abs_points$species, env_values)
+  # Combine with species label 
+  df <- cbind(species = pres_abs_points$species, 
+              ID = pres_abs_points$ID,
+              env_values)
+
+  #remove NA rows
   df <- df[complete.cases(df), ]
   
   list(
