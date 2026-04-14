@@ -1018,16 +1018,14 @@ for (i in seq_along(accepted_taxonkeys)) {
       clim_fav <- median_favourability_climate_perfold[[fold]]
       
       #Generate ensemble favourability for background points, occs, and abs.
-      ensemble_background_fav <- sqrt(hab_fav$eu_habitat_points*clim_fav$eu_points)
-      ensemble_occ_fav <- sqrt(hab_fav$occ_hab*clim_fav$ens_occ_env)
-      ensemble_abs_fav <- sqrt(hab_fav$abs_hab*clim_fav$ens_abs_env)
+      ensemble_background_fav <- ensemble_geom_mean(hab_fav$eu_habitat_points, clim_fav$eu_points, type="background")
+      ensemble_occ_fav <- ensemble_geom_mean(hab_fav$occ_hab,clim_fav$ens_occ_env, type="occurrence")
+      ensemble_abs_fav <- ensemble_geom_mean(hab_fav$abs_hab,clim_fav$ens_abs_env, type="absence")
       
       
       #-----------------------------------------
       #------- Compute Boyce, AUC, and TSS -----
       #-----------------------------------------
-      message(sprintf("Calculating ensemble validation metrics for test fold %d/%d", fold,cv_folds))
-      
       validation_ensemble[[fold]] <- compute_validation_metrics(
         species= speciesName,
         type = "Europe_ensemble",
@@ -1053,10 +1051,11 @@ for (i in seq_along(accepted_taxonkeys)) {
     hab_fav <- median_favourability_habitat
     clim_fav <- median_favourability_climate
     
+    
     #Generate ensemble favourability for background points, occs, and abs.
-    ensemble_background_fav <- sqrt(hab_fav$eu_habitat_points*clim_fav$eu_points)
-    ensemble_occ_fav <-sqrt(hab_fav$occ_hab*clim_fav$ens_occ_env)
-    ensemble_abs_fav <- sqrt(hab_fav$abs_hab*clim_fav$ens_abs_env)
+    ensemble_background_fav <- ensemble_geom_mean(hab_fav$eu_habitat_points, clim_fav$eu_points, type="background")
+    ensemble_occ_fav <- ensemble_geom_mean(hab_fav$occ_hab,clim_fav$ens_occ_env, type="occurrence")
+    ensemble_abs_fav <- ensemble_geom_mean(hab_fav$abs_hab,clim_fav$ens_abs_env, type="absence")
     
     
     #-----------------------------------------
