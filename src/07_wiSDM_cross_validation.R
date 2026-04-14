@@ -1,7 +1,7 @@
 #-------------------------------------------------------------------------------
 #--------------------------    Load packages      ------------------------------
 #-------------------------------------------------------------------------------
-packages <- c( "dplyr", "qs", "terra", "tidyterra", "sf", "here",
+packages <- c( "dplyr", "qs", "terra", "tidyterra", "sf", "here", "matrixStats",
                "ggplot2", "dismo",  "sdm", "purrr", "ecospat", "blockCV")
 
 installed <- rownames(installed.packages())
@@ -43,6 +43,9 @@ eu_climpreds_path <- file.path("data", "external", "climate", "chelsa_current","
 #habitat stack
 habitat_path <- file.path("data", "external", "habitat", "processed", "habitat_stack.tif")
 
+#Biome file path
+biome_path<-file.path("data", "external", "GIS", "official", "newRealms.shp")
+
 
 #--------------------------------------------
 #------------- Load species data ------------
@@ -76,15 +79,6 @@ eu_climate_stack<- terra::rast(eu_climpreds_path)%>%
 #-----------------------------------------------------------
 #- Sample background data once
 #-----------------------------------------------------------
-#Extract a subsample of global pixels for Boyce calculation: around 40min-1h!
-set.seed(728)
-global_subsample<- terra::spatSample(
-  climate_stack[[1]],
-  size = boyce_background_size, 
-  method = "random", 
-  na.rm = TRUE, #Ignore NA pixels
-  as.points = TRUE) 
-
 #Extract a subsample of European pixels for Boyce calculation 
 set.seed(728)
 eu_subsample <- terra::spatSample(
@@ -93,9 +87,6 @@ eu_subsample <- terra::spatSample(
   method = "random", 
   na.rm = TRUE, #Ignore NA pixels
   as.points = TRUE)
-
-# Extract climate data at global subsample points
-global_climate_sub <- terra::extract(climate_stack, global_subsample, ID = FALSE, xy = FALSE)
 
 # Extract climate data at eu subsample points
 eu_climate_sub <- terra::extract(eu_climate_stack, eu_subsample, ID = FALSE, xy = FALSE)
@@ -200,11 +191,42 @@ for (i in seq_along(accepted_taxonkeys)) {
   
   
   #-----------------------------------------------------------
-  #- Obtain climate subsample values for selected predictors
+  #- Obtain global climate subsample values for selected predictors
   #-----------------------------------------------------------
-  global_points<-global_climate_sub %>%
-    dplyr::select(any_of(climate_predictors))
+  #Load biomes
+  wwf_eco_biome<-sf::st_read(biome_path) 
   
+  # Keep only biome polygons that intersect at least one occurrence point
+  global_presences<-dplyr::filter(global_presabs, species==1)
+  sf::sf_use_s2(FALSE)
+  has_occurrence <- lengths(sf::st_intersects(wwf_eco_biome, global_presences)) > 0
+  wwf_ecoSub1 <- wwf_eco_biome[has_occurrence, ]
+  sf::sf_use_s2(TRUE)
+
+  
+  #Mask Chelsa layer with biomes with occurrences
+  wwf_ecoSub1_ext<-terra::ext(wwf_ecoSub1) 
+  wwf_ecoSub1_vector <- terra::vect(wwf_ecoSub1) 
+  climate_sub <- terra::crop(climate_selection[[1]], wwf_ecoSub1_ext) 
+  climate_sub <- terra::mask(climate_sub, wwf_ecoSub1_vector)
+  
+  #Extract a subsample of global pixels for Boyce calculation: around 40min-1h!
+  set.seed(728)
+  global_subsample<- terra::spatSample(
+    climate_sub,
+    size = boyce_background_size, 
+    method = "random", 
+    na.rm = TRUE, #Ignore NA pixels
+    as.points = TRUE) 
+  
+  # Extract climate data at global subsample points
+  global_climate_sub <- terra::extract(climate_selection, global_subsample, ID = FALSE, xy = FALSE)%>%
+    dplyr::mutate(ID = dplyr::row_number())
+  
+  
+  #-----------------------------------------------------------
+  #- Obtain European climate subsample values for selected predictors
+  #-----------------------------------------------------------
   if(eu_climate_validation || ensemble_validation){
     eu_points <- eu_climate_sub %>%
       dplyr::select(any_of(climate_predictors))
