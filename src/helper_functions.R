@@ -1073,3 +1073,28 @@ extract_env <- function(pres_abs_points, raster) {
     absences  = df[df$species == 0, -1]
   )
 }
+
+
+#-----------------------------------------------------------------
+#--Calculate the geometric mean for ensemble validation------------
+#-----------------------------------------------------------------
+ensemble_geom_mean <- function(hab_df, clim_df, type,value_col_hab = "median_favourability", value_col_clim = "median_favourability") {
+  
+  merged <- dplyr::inner_join(hab_df, clim_df, by = "ID", suffix = c("_hab", "_clim"))
+  
+  geom_mean<-sqrt(merged[[paste0(value_col_hab, "_hab")]] *
+         merged[[paste0(value_col_clim, "_clim")]])
+  
+  #Create a message for printing
+  n_all  <- max(nrow(hab_df), nrow(clim_df))
+  n_merged <- nrow(merged)
+  perc_retained <- 100 * n_merged / n_all
+  n_lost <- n_all  - n_merged
+
+  
+  message(sprintf(paste("Ensemble validation:", "%d European",type ,"points retained (%.0f%%).",
+    "%d point(s) excluded due to missing predictions in the climate or habitat model."
+  ), n_merged, perc_retained, n_lost))
+  
+  return(geom_mean)
+}
