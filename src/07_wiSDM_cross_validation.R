@@ -229,14 +229,16 @@ for (i in seq_along(accepted_taxonkeys)) {
   #-----------------------------------------------------------
   if(eu_climate_validation || ensemble_validation){
     eu_points <- eu_climate_sub %>%
-      dplyr::select(any_of(climate_predictors))
+      dplyr::select(any_of(climate_predictors))%>%
+      dplyr::mutate(ID = dplyr::row_number())
   }
   
   
   #-----------------------------------------------------------------
   #- Define if cross validation can be done and for how many folds -
   #-----------------------------------------------------------------
-  #Default is 0 folds and no CV
+ 
+   #Default is 0 folds and no CV
   cv_folds <- 0L
   use_cv <- FALSE
   
@@ -322,7 +324,8 @@ for (i in seq_along(accepted_taxonkeys)) {
                                         fold_structure,  
                                         join = sf::st_within,        
                                         left = TRUE)%>%
-                            dplyr::filter(!is.na(folds))
+                            dplyr::filter(!is.na(folds))%>%
+                            dplyr::mutate(ID = dplyr::row_number())
       
       if(nrow(eu_presabs_perfold)!=nrow(eu_presabs)){
         warning(nrow(eu_presabs)- nrow(eu_presabs_perfold)," Ensemble model point(s) not assigned to a fold and removed from dataset.")
@@ -354,7 +357,8 @@ for (i in seq_along(accepted_taxonkeys)) {
                                       fold_structure,  
                                       join = sf::st_within,        
                                       left = TRUE)%>%
-                              dplyr::filter(!is.na(folds))
+                              dplyr::filter(!is.na(folds))%>%
+                              dplyr::mutate(ID = dplyr::row_number())
     
     if(nrow(global_presabs_perfold)!=nrow(global_presabs)){
       warning(nrow(global_presabs)- nrow(global_presabs_perfold)," global point(s) not assigned to a fold and removed from dataset.")
@@ -407,7 +411,7 @@ for (i in seq_along(accepted_taxonkeys)) {
       
       
       #-----------------------------------------------------------
-      #---- Prepare datasets with climate data for predictions --
+      #--    Prepare datasets with climate data for predictions --
       #-----------------------------------------------------------
       #Extract data for global validation
       test_data  <- global_presabs_perfold%>%
@@ -454,6 +458,8 @@ for (i in seq_along(accepted_taxonkeys)) {
           
           #Load datasets
           dataset <- datasets[[dataset_name]]
+          IDs <-dataset$ID
+          dataset<-dplyr::select(dataset, -ID)
           
           #Predict for dataset
           dataset_suit <- predict(model,
@@ -464,10 +470,11 @@ for (i in seq_along(accepted_taxonkeys)) {
           dataset_fav<- favourability_from_prob(dataset_suit[[1]], prev_ratio)
           
           #Store in list
-          climate_favourability[[modelmethod]][[dataset_name]] <- dataset_fav
+          climate_favourability[[modelmethod]][[dataset_name]] <- data.frame(ID = IDs,
+                                                                             fav = dataset_fav)
           
           #Clean up
-          rm(dataset_suit, dataset_fav)
+          rm(dataset_suit, dataset_fav, IDs, dataset)
     
         }
       }  
@@ -477,14 +484,20 @@ for (i in seq_along(accepted_taxonkeys)) {
       #-----------------------------------------
       #---- Calculate median favourability  ----
       #-----------------------------------------
-      median_favourability_climate_perfold[[fold]] <- lapply(names(datasets), function(dataset_name) {
-        apply(
-          do.call(cbind, lapply(climate_favourability, `[[`, dataset_name)),
-          1,
-          median,
-          na.rm = TRUE
-        )
-      })
+      median_favourability_climate_perfold[[fold]] <- lapply(
+        names(datasets),
+        function(dataset_name) {
+          
+          fav_matrix <- do.call(
+            cbind,
+            lapply(climate_favourability, function(x) x[[dataset_name]]$fav)
+          )
+          
+          data.frame(ID = climate_favourability[[1]][[dataset_name]]$ID,
+                     median_favourability = matrixStats::rowMedians(fav_matrix,na.rm = TRUE))
+        }
+      )
+      
       names(median_favourability_climate_perfold[[fold]]) <- names(datasets)
     
       
@@ -499,9 +512,9 @@ for (i in seq_along(accepted_taxonkeys)) {
         species= speciesName,
         type = "Global_climate",
         fold = fold,
-        all_suit_vals = climate_fav$global_points,
-        occ_suit_vals = climate_fav$occ_env,
-        abs_suit_vals = climate_fav$abs_env)
+        all_suit_vals = climate_fav$global_points$median_favourability,
+        occ_suit_vals = climate_fav$occ_env$median_favourability,
+        abs_suit_vals = climate_fav$abs_env$median_favourability)
       
       #EU
       if(eu_climate_validation){
@@ -509,9 +522,9 @@ for (i in seq_along(accepted_taxonkeys)) {
           species= speciesName,
           type = "Europe_climate",
           fold = fold,
-          all_suit_vals = climate_fav$eu_points,
-          occ_suit_vals = climate_fav$eu_occ_env,
-          abs_suit_vals = climate_fav$eu_abs_env)
+          all_suit_vals = climate_fav$eu_points$median_favourability,
+          occ_suit_vals = climate_fav$eu_occ_env$median_favourability,
+          abs_suit_vals = climate_fav$eu_abs_env$median_favourability)
       }
       
       #Clean
@@ -523,9 +536,7 @@ for (i in seq_along(accepted_taxonkeys)) {
     #---- Store validation metrics in dfs ----
     #-----------------------------------------
     #Set AUC and tss to NA in global validation as these are calculated for different regions per species and, hence, are not comparable
-    global_validation_climate <- dplyr::bind_rows(global_validation_climate) %>%
-      dplyr::mutate(auc = NA_real_,
-                    tss = NA_real_)
+    global_validation_climate <- dplyr::bind_rows(global_validation_climate)
     if(eu_climate_validation){
       eu_validation_climate <- dplyr::bind_rows(eu_validation_climate)
     } 
@@ -604,6 +615,8 @@ for (i in seq_along(accepted_taxonkeys)) {
         
         #Load datasets
         dataset <- datasets[[dataset_name]]
+        IDs <-dataset$ID
+        dataset<-dplyr::select(dataset, -ID)
         
         #Predict for dataset
         dataset_suit <- predict(model,
@@ -614,10 +627,11 @@ for (i in seq_along(accepted_taxonkeys)) {
         dataset_fav<- favourability_from_prob(dataset_suit[[1]], prev_ratio)
         
         #Store in list
-        climate_favourability[[modelmethod]][[dataset_name]] <- dataset_fav
+        climate_favourability[[modelmethod]][[dataset_name]] <- data.frame(ID = IDs,
+                                                                           fav = dataset_fav)
         
         #Clean up
-        rm(dataset_suit, dataset_fav)
+        rm(dataset_suit, dataset_fav, IDs, dataset)
         gc()
         
       }
@@ -627,43 +641,50 @@ for (i in seq_along(accepted_taxonkeys)) {
     #-----------------------------------------
     #---- Calculate median favourability  ----
     #-----------------------------------------
-    median_favourability_climate <- lapply(names(datasets), function(dataset_name) {
-      apply(
-        do.call(cbind, lapply(climate_favourability, `[[`, dataset_name)),
-        1,
-        median,
-        na.rm = TRUE
-      )
-    })
-    names(median_favourability_climate) <- names(datasets)
+    median_fav_climate<- lapply(
+      names(datasets),
+      function(dataset_name) {
+        
+        fav_matrix <- do.call(
+          cbind,
+          lapply(climate_favourability, function(x) x[[dataset_name]]$fav)
+        )
+        
+        data.frame(ID = climate_favourability[[1]][[dataset_name]]$ID,
+                   median_favourability = matrixStats::rowMedians(fav_matrix,na.rm = TRUE))
+      }
+    )
+    names(median_fav_climate) <- names(datasets)
   
     
     #-----------------------------------------
     #------- Compute Boyce, AUC, and TSS -----
     #-----------------------------------------
-    message("Calculating validation metrics (no cross-validation)")
     
-    #Global
-    global_validation_climate <- compute_validation_metrics(
-      species = speciesName,
-      type =  "Global_climate",
-      fold = "No cross-validation",
-      all_suit_vals = median_favourability_climate$global_points,
-      occ_suit_vals = median_favourability_climate$occ_env,
-      abs_suit_vals = median_favourability_climate$abs_env)%>%
-      dplyr::select(-c("auc","tss")) 
-    
-    
-    #EU
-    if(eu_climate_validation){
-      eu_validation_climate <- compute_validation_metrics(
-        species = speciesName,
-        type =  "Europe_climate",
-        fold = "No cross-validation",
-        all_suit_vals = median_favourability_climate$eu_points,
-        occ_suit_vals = median_favourability_climate$eu_occ_env,
-        abs_suit_vals = median_favourability_climate$eu_abs_env)
+    if(!use_cv_climate_only){
+      message("Calculating validation metrics (no cross-validation)")
       
+      #Global
+      global_validation_climate <- compute_validation_metrics(
+        species = speciesName,
+        type =  "Global_climate",
+        fold = "No cross-validation",
+        all_suit_vals = median_fav_climate$global_points$median_favourability,
+        occ_suit_vals = median_fav_climate$occ_env$median_favourability,
+        abs_suit_vals = median_fav_climate$abs_env$median_favourability)
+      
+      
+      #EU
+      if(eu_climate_validation){
+        eu_validation_climate <- compute_validation_metrics(
+          species = speciesName,
+          type =  "Europe_climate",
+          fold = "No cross-validation",
+          all_suit_vals = median_fav_climate$eu_points$median_favourability,
+          occ_suit_vals = median_fav_climate$eu_occ_env$median_favourability,
+          abs_suit_vals = median_fav_climate$eu_abs_env$median_favourability)
+        
+      }
     }
 
   }
@@ -712,7 +733,8 @@ for (i in seq_along(accepted_taxonkeys)) {
   #- Obtain habitat subsample values for selected predictors
   #-----------------------------------------------------------
   eu_habitat_points<-eu_habitat_sub %>%
-    dplyr::select(any_of(habitat_predictors))
+    dplyr::select(any_of(habitat_predictors))%>%
+    dplyr::mutate(ID = dplyr::row_number())
   
   
   #-----------------------------------------------------------------
@@ -793,6 +815,8 @@ for (i in seq_along(accepted_taxonkeys)) {
           
           #Load datasets
           dataset <- habitat_datasets[[dataset_name]]
+          IDs <-dataset$ID
+          dataset<-dplyr::select(dataset, -ID)
           
           #Predict for dataset
           dataset_suit <- predict(habitat_model,
@@ -803,10 +827,11 @@ for (i in seq_along(accepted_taxonkeys)) {
           dataset_fav<- favourability_from_prob(dataset_suit[[1]], prev_ratio)
           
           #Store in list
-          habitat_favourability[[modelmethod]][[dataset_name]] <- dataset_fav
+          habitat_favourability[[modelmethod]][[dataset_name]] <- data.frame(ID = IDs,
+                                                                             fav = dataset_fav)
           
           #Clean up
-          rm(dataset_suit, dataset_fav)
+          rm(dataset_suit, dataset_fav, IDs, dataset)
           
         }
       }  
@@ -816,14 +841,19 @@ for (i in seq_along(accepted_taxonkeys)) {
       #-----------------------------------------
       #---- Calculate median favourability  ----
       #-----------------------------------------
-      median_favourability_habitat_perfold[[fold]] <- lapply(names(habitat_datasets), function(dataset_name) {
-        apply(
-          do.call(cbind, lapply(habitat_favourability, `[[`, dataset_name)),
-          1,
-          median,
-          na.rm = TRUE
-        )
-      })
+      median_favourability_habitat_perfold[[fold]] <- lapply(
+        names(habitat_datasets),
+        function(dataset_name) {
+          
+          fav_matrix <- do.call(
+            cbind,
+            lapply(habitat_favourability, function(x) x[[dataset_name]]$fav)
+          )
+          
+          data.frame(ID = habitat_favourability[[1]][[dataset_name]]$ID,
+                     median_favourability = matrixStats::rowMedians(fav_matrix,na.rm = TRUE))
+        }
+      )
       names(median_favourability_habitat_perfold[[fold]]) <- names(habitat_datasets)
   
       
@@ -837,9 +867,9 @@ for (i in seq_along(accepted_taxonkeys)) {
         species= speciesName,
         type = "Europe_habitat",
         fold = fold,
-        all_suit_vals = habitat_fav$eu_habitat_points,
-        occ_suit_vals = habitat_fav$occ_hab,
-        abs_suit_vals = habitat_fav$abs_hab)
+        all_suit_vals = habitat_fav$eu_habitat_points$median_favourability,
+        occ_suit_vals = habitat_fav$occ_hab$median_favourability,
+        abs_suit_vals = habitat_fav$abs_hab$median_favourability)
       
       #Clean
       terra::tmpFiles(remove = TRUE)
@@ -902,6 +932,8 @@ for (i in seq_along(accepted_taxonkeys)) {
         
         #Load datasets
         dataset <- habitat_datasets[[dataset_name]]
+        IDs <-dataset$ID
+        dataset<-dplyr::select(dataset, -ID)
         
         #Predict for dataset
         dataset_suit <- predict(habitat_model,
@@ -912,10 +944,11 @@ for (i in seq_along(accepted_taxonkeys)) {
         dataset_fav<- favourability_from_prob(dataset_suit[[1]], prev_ratio)
         
         #Store in list
-        habitat_favourability[[modelmethod]][[dataset_name]] <- dataset_fav
+        habitat_favourability[[modelmethod]][[dataset_name]] <- data.frame(ID = IDs,
+                                                                           fav = dataset_fav)
         
         #Clean up
-        rm(dataset_suit, dataset_fav)
+        rm(dataset_suit, dataset_fav, IDs, dataset)
         gc()
         
       }
@@ -925,15 +958,20 @@ for (i in seq_along(accepted_taxonkeys)) {
     #-----------------------------------------
     #---- Calculate median favourability  ----
     #-----------------------------------------
-    median_favourability_habitat <- lapply(names(habitat_datasets), function(dataset_name) {
-      apply(
-        do.call(cbind, lapply(habitat_favourability, `[[`, dataset_name)),
-        1,
-        median,
-        na.rm = TRUE
-      )
-    })
-    names(median_favourability_habitat) <- names(habitat_datasets)
+    median_fav_habitat <- lapply(
+      names(habitat_datasets),
+      function(dataset_name) {
+        
+        fav_matrix <- do.call(
+          cbind,
+          lapply(habitat_favourability, function(x) x[[dataset_name]]$fav)
+        )
+        
+        data.frame(ID = habitat_favourability[[1]][[dataset_name]]$ID,
+                   median_favourability = matrixStats::rowMedians(fav_matrix,na.rm = TRUE))
+      }
+    )
+    names(median_fav_habitat) <- names(habitat_datasets)
     
     
     #-----------------------------------------
@@ -943,9 +981,9 @@ for (i in seq_along(accepted_taxonkeys)) {
       species= speciesName,
       type = "Europe_habitat",
       fold = "No cross-validation",
-      all_suit_vals = median_favourability_habitat$eu_habitat_points,
-      occ_suit_vals = median_favourability_habitat$occ_hab,
-      abs_suit_vals = median_favourability_habitat$abs_hab)
+      all_suit_vals = median_fav_habitat$eu_habitat_points$median_favourability,
+      occ_suit_vals = median_fav_habitat$occ_hab$median_favourability,
+      abs_suit_vals = median_fav_habitat$abs_hab$median_favourability)
 
     
   }
@@ -972,6 +1010,8 @@ for (i in seq_along(accepted_taxonkeys)) {
     
     #Start loop per fold
     for (fold in seq_len(cv_folds)) {
+      
+      message(sprintf("Calculating ensemble validation metrics for test fold %d/%d", fold,cv_folds))
       
       # Extract median favourability for the current fold
       hab_fav <- median_favourability_habitat_perfold[[fold]]
