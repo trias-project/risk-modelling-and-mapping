@@ -247,40 +247,53 @@ for (i in seq_along(accepted_taxonkeys)) {
   #Default is 0 folds and no CV
   cv_folds <- 0L
   use_cv <- FALSE
+  use_cv_climate_only <- FALSE
   
   #If ensemble validation is done, let EU data drive number of folds
   if(ensemble_validation){
     
+    #Load presabs data of habitat model
     habitatmodel   <- qs::qread(habitat_qs_file)
     eu_presabs <- habitatmodel$eu_presabs
+    n_pres_ensemble <- sum(eu_presabs$species == 1)
     rm(habitatmodel)
     
-    n_pres_ensemble <- sum(eu_presabs$species == 1)
     if (n_pres_ensemble>= 40L) {
       use_cv <- TRUE
       cv_folds <- min(5L, floor(n_pres_ensemble / 20L))
-      }
+    }else if (nrow(global_presences) >= 40L) {
+      use_cv_climate_only <- TRUE
+      cv_folds <- min(5L, floor(nrow(global_presences) / 20L))
+      eu_presabs <- eu_presabs%>%
+        dplyr::mutate(ID = dplyr::row_number())
+      
+    }else{
+      eu_presabs <- eu_presabs%>%
+        dplyr::mutate(ID = dplyr::row_number())
+    }
     
   }else{
-    n_pres_global <- sum(global_presabs$species == 1)
-    if (n_pres_global  >= 40L) {
-      use_cv <- TRUE
-      cv_folds <- min(5L, floor(n_pres_global / 20L))
-      }
     
+    if (nrow(global_presences) >= 40L) {
+      use_cv <- TRUE
+      cv_folds <- min(5L, floor(nrow(global_presences) / 20L))
+    }else{
+      global_presabs <- global_presabs%>%
+        dplyr::mutate(ID = dplyr::row_number())
+    }
   }
   
   
   #-----------------------------------------------------------------
   #            OPTION 1: SPATIAL CROSS VALIDATION
   #-----------------------------------------------------------------
-  if (use_cv) {
+  if (use_cv || use_cv_climate_only) {
     
     #---------------------------------
     #----- Create spatial folds-------
     #---------------------------------
     
-    if(ensemble_validation){
+    if(ensemble_validation && !use_cv_climate_only){
       
       #--------------------------------------------------------------
       #---Prepare combined dataset of global_presabs and eu_presabs
@@ -289,14 +302,14 @@ for (i in seq_along(accepted_taxonkeys)) {
       all_presabs<-eu_presabs%>%
         sf::st_transform(crs=sf::st_crs(global_presabs))%>%
         dplyr::mutate(decimalLatitude = sf::st_coordinates(.)[, "Y"],
-               decimalLongitude = sf::st_coordinates(.)[, "X"])%>%
+                      decimalLongitude = sf::st_coordinates(.)[, "X"])%>%
         dplyr::bind_rows(global_presabs)
       
       #Remove duplicates
       all_presabs$cell <- terra::cellFromXY( climate_stack[[1]], 
                                              all_presabs%>%
-                                            st_coordinates%>%
-                                            as.data.frame()) 
+                                               st_coordinates%>%
+                                               as.data.frame()) 
       
       all_presabs <- all_presabs %>%
         dplyr::filter(!is.na(cell))%>%
@@ -439,7 +452,7 @@ for (i in seq_along(accepted_taxonkeys)) {
       }
       
       #Extract data for validation of ensemble model
-      if(ensemble_validation){
+      if(ensemble_validation & !use_cv_climate_only){
         ensemble_test_data<-eu_presabs_perfold%>%
           dplyr::filter(folds == fold)
         
@@ -548,7 +561,7 @@ for (i in seq_along(accepted_taxonkeys)) {
     } 
     
     
-  } else {
+  } else if (!use_cv) {
     
     #--------------------------------------------------
     #-          OPTION 2: NO CROSS VALIDATION
@@ -579,20 +592,24 @@ for (i in seq_along(accepted_taxonkeys)) {
     #-----------------------------------------------------------
     #---- Prepare datasets with climate data for predictions --
     #-----------------------------------------------------------
-    #Extract data for global validation
-    global_env<-extract_env(global_presabs, climate_selection)
-    datasets <- list(global_points = global_points,
-                     occ_env       = global_env$presences,
-                     abs_env       = global_env$absences)
+    datasets<-list()
     
-    #Extract data for validation in Europe
-    if(eu_climate_validation){
-      euboundary_presabs  <- global_presabs%>%
-        sf::st_filter(euboundary_wgs84)
+    if(!use_cv_climate_only){
+      #Extract data for global validation
+      global_env<-extract_env(global_presabs, climate_selection)
+      datasets <- list(global_points = global_points,
+                       occ_env       = global_env$presences,
+                       abs_env       = global_env$absences)
       
-      eu_env<-extract_env(euboundary_presabs, climate_selection)
-      datasets$eu_occ_env <- eu_env$presences
-      datasets$eu_abs_env <- eu_env$absences
+      #Extract data for validation in Europe
+      if(eu_climate_validation){
+        euboundary_presabs  <- global_presabs%>%
+          sf::st_filter(euboundary_wgs84)
+        
+        eu_env<-extract_env(euboundary_presabs, climate_selection)
+        datasets$eu_occ_env <- eu_env$presences
+        datasets$eu_abs_env <- eu_env$absences
+      }
     }
     
     #Extract data for validation of ensemble model
@@ -779,6 +796,7 @@ for (i in seq_along(accepted_taxonkeys)) {
   if (!ensemble_validation) {
     warning("No habitat model was fitted for species ", species,
             "\n Skipping habitat model validation.")
+    validation_summary[[speciesName]]<-  species_validation_summary
     next
     
   }
