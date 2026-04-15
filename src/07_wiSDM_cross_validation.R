@@ -132,9 +132,9 @@ for (i in seq_along(accepted_taxonkeys)) {
   
   
   #==============================================
-  #==============================================
+  #=                                            =
   #=           PART 1: Climate model            =
-  #==============================================
+  #=                                            =
   #==============================================
   
   message("\n--- Part 1: Global climate model ---")
@@ -154,7 +154,7 @@ for (i in seq_along(accepted_taxonkeys)) {
   #- Only do validation if climate model exists -
   #----------------------------------------------
   if (!file.exists(climate_qs_file)) {
-    warning("No climate model could be fitted for ",species,
+    warning("No climate model was found for ",species,
             "\nRun 03_fit_climate_model.R first.\n Skipping species.")
     next
   }
@@ -182,7 +182,7 @@ for (i in seq_along(accepted_taxonkeys)) {
   
   #Only validate ensemble model if habitat model could be fitted
   ensemble_validation <- file.exists(habitat_qs_file)
-
+  
   
   #---------------------------------------------------------
   #- Select climate rasters used in 03_fit_climate_model.R -
@@ -203,8 +203,9 @@ for (i in seq_along(accepted_taxonkeys)) {
   sf::sf_use_s2(FALSE)
   has_occurrence <- lengths(sf::st_intersects(wwf_eco_biome, global_presences)) > 0
   wwf_ecoSub1 <- wwf_eco_biome[has_occurrence, ]
+  rm(wwf_eco_biome)
   sf::sf_use_s2(TRUE)
-
+  
   
   #Mask Chelsa layer with biomes with occurrences
   wwf_ecoSub1_ext<-terra::ext(wwf_ecoSub1) 
@@ -212,7 +213,7 @@ for (i in seq_along(accepted_taxonkeys)) {
   climate_sub <- terra::crop(climate_selection[[1]], wwf_ecoSub1_ext) 
   climate_sub <- terra::mask(climate_sub, wwf_ecoSub1_vector)
   
-  #Extract a subsample of global pixels for Boyce calculation: around 40min-1h!
+  #Extract a subsample of global pixels for Boyce calculation
   set.seed(728)
   global_subsample<- terra::spatSample(
     climate_sub,
@@ -224,6 +225,9 @@ for (i in seq_along(accepted_taxonkeys)) {
   # Extract climate data at global subsample points
   global_climate_sub <- terra::extract(climate_selection, global_subsample, ID = FALSE, xy = FALSE)%>%
     dplyr::mutate(ID = dplyr::row_number())
+  
+  #Clean up
+  rm( wwf_ecoSub1, wwf_ecoSub1_ext, wwf_ecoSub1_vector,climate_sub, global_subsample)
   
   
   #-----------------------------------------------------------
@@ -239,8 +243,8 @@ for (i in seq_along(accepted_taxonkeys)) {
   #-----------------------------------------------------------------
   #- Define if cross validation can be done and for how many folds -
   #-----------------------------------------------------------------
- 
-   #Default is 0 folds and no CV
+  
+  #Default is 0 folds and no CV
   cv_folds <- 0L
   use_cv <- FALSE
   
@@ -299,8 +303,8 @@ for (i in seq_along(accepted_taxonkeys)) {
         group_by(cell) %>%
         dplyr::distinct(cell, .keep_all=TRUE)%>%
         dplyr::ungroup()
-
-  
+      
+      
       #-----------------------------
       #---Generate spatial folds
       #-----------------------------
@@ -326,8 +330,8 @@ for (i in seq_along(accepted_taxonkeys)) {
                                         fold_structure,  
                                         join = sf::st_within,        
                                         left = TRUE)%>%
-                            dplyr::filter(!is.na(folds))%>%
-                            dplyr::mutate(ID = dplyr::row_number())
+        dplyr::filter(!is.na(folds))%>%
+        dplyr::mutate(ID = dplyr::row_number())
       
       if(nrow(eu_presabs_perfold)!=nrow(eu_presabs)){
         warning(nrow(eu_presabs)- nrow(eu_presabs_perfold)," Ensemble model point(s) not assigned to a fold and removed from dataset.")
@@ -356,11 +360,11 @@ for (i in seq_along(accepted_taxonkeys)) {
     #- Assign occs of climate model to folds -
     #-----------------------------------------
     global_presabs_perfold <- sf::st_join(global_presabs,
-                                      fold_structure,  
-                                      join = sf::st_within,        
-                                      left = TRUE)%>%
-                              dplyr::filter(!is.na(folds))%>%
-                              dplyr::mutate(ID = dplyr::row_number())
+                                          fold_structure,  
+                                          join = sf::st_within,        
+                                          left = TRUE)%>%
+      dplyr::filter(!is.na(folds))%>%
+      dplyr::mutate(ID = dplyr::row_number())
     
     if(nrow(global_presabs_perfold)!=nrow(global_presabs)){
       warning(nrow(global_presabs)- nrow(global_presabs_perfold)," global point(s) not assigned to a fold and removed from dataset.")
@@ -381,7 +385,7 @@ for (i in seq_along(accepted_taxonkeys)) {
     #Start loop per fold
     for (fold in seq_len(cv_folds)) {
       
-      message(sprintf("Creating validation metrics for fold %d/%d: use folds %s for training", 
+      message(sprintf("Creating climate validation metrics for fold %d/%d: use folds %s for training", 
                       fold, cv_folds, paste(seq_len(cv_folds)[-fold], collapse = ", ")))
       
       
@@ -688,7 +692,7 @@ for (i in seq_along(accepted_taxonkeys)) {
         
       }
     }
-
+    
   }
   
   #--------------------------------------------
@@ -792,7 +796,7 @@ for (i in seq_along(accepted_taxonkeys)) {
   top5_habitat_methods  <- c("gam", "rf", "glmpoly", "mars", "maxent")
   habitat_predictors<-unique(habitatmodel[["varimp_df"]][["Predictor"]])
   rm(habitatmodel)
-
+  
   
   #---------------------------------------------------------
   #- Select landcover rasters used in 04_fit_climate_model.R -
@@ -814,7 +818,7 @@ for (i in seq_along(accepted_taxonkeys)) {
   #            OPTION 1: SPATIAL CROSS VALIDATION
   #-----------------------------------------------------------------
   if (use_cv) {
-
+    
     #--------------------------------------------
     #--Put fold assignment data in right CRS ----
     #--------------------------------------------
@@ -832,7 +836,7 @@ for (i in seq_along(accepted_taxonkeys)) {
     #Start loop per fold
     for (fold in seq_len(cv_folds)) {
       
-      message(sprintf("Creating validation metrics for fold %d/%d: use folds %s for training", 
+      message(sprintf("Creating habitat validation metrics for fold %d/%d: use folds %s for training", 
                       fold, cv_folds, paste(seq_len(cv_folds)[-fold], collapse = ", ")))
       
       
@@ -874,7 +878,6 @@ for (i in seq_along(accepted_taxonkeys)) {
       habitat_datasets <- list(eu_habitat_points = eu_habitat_points,
                                occ_hab       = europe_hab$presences,
                                abs_hab       = europe_hab$absences)
-    
       
       #-----------------------------------------------------------
       #---- Make predictions per model algorithm and dataset----
@@ -1057,7 +1060,7 @@ for (i in seq_along(accepted_taxonkeys)) {
       all_suit_vals = median_fav_habitat$eu_habitat_points$median_favourability,
       occ_suit_vals = median_fav_habitat$occ_hab$median_favourability,
       abs_suit_vals = median_fav_habitat$abs_hab$median_favourability)
-
+    
     
   }
   
