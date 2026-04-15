@@ -1059,7 +1059,7 @@ compute_boyce_robust <- function(fit_vals, obs_vals) {
 #------------------------------------------
 #---Calculate model validation metrics ----
 #------------------------------------------
-compute_validation_metrics <- function(species, type, fold, all_suit_vals, occ_suit_vals, abs_suit_vals) {
+compute_validation_metrics <- function(species, type, region, fold, all_suit_vals, occ_suit_vals, abs_suit_vals) {
   
   #Define number of presences and pseudoabsences
   n_pres   <- length(occ_suit_vals)
@@ -1097,27 +1097,45 @@ compute_validation_metrics <- function(species, type, fold, all_suit_vals, occ_s
     ord         <- order(all_preds, decreasing = TRUE)
     preds_s     <- all_preds[ord]
     labels_s    <- all_labels[ord]
+    
     # Cumulative TP and FP as threshold descends
     tp_cum <- cumsum(labels_s == 1L)
     fp_cum <- cumsum(labels_s == 0L)
-    sens   <- tp_cum / n_pres      # sensitivity  (= recall)
+    sens   <- tp_cum / n_pres      # sensitivity 
     spec   <- 1 - fp_cum / n_abs   # specificity
     tss_v  <- sens + spec - 1
-    max(tss_v, na.rm = TRUE)
-  }, error = function(e) NA_real_)
+    
+    # Identify the optimal threshold
+    best_idx <- which.max(tss_v)
+    
+    list(TSS        = tss_v[best_idx],
+         sensitivity = sens[best_idx],
+         specificity = spec[best_idx],
+         threshold   = preds_s[best_idx]
+    )
+  }, error = function(e) {
+    list(TSS = NA_real_,
+         sensitivity = NA_real_,
+         specificity = NA_real_,
+         threshold = NA_real_
+    )
+  })
   
   
   #------------------
   #- Return metrics -
   #------------------
-  return(c(Species = species,
-           Type = type,
-           test_fold = fold, 
-           n_pres = n_pres,
-           n_abs = n_abs,
-           auc = auc_val,
-           boyce = boyce_val,
-           tss = tss_val))
+  return(data.frame(Species = species,
+                    Type = type,
+                    Region = region,
+                    test_fold = fold, 
+                    n_pres = as.numeric(n_pres),
+                    n_abs = as.numeric(n_abs),
+                    auc = as.numeric(auc_val),
+                    boyce = as.numeric(boyce_val),
+                    tss = as.numeric(tss_val$TSS),
+                    sens = as.numeric(tss_val$sensitivity),
+                    spec = as.numeric(tss_val$specificity)))
  
 }
 
