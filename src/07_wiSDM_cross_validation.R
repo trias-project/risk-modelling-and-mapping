@@ -98,8 +98,9 @@ eu_habitat_sub <- terra::extract(habitat_stack, eu_subsample, ID = FALSE, xy = F
 #----------------------------------------------
 #----------- Define results directory ---------
 #----------------------------------------------
-results_dir <- file.path("data", "projects", project, "Model_validation_results")
-dir.create(results_dir, recursive = TRUE, showWarnings = FALSE)
+validation_dir <- file.path("data", "projects", project, "Model_validation")
+dir.create(validation_dir, recursive = TRUE, showWarnings = FALSE)
+validation_summary<-list()
 
 
 #--------------------------------------------
@@ -107,6 +108,7 @@ dir.create(results_dir, recursive = TRUE, showWarnings = FALSE)
 #--------------------------------------------
 for (i in seq_along(accepted_taxonkeys)) {
   
+  species_validation_summary<-data.frame()
   
   #--------------------------------------------
   #----------- Load species details -----------
