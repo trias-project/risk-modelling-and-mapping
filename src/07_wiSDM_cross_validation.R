@@ -481,7 +481,8 @@ for (i in seq_along(accepted_taxonkeys)) {
       #Global
       global_validation_climate[[fold]] <- compute_validation_metrics(
         species= speciesName,
-        type = "Global_climate",
+        type = "Climate",
+        region = "Global",
         fold = fold,
         all_suit_vals = climate_fav$global_points$median_favourability,
         occ_suit_vals = climate_fav$occ_env$median_favourability,
@@ -491,7 +492,8 @@ for (i in seq_along(accepted_taxonkeys)) {
       if(eu_climate_validation){
         eu_validation_climate[[fold]] <- compute_validation_metrics(
           species= speciesName,
-          type = "Europe_climate",
+          type = "Climate",
+          region = "Europe",
           fold = fold,
           all_suit_vals = climate_fav$eu_points$median_favourability,
           occ_suit_vals = climate_fav$eu_occ_env$median_favourability,
@@ -597,7 +599,8 @@ for (i in seq_along(accepted_taxonkeys)) {
       #Global
       global_validation_climate <- compute_validation_metrics(
         species = speciesName,
-        type =  "Global_climate",
+        type =  "Climate",
+        region = "Global",
         fold = "No cross-validation",
         all_suit_vals = median_fav_climate$global_points$median_favourability,
         occ_suit_vals = median_fav_climate$occ_env$median_favourability,
@@ -608,7 +611,8 @@ for (i in seq_along(accepted_taxonkeys)) {
       if(eu_climate_validation){
         eu_validation_climate <- compute_validation_metrics(
           species = speciesName,
-          type =  "Europe_climate",
+          type =  "Climate",
+          region = "Europe",
           fold = "No cross-validation",
           all_suit_vals = median_fav_climate$eu_points$median_favourability,
           occ_suit_vals = median_fav_climate$eu_occ_env$median_favourability,
@@ -822,7 +826,8 @@ for (i in seq_along(accepted_taxonkeys)) {
       #EU
       validation_habitat[[fold]] <- compute_validation_metrics(
         species= speciesName,
-        type = "Europe_habitat",
+        type = "Habitat",
+        region = "Europe",
         fold = fold,
         all_suit_vals = habitat_fav$eu_habitat_points$median_favourability,
         occ_suit_vals = habitat_fav$occ_hab$median_favourability,
@@ -891,7 +896,8 @@ for (i in seq_along(accepted_taxonkeys)) {
     #-----------------------------------------
     eu_validation_habitat <- compute_validation_metrics(
       species= speciesName,
-      type = "Europe_habitat",
+      type = "Habitat",
+      region = "Europe",
       fold = "No cross-validation",
       all_suit_vals = median_fav_habitat$eu_habitat_points$median_favourability,
       occ_suit_vals = median_fav_habitat$occ_hab$median_favourability,
@@ -971,7 +977,8 @@ for (i in seq_along(accepted_taxonkeys)) {
       #-----------------------------------------
       validation_ensemble[[fold]] <- compute_validation_metrics(
         species= speciesName,
-        type = "Europe_ensemble",
+        type = "Ensemble",
+        region = "Europe",
         fold = fold,
         all_suit_vals = ensemble_background_fav,
         occ_suit_vals =  ensemble_occ_fav ,
@@ -991,8 +998,8 @@ for (i in seq_along(accepted_taxonkeys)) {
     #--------------------------------------------------
     
     # Extract median favourability for habitat and climate
-    hab_fav <- median_favourability_habitat
-    clim_fav <- median_favourability_climate
+    hab_fav <- median_fav_habitat
+    clim_fav <- median_fav_climate
     
     
     #Generate ensemble favourability for background points, occs, and abs.
@@ -1008,7 +1015,8 @@ for (i in seq_along(accepted_taxonkeys)) {
     
     eu_validation_ensemble <- compute_validation_metrics(
       species= speciesName,
-      type = "Europe_ensemble",
+      type = "Ensemble",
+      region= "Europe",
       fold = "No cross-validation",
       all_suit_vals = ensemble_background_fav,
       occ_suit_vals =  ensemble_occ_fav ,
