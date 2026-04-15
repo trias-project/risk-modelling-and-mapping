@@ -689,6 +689,77 @@ for (i in seq_along(accepted_taxonkeys)) {
 
   }
   
+  #--------------------------------------------
+  #-------------- Export results --------------
+  #--------------------------------------------
+  # Define directories
+  climate_validation_dir<-file.path(base_dir, "Climate", "Current", "Diagnostics", "Model_validation")
+  if(!dir.exists(climate_validation_dir)) dir.create(climate_validation_dir, recursive = TRUE, showWarnings = FALSE)
+  
+  
+  # Export validation summary (mean across folds) when relevant
+  if(use_cv || use_cv_climate_only){
+    
+    #Export per fold validation
+    readr::write_csv(global_validation_climate,
+                     file.path(climate_validation_dir, paste0(speciesName, "_global_climate_validation_per_fold.csv"))) 
+    
+    #Export summary
+    global_validation_clim_mean <- summarise_validation(df = global_validation_climate, 
+                                                        validation = "Cross-validation")
+    readr::write_csv(global_validation_clim_mean,
+                     file.path(climate_validation_dir, paste0(speciesName, "_global_climate_validation_summary.csv"))) 
+    
+    #Bind results to validation summary
+    species_validation_summary <- species_validation_summary %>%
+      dplyr::bind_rows(global_validation_clim_mean)
+    
+    if (eu_climate_validation) {
+      
+      #Export per fold validation
+      readr::write_csv(eu_validation_climate,
+                       file.path(climate_validation_dir, paste0(speciesName, "_eu_climate_validation_per_fold.csv")))
+      
+      #Export summary
+      eu_validation_clim_mean <- summarise_validation(eu_validation_climate, 
+                                                      validation ="Cross-validation")
+      readr::write_csv(eu_validation_clim_mean,
+                       file.path(climate_validation_dir, paste0(speciesName, "_eu_climate_validation_summary.csv")))
+      
+      #Add summary to species validation df
+      species_validation_summary<-species_validation_summary%>%
+        dplyr::bind_rows(eu_validation_clim_mean)
+      
+    }
+    
+  }else{
+    #Export non-cross-validated results
+    readr::write_csv(global_validation_climate,
+                     file.path(climate_validation_dir, paste0(speciesName, "_global_climate_validation_summary.csv")))
+    
+    #Add summary to species validation df
+    global_validation_clim_mean<-summarise_validation(df = global_validation_climate,
+                                                      validation = "No cross-validation")
+    
+    species_validation_summary<-species_validation_summary%>%
+      dplyr::bind_rows(global_validation_clim_mean)
+    
+    if (eu_climate_validation) {
+      #Export non crossvalidated results
+      readr::write_csv(eu_validation_climate,
+                       file.path(climate_validation_dir, paste0(speciesName, "_eu_climate_validation_summary.csv")))
+      
+      #Store summary in species validation df
+      eu_validation_clim_mean<-summarise_validation(eu_validation_climate,
+                                                    validation = "No cross-validation")
+      
+      species_validation_summary<-species_validation_summary%>%
+        dplyr::bind_rows(eu_validation_clim_mean)
+      
+    }
+  }
+  
+  
   
   #==============================================
   #=                                            =
@@ -987,7 +1058,38 @@ for (i in seq_along(accepted_taxonkeys)) {
 
     
   }
-
+  
+  #--------------------------------------------
+  #-------------- Export results --------------
+  #--------------------------------------------
+  # Export validation overview
+  habitat_validation_dir<-file.path(base_dir, "Habitat", "Current", "Diagnostics", "Model_validation")
+  if(!dir.exists(habitat_validation_dir)) dir.create(habitat_validation_dir, recursive = TRUE, showWarnings = FALSE)
+  
+  # Export validation summary (mean across folds) when relevant
+  if(use_cv){
+    
+    #Export per fold validation metrics
+    readr::write_csv(eu_validation_habitat,
+                     file.path(habitat_validation_dir, paste0(speciesName, "_habitat_validation_per_fold.csv")))
+    
+    #Export summary validation metrics
+    validation_hab_mean<-summarise_validation(eu_validation_habitat,
+                                              validation = "Cross-validation")
+    readr::write_csv(validation_hab_mean,
+                     file.path(habitat_validation_dir, paste0(speciesName, "_habitat_validation_summary.csv")))
+    
+  }else{
+    validation_hab_mean<-summarise_validation(eu_validation_habitat,
+                                              validation = "No cross-validation")
+    
+    readr::write_csv(eu_validation_habitat,
+                     file.path(habitat_validation_dir, paste0(speciesName, "_habitat_validation_summary.csv")))
+  }
+  
+  species_validation_summary<-species_validation_summary%>%
+    dplyr::bind_rows(validation_hab_mean)
+  
   
   
   #==============================================
@@ -1072,11 +1174,51 @@ for (i in seq_along(accepted_taxonkeys)) {
       abs_suit_vals = ensemble_abs_fav)
     
   }
+  
+  
+  #--------------------------------------------
+  #-------------- Export results --------------
+  #--------------------------------------------
+  # Define directory
+  ensemble_validation_dir<-file.path(base_dir, "Combined", "Current", "Diagnostics", "Model_validation")
+  if(!dir.exists(ensemble_validation_dir)) dir.create(ensemble_validation_dir, recursive = TRUE, showWarnings = FALSE)
+  
+  # Export validation summary (mean across folds) when relevant
+  if(use_cv){
     
-
-  #==============================================
-  #=                                            =
-  #=         PART 4: Export results             =
-  #=                                            =
-  #==============================================
+    #Export per fold validation metrics
+    readr::write_csv(eu_validation_ensemble,
+                     file.path(ensemble_validation_dir, paste0(speciesName, "_combined_validation_per_fold.csv")))
+    
+    #Export summary validation metrics
+    validation_ens_mean<- summarise_validation(eu_validation_ensemble,
+                                               validation = "Cross-validation")
+    readr::write_csv(validation_ens_mean,
+                     file.path(ensemble_validation_dir, paste0(speciesName, "_combined_validation_summary.csv")))
+    
+  }else{
+    
+    #Export summary validation metrics
+    validation_ens_mean<-summarise_validation(eu_validation_ensemble,
+                                              validation="No cross-validation")
+    readr::write_csv(eu_validation_ensemble,
+                     file.path(ensemble_validation_dir, paste0(speciesName, "_combined_validation_summary.csv")))
+    
+  }
+  
+  species_validation_summary<-species_validation_summary%>%
+    dplyr::bind_rows(validation_ens_mean)
+  
+  #--------------------------------------------
+  #-----Store results in validation summary ---
+  #--------------------------------------------
+  validation_summary[[speciesName]]<-  species_validation_summary
+  
 }
+
+#--------------------------------------------
+#----- Export combined validation results--------------
+#--------------------------------------------
+final_validation <- bind_rows(validation_summary)
+readr::write_csv(final_validation,
+                 file.path(validation_dir, "Validation_summary.csv"))
