@@ -1188,3 +1188,56 @@ ensemble_geom_mean <- function(hab_df, clim_df, type,value_col_hab = "median_fav
   
   return(geom_mean)
 }
+
+
+#-----------------------------------------------------------------
+#--Put NO CV validation data in right format ----------
+#-----------------------------------------------------------------
+summarise_validation<- function(df, validation){
+  
+  #Check that all necessary columns are present
+  required_cols <- c("Species", "Type", "Region", "test_fold","auc", "boyce", "tss", "sens", "spec")
+  missing_cols <- setdiff(required_cols, names(df))
+  
+  if (length(missing_cols) > 0) {
+    stop("Missing required columns: ", paste(missing_cols, collapse = ", "))
+  }
+  
+  if(validation=="Cross-validation"){
+    
+    df<-df %>%
+      dplyr::group_by(Species, Type, Region)%>%
+      dplyr::summarise(n_folds   = n_distinct(test_fold),
+                       mean_auc  = mean(auc, na.rm = TRUE),
+                       sd_auc    = sd(auc, na.rm = TRUE),
+                       mean_boyce = mean(boyce, na.rm = TRUE),
+                       sd_boyce   = sd(boyce, na.rm = TRUE),
+                       mean_tss  = mean(tss, na.rm = TRUE),
+                       sd_tss    = sd(tss, na.rm = TRUE),
+                       mean_sens  = mean(sens, na.rm = TRUE),
+                       sd_sens    = sd(sens, na.rm = TRUE),
+                       mean_spec  = mean(spec, na.rm = TRUE),
+                       sd_spec = sd(spec, na.rm = TRUE))%>%
+      dplyr::mutate(validation = "Cross-validation")
+  }else{
+  #Prepare data in right format
+  df<- df %>%
+  dplyr::transmute(Species,
+                   Type,
+                   Region,
+                   n_folds = NA_real_,
+                   mean_auc = auc,
+                   sd_auc = NA_real_,
+                   mean_boyce = boyce,
+                   sd_boyce = NA_real_,
+                   mean_tss = tss,
+                   sd_tss = NA_real_,
+                   mean_sens = sens,
+                   sd_sens = NA_real_,
+                   mean_spec = spec,
+                   sd_spec= NA_real_,
+                   validation = "No cross-validation")
+ 
+  }
+  return(df)
+}
