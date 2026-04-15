@@ -223,7 +223,7 @@ for (i in seq_along(accepted_taxonkeys)) {
     as.points = TRUE) 
   
   # Extract climate data at global subsample points
-  global_climate_sub <- terra::extract(climate_selection, global_subsample, ID = FALSE, xy = FALSE)%>%
+  global_points<- terra::extract(climate_selection, global_subsample, ID = FALSE, xy = FALSE)%>%
     dplyr::mutate(ID = dplyr::row_number())
   
   #Clean up
