@@ -927,6 +927,74 @@ read_or_redownload <- function(file, folder, doi, max_attempts = 3) {
 }
 
 
+
+#----------------------------------------------------------------------
+#- Make predictions per model algorithm and dataset and obtain median -
+#----------------------------------------------------------------------
+
+compute_median_favourability <- function(model,
+                                         datasets,
+                                         top5_methods,
+                                         prev_ratio) {
+  
+  #---------------------------
+  #---- Make predictions -----
+  #---------------------------
+  
+  env_favourability <- list()
+  for(modelmethod in top5_methods){
+    
+    message("Predicting for method: ", modelmethod,".")
+    
+    for(dataset_name in names(datasets)) {
+      
+      #Load datasets
+      dataset <- datasets[[dataset_name]]
+      IDs <-dataset$ID
+      dataset<-dplyr::select(dataset, -ID)
+      
+      #Predict for dataset
+      dataset_suit <- predict(model,
+                              newdata = dataset,
+                              method = modelmethod)
+      
+      #Convert suitability to favourability
+      dataset_fav<- favourability_from_prob(dataset_suit[[1]], prev_ratio)
+      
+      #Store in list
+      env_favourability[[modelmethod]][[dataset_name]] <- data.frame(ID = IDs,
+                                                                     fav = dataset_fav)
+      
+      #Clean up
+      rm(dataset_suit, dataset_fav, IDs, dataset)
+      
+    }
+  }  
+  
+  
+  #-----------------------------------------
+  #---- Calculate median favourability  ----
+  #-----------------------------------------
+  median_favourability<-lapply(
+    names(datasets),
+    function(dataset_name) {
+      
+      fav_matrix <- do.call(
+        cbind,
+        lapply(env_favourability, function(x) x[[dataset_name]]$fav)
+      )
+      
+      data.frame(ID = env_favourability[[1]][[dataset_name]]$ID,
+                 median_favourability = matrixStats::rowMedians(fav_matrix,na.rm = TRUE))
+    }
+  )
+  
+  names(median_favourability) <- names(datasets)
+  
+  return(median_favourability)
+}
+
+
 #------------------------------------------
 #----- Define Boyce helper functions -----
 #------------------------------------------
