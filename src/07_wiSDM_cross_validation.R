@@ -465,61 +465,13 @@ for (i in seq_along(accepted_taxonkeys)) {
       if (eu_climate_validation || ensemble_validation) {datasets$eu_points  <- eu_points}
       
       
-      #-----------------------------------------------------------
-      #---- Make predictions per model algorithm and dataset----
-      #-----------------------------------------------------------
-      climate_favourability <- list()
-      for(modelmethod in top5_methods){
-        
-        message("Predicting for method: ", modelmethod,".")
-        
-        for(dataset_name in names(datasets)) {
-          
-          #Load datasets
-          dataset <- datasets[[dataset_name]]
-          IDs <-dataset$ID
-          dataset<-dplyr::select(dataset, -ID)
-          
-          #Predict for dataset
-          dataset_suit <- predict(model,
-                                  newdata = dataset,
-                                  method = modelmethod)
-          
-          #Convert suitability to favourability
-          dataset_fav<- favourability_from_prob(dataset_suit[[1]], prev_ratio)
-          
-          #Store in list
-          climate_favourability[[modelmethod]][[dataset_name]] <- data.frame(ID = IDs,
-                                                                             fav = dataset_fav)
-          
-          #Clean up
-          rm(dataset_suit, dataset_fav, IDs, dataset)
-    
-        }
-      }  
-      gc()
-      
-      
-      #-----------------------------------------
-      #---- Calculate median favourability  ----
-      #-----------------------------------------
-      median_favourability_climate_perfold[[fold]] <- lapply(
-        names(datasets),
-        function(dataset_name) {
-          
-          fav_matrix <- do.call(
-            cbind,
-            lapply(climate_favourability, function(x) x[[dataset_name]]$fav)
-          )
-          
-          data.frame(ID = climate_favourability[[1]][[dataset_name]]$ID,
-                     median_favourability = matrixStats::rowMedians(fav_matrix,na.rm = TRUE))
-        }
-      )
-      
-      names(median_favourability_climate_perfold[[fold]]) <- names(datasets)
-    
-      
+      #---------------------------------------------------------------------
+      #---- Make predictions per model algorithm and dataset and get median 
+      #----------------------------------------------------------------------
+      median_favourability_climate_perfold[[fold]]<- compute_median_favourability(model,
+                                                                                  datasets,
+                                                                                  top5_methods,
+                                                                                  prev_ratio)
       
       #-----------------------------------------
       #------- Compute Boyce, AUC, and TSS -----
@@ -629,56 +581,11 @@ for (i in seq_along(accepted_taxonkeys)) {
     #-----------------------------------------------------------
     #---- Make predictions per model algorithm and dataset----
     #-----------------------------------------------------------
-    climate_favourability <- list()
-    for(modelmethod in top5_methods){
-      
-      message("Predicting for method: ", modelmethod,".")
-      
-      for(dataset_name in names(datasets)) {
-        
-        #Load datasets
-        dataset <- datasets[[dataset_name]]
-        IDs <-dataset$ID
-        dataset<-dplyr::select(dataset, -ID)
-        
-        #Predict for dataset
-        dataset_suit <- predict(model,
-                                newdata = dataset,
-                                method = modelmethod)
-        
-        #Convert suitability to favourability
-        dataset_fav<- favourability_from_prob(dataset_suit[[1]], prev_ratio)
-        
-        #Store in list
-        climate_favourability[[modelmethod]][[dataset_name]] <- data.frame(ID = IDs,
-                                                                           fav = dataset_fav)
-        
-        #Clean up
-        rm(dataset_suit, dataset_fav, IDs, dataset)
-        gc()
-        
-      }
-    }  
+    median_fav_climate<- compute_median_favourability(model,
+                                                      datasets,
+                                                      top5_methods,
+                                                      prev_ratio)
     
-    
-    #-----------------------------------------
-    #---- Calculate median favourability  ----
-    #-----------------------------------------
-    median_fav_climate<- lapply(
-      names(datasets),
-      function(dataset_name) {
-        
-        fav_matrix <- do.call(
-          cbind,
-          lapply(climate_favourability, function(x) x[[dataset_name]]$fav)
-        )
-        
-        data.frame(ID = climate_favourability[[1]][[dataset_name]]$ID,
-                   median_favourability = matrixStats::rowMedians(fav_matrix,na.rm = TRUE))
-      }
-    )
-    names(median_fav_climate) <- names(datasets)
-  
     
     #-----------------------------------------
     #------- Compute Boyce, AUC, and TSS -----
@@ -897,59 +804,15 @@ for (i in seq_along(accepted_taxonkeys)) {
                                occ_hab       = europe_hab$presences,
                                abs_hab       = europe_hab$absences)
       
-      #-----------------------------------------------------------
-      #---- Make predictions per model algorithm and dataset----
-      #-----------------------------------------------------------
-      habitat_favourability <- list()
-      for(modelmethod in top5_habitat_methods){
-        
-        message("Predicting for method: ", modelmethod,".")
-        
-        for(dataset_name in names(habitat_datasets)) {
-          
-          #Load datasets
-          dataset <- habitat_datasets[[dataset_name]]
-          IDs <-dataset$ID
-          dataset<-dplyr::select(dataset, -ID)
-          
-          #Predict for dataset
-          dataset_suit <- predict(habitat_model,
-                                  newdata = dataset,
-                                  method = modelmethod)
-          
-          #Convert suitability to favourability
-          dataset_fav<- favourability_from_prob(dataset_suit[[1]], prev_ratio)
-          
-          #Store in list
-          habitat_favourability[[modelmethod]][[dataset_name]] <- data.frame(ID = IDs,
-                                                                             fav = dataset_fav)
-          
-          #Clean up
-          rm(dataset_suit, dataset_fav, IDs, dataset)
-          
-        }
-      }  
-      gc()
       
+      #---------------------------------------------------------------------
+      #---- Make predictions per model algorithm and dataset and get median 
+      #----------------------------------------------------------------------
+      median_favourability_habitat_perfold[[fold]]<- compute_median_favourability(habitat_model,
+                                                                                  habitat_datasets,
+                                                                                  top5_habitat_methods,
+                                                                                  prev_ratio)
       
-      #-----------------------------------------
-      #---- Calculate median favourability  ----
-      #-----------------------------------------
-      median_favourability_habitat_perfold[[fold]] <- lapply(
-        names(habitat_datasets),
-        function(dataset_name) {
-          
-          fav_matrix <- do.call(
-            cbind,
-            lapply(habitat_favourability, function(x) x[[dataset_name]]$fav)
-          )
-          
-          data.frame(ID = habitat_favourability[[1]][[dataset_name]]$ID,
-                     median_favourability = matrixStats::rowMedians(fav_matrix,na.rm = TRUE))
-        }
-      )
-      names(median_favourability_habitat_perfold[[fold]]) <- names(habitat_datasets)
-  
       
       #-----------------------------------------
       #------- Compute Boyce, AUC, and TSS -----
@@ -1013,59 +876,14 @@ for (i in seq_along(accepted_taxonkeys)) {
                              occ_hab       = europe_hab$presences,
                              abs_hab       = europe_hab$absences)
     
-   
-    #-----------------------------------------------------------
-    #---- Make predictions per model algorithm and dataset----
-    #-----------------------------------------------------------
-    habitat_favourability <- list()
-    for(modelmethod in top5_habitat_methods){
-      
-      message("Predicting for method: ", modelmethod,".")
-      
-      for(dataset_name in names(habitat_datasets)) {
-        
-        #Load datasets
-        dataset <- habitat_datasets[[dataset_name]]
-        IDs <-dataset$ID
-        dataset<-dplyr::select(dataset, -ID)
-        
-        #Predict for dataset
-        dataset_suit <- predict(habitat_model,
-                                newdata = dataset,
-                                method = modelmethod)
-        
-        #Convert suitability to favourability
-        dataset_fav<- favourability_from_prob(dataset_suit[[1]], prev_ratio)
-        
-        #Store in list
-        habitat_favourability[[modelmethod]][[dataset_name]] <- data.frame(ID = IDs,
-                                                                           fav = dataset_fav)
-        
-        #Clean up
-        rm(dataset_suit, dataset_fav, IDs, dataset)
-        gc()
-        
-      }
-    }  
     
-    
-    #-----------------------------------------
-    #---- Calculate median favourability  ----
-    #-----------------------------------------
-    median_fav_habitat <- lapply(
-      names(habitat_datasets),
-      function(dataset_name) {
-        
-        fav_matrix <- do.call(
-          cbind,
-          lapply(habitat_favourability, function(x) x[[dataset_name]]$fav)
-        )
-        
-        data.frame(ID = habitat_favourability[[1]][[dataset_name]]$ID,
-                   median_favourability = matrixStats::rowMedians(fav_matrix,na.rm = TRUE))
-      }
-    )
-    names(median_fav_habitat) <- names(habitat_datasets)
+    #---------------------------------------------------------------------
+    #---- Make predictions per model algorithm and dataset and get median 
+    #----------------------------------------------------------------------
+    median_fav_habitat<- compute_median_favourability(habitat_model,
+                                                      habitat_datasets,
+                                                      top5_habitat_methods,
+                                                      prev_ratio)
     
     
     #-----------------------------------------
