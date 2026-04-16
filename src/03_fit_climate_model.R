@@ -57,16 +57,16 @@ processed_folder<-file.path("data", "external", "climate", "chelsa_current","pro
 globalclimpreds_file <- file.path(processed_folder, "globalclimpreds.tif")
 globalclimpreds_5k_file <- file.path(processed_folder,"globalclim_5k.tif")
 eu_climpreds_file <- file.path(processed_folder,"euclimpreds.tif")
-if(tolower(country_of_interest)!="europe"){
+if(tolower(country_of_interest)!="europe" || !is.null(custom_country_boundary_path)){
   country_climpreds_file <- file.path(processed_folder, "country_climpreds.tif")
 }else{
   country_climpreds_file<-eu_climpreds_file
 }
 
 
-#--------------------------------------------
+#---------------------------------------------------
 #-Define file paths of future environmental layers -
-#--------------------------------------------
+#---------------------------------------------------
 future_paths <- list()
 for (period in c("2041-2070","2071-2100")){
   for(scenario in c("ssp126", "ssp370", "ssp585")){
@@ -91,7 +91,7 @@ euboundary <- terra::rast(file.path("data", "external", "habitat", "Agriculture.
   terra::project(chelsa_example_raster[[1]])%>%
   terra::crop(terra::ext(-38, 50,  24.29152732065, 72.66652712715))
 
-if(tolower(country_of_interest)!="europe"){
+if(tolower(country_of_interest)!="europe" || !is.null(custom_country_boundary_path)){
 country_boundary<-sf::read_sf(here::here("data","external","GIS","Country","country.shp"))%>%
   sf::st_transform(crs(chelsa_example_raster))%>%
   terra::vect()
@@ -564,7 +564,7 @@ with_progress({
       subset(!names(eu_climpreds.10) %in% highlyCorrelated)
     
     #Remove them from the country stack
-    if(tolower(country_of_interest)!="europe"){
+    if(tolower(country_of_interest)!="europe" || !is.null(custom_country_boundary_path)){
     country_climpreds <- terra::rast(country_climpreds_file)
     country_climpreds_selection <- country_climpreds %>%
       subset(!names(country_climpreds) %in% highlyCorrelated)
@@ -717,11 +717,7 @@ with_progress({
     consensus_sd <- stdev(top5_stack, pop=TRUE)
     
     #Step 9: Create country_level layers if relevant
-    if(tolower(country_of_interest)=="europe"){
-      ensemble_suitability<-consensus_median
-      ensemble_sd <- consensus_sd
-      ensemble_mean<-consensus_mean
-    }else{
+    if(tolower(country_of_interest)!="europe" ||!is.null(custom_country_boundary_path)){
       ensemble_suitability<- consensus_median%>%
         terra::crop(country_boundary)%>%
         terra::mask(country_boundary)
@@ -733,6 +729,11 @@ with_progress({
       ensemble_mean<- consensus_mean%>%
         terra::crop(country_boundary)%>%
         terra::mask(country_boundary)
+
+    }else{
+      ensemble_suitability<-consensus_median
+      ensemble_sd <- consensus_sd
+      ensemble_mean<-consensus_mean
     }
     
     
@@ -1122,24 +1123,25 @@ with_progress({
 
     
     #Export suitability predictions for europe (needed for mtp calculation in habitat script) and, if relevant, for country of interest
-    if(tolower(country_of_interest)=="europe"){
-      terra::writeRaster(consensus_median, filename = ensemble_median_file, overwrite = TRUE)
-      terra::writeRaster(consensus_mean, filename = ensemble_mean_file, overwrite = TRUE)
-      terra::writeRaster(consensus_sd, filename = ensemble_sd_file, overwrite = TRUE)
-    }else{
+    if(tolower(country_of_interest)!="europe" || !is.null(custom_country_boundary_path)){
       europe_ensemble_median_file<- file.path( base_dir,"Climate", "Current", "Predictions", "Rasters",
-                                                paste0(basefile, "current_ensemble_Europe.tif"))
+                                               paste0(basefile, "current_ensemble_Europe.tif"))
       terra::writeRaster(consensus_median, filename = europe_ensemble_median_file, overwrite = TRUE)
       terra::writeRaster(ensemble_suitability, filename = ensemble_median_file, overwrite = TRUE)
       terra::writeRaster(ensemble_mean, filename = ensemble_mean_file, overwrite = TRUE)
       terra::writeRaster(ensemble_sd, filename = ensemble_sd_file, overwrite = TRUE)
+    }else{
+      terra::writeRaster(consensus_median, filename = ensemble_median_file, overwrite = TRUE)
+      terra::writeRaster(consensus_mean, filename = ensemble_mean_file, overwrite = TRUE)
+      terra::writeRaster(consensus_sd, filename = ensemble_sd_file, overwrite = TRUE)
+     
     }
     
     
     #--------------------------------------------
     #------------------ Clean up-----------------
     #--------------------------------------------
-    rm(list = setdiff(ls(), c("p","wwf_eco_biome","eu_climpreds_file","country_climpreds_file", "globalclimpreds_file","future_paths","globalclimpreds_5k_file","split_df",  "decimalplaces","bias_grid_paths", "i", "world", "project", "create_folder", "split_df_all_occs", "exportPDF", "remove_duplicates", "remove_nodata_occurrences", "favourability_from_prob", "cleaned_1km", "occurrence_thinning_method", "n_clusters","future_paths","mtp_probabilities", "pseudoabsence_thinning_method", "country_of_interest", "country_boundary")))
+    rm(list = setdiff(ls(), c("p","wwf_eco_biome","eu_climpreds_file","country_climpreds_file", "custom_country_boundary_path","globalclimpreds_file","future_paths","globalclimpreds_5k_file","split_df",  "decimalplaces","bias_grid_paths", "i", "world", "project", "create_folder", "split_df_all_occs", "exportPDF", "remove_duplicates", "remove_nodata_occurrences", "favourability_from_prob", "cleaned_1km", "occurrence_thinning_method", "n_clusters","future_paths","mtp_probabilities", "pseudoabsence_thinning_method", "country_of_interest", "country_boundary")))
     
   }
 })
