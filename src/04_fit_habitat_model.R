@@ -40,7 +40,7 @@ euboundary<-sf::st_read(euboundary_path)
 #----- Load country boundary ------
 #---------------------------------------------
 habitat_stack<-terra::rast(habitatstack_file)
-if(tolower(country_of_interest)!="europe"){
+if(tolower(country_of_interest)!="europe" || !is.null(custom_country_boundary_path)){
   country_boundary <- sf::read_sf(here::here("data","external","GIS","Country","country.shp"))%>%
     sf::st_transform(crs(habitat_stack[[1]]))%>%
     terra::vect()
@@ -643,11 +643,7 @@ with_progress({
     consensus_habitat_sd <- stdev(top5_stack, pop=TRUE)
     
     # Step 9: Crop to extent of country if relevant
-    if(tolower(country_of_interest)=="europe"){
-      ensemble_habitat_suitability<-consensus_habitat
-      ensemble_habitat_sd <- consensus_habitat_sd
-      ensemble_habitat_mean<- consensus_habitat_mean 
-    }else{
+    if(tolower(country_of_interest)!="europe" || !is.null(custom_country_boundary_path)){
       ensemble_habitat_suitability<- consensus_habitat%>%
         terra::crop(country_boundary)%>%
         terra::mask(country_boundary)
@@ -659,6 +655,11 @@ with_progress({
       ensemble_habitat_mean <- consensus_habitat_mean%>%
         terra::crop(country_boundary)%>%
         terra::mask(country_boundary)
+      
+    }else{
+      ensemble_habitat_suitability<-consensus_habitat
+      ensemble_habitat_sd <- consensus_habitat_sd
+      ensemble_habitat_mean<- consensus_habitat_mean 
     }
     
     
@@ -854,14 +855,15 @@ with_progress({
     #------------------------------------------------------------    
     #-- Create final predictions combining habitat and climate --
     #------------------------------------------------------------
-    if(tolower(country_of_interest)=="europe"){
-     consensus_climate<-terra::rast( file.path(climate_raster_folder,
-                                                paste0(speciesName,"_Climate_current_ensemble.tif")))%>%
-       terra::project(consensus_habitat)
+    if(tolower(country_of_interest)!="europe" || !is.null(custom_country_boundary_path)){
+      consensus_climate<-terra::rast(file.path( climate_raster_folder,
+                                                paste0(speciesName, "_Climate_current_ensemble_Europe.tif")))%>%
+        terra::project(consensus_habitat)
+
     }else{
-     consensus_climate<-terra::rast(file.path( climate_raster_folder,
-                                               paste0(speciesName, "_Climate_current_ensemble_Europe.tif")))%>%
-       terra::project(consensus_habitat)
+      consensus_climate<-terra::rast( file.path(climate_raster_folder,
+                                                paste0(speciesName,"_Climate_current_ensemble.tif")))%>%
+        terra::project(consensus_habitat)
     }
     
     #Combine suitability predictions by global model (climate) and EU habitat model
@@ -872,12 +874,12 @@ with_progress({
     #--Export maps with final suitability predictions -
     #--------------------------------------------------
     # Crop to extent of country if relevant
-    if(tolower(country_of_interest)=="europe"){
-      ensemble_combined_suitability<-clim_hab
-    }else{
+    if(tolower(country_of_interest)!="europe" || !is.null(custom_country_boundary_path)){
       ensemble_combined_suitability<- clim_hab%>%
         terra::crop(country_boundary)%>%
         terra::mask(country_boundary)
+    }else{
+      ensemble_combined_suitability<-clim_hab
     }
     
     #Define name of files
@@ -1206,7 +1208,7 @@ with_progress({
     elapsed<-difftime(end_time, start_time, units="mins")
     cat("Habitat and ensemble model have been created for", species_title, "in", round(elapsed, 2), "minutes\n\n")
     
-    rm(list = setdiff(ls(), c("p", "project",  "habitatstack_file","create_folder", "country_boundary", "split_df","euboundary", "habitat_stack",  "accepted_taxonkeys", "taxa_info", "key", "exportPDF", "remove_duplicates", "remove_nodata_occurrences", "favourability_from_prob", "mtp_probabilities", "occurrence_thinning_method", "mtp_probabilities", "pseudoabsence_thinning_method", "country_of_interest")))
+    rm(list = setdiff(ls(), c("p", "project",  "habitatstack_file","create_folder", "custom_country_boundary_path","country_boundary", "split_df","euboundary", "habitat_stack",  "accepted_taxonkeys", "taxa_info", "key", "exportPDF", "remove_duplicates", "remove_nodata_occurrences", "favourability_from_prob", "mtp_probabilities", "occurrence_thinning_method", "mtp_probabilities", "pseudoabsence_thinning_method", "country_of_interest")))
     
   }
 })
