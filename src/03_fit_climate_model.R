@@ -241,8 +241,6 @@ with_progress({
     #------ Define folders-----
     #--------------------------------------------
     raster_folder <- file.path(base_dir, "Climate","Current", "Predictions", "Rasters")
-    future_folder <- file.path(base_dir, "Climate", period, scenario, "Predictions", "Rasters")
-    future_sd_folder <- file.path(base_dir, "Climate", period, scenario, "Diagnostics", "Confidence_maps", "Rasters")
     
     
     #--------------------------------------------
@@ -860,6 +858,10 @@ with_progress({
       for(scenario in c("ssp126", "ssp370", "ssp585")){
         
         print(paste("[FUTURE] Projecting:", period,scenario))
+        
+        #Define folders
+        future_folder <- file.path(base_dir, "Climate", period, scenario, "Predictions", "Rasters")
+        future_sd_folder <- file.path(base_dir, "Climate", period, scenario, "Diagnostics", "Confidence_maps", "Rasters")
         
         #Get climate data for specific period and scenario
         future_rast <- terra::rast(future_paths[[paste0(period, "_", scenario)]])
