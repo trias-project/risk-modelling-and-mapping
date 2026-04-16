@@ -718,12 +718,9 @@ for (i in seq_along(accepted_taxonkeys)) {
   #--------------------------------------------
   habitatmodel   <- qs::qread(habitat_qs_file)
   eu_presabs <- habitatmodel$eu_presabs
-  #TOACTIVATE
-  #top5_methods  <- habitatmodel$top5_models
-  #habitat_predictors <- habitatmodel$selected_predictors
-  #TOREMOVE
-  top5_habitat_methods  <- c("gam", "rf", "glmpoly", "mars", "maxent")
-  habitat_predictors<-unique(habitatmodel[["varimp_df"]][["Predictor"]])
+  top5_habitat_methods  <- habitatmodel$top5_models
+  habitat_predictors <- habitatmodel$selected_predictors
+  #habitat_predictors<-unique(habitatmodel[["varimp_df"]][["Predictor"]])
   rm(habitatmodel)
   
   
