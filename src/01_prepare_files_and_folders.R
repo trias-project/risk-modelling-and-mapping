@@ -377,7 +377,7 @@ euboundary <- terra::rast(file.path("data", "external", "habitat", "Agriculture.
 
 if(tolower(country_of_interest)!="europe"||!is.null(custom_country_boundary_path)){
   country_boundary<-sf::read_sf(here::here("data","external","GIS","Country","country.shp"))%>%
-    sf::st_transform(crs(globalclimpreds_terra))%>%
+    sf::st_transform(crs=4326)%>%
     terra::vect()
 }else{
   country_boundary<-euboundary
