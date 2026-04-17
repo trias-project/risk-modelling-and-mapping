@@ -219,7 +219,9 @@ with_progress({
     #----------- Process occurrences ---------------
     #-----------------------------------------------
     #Keep only one occurrence per grid cell
-    eu_occ <- remove_duplicates(occurrences =  eu_occ, rast_template = habitat_stack[[1]])
+    eu_occ <- remove_duplicates(occurrences =  eu_occ, rast_template = habitat_stack[[1]])%>%
+      dplyr::rename("decimalLongitude" = X,
+                    "decimalLatitude" = Y)
     
     #Remove occurrences within grid cells with NA values
     eu_occ <- remove_nodata_occurrences(occurrences = eu_occ, rast_template= habitat_stack[[1]], st_crs(habitat_stack))
