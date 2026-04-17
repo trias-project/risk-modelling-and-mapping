@@ -23,14 +23,14 @@ source(file.path("src", "00_configurations.R"))
 
 
 #--------------------------------------------
-#----------- Define file paths --------------
+#---- Define habitat raster file paths ------
 #--------------------------------------------
 processed_folder<-file.path("data", "external", "habitat", "processed")
 habitatstack_file <- file.path(processed_folder, "habitat_stack.tif")
 
 
 #--------------------------------------------
-#------------ Load euboundary  --------------
+#---------   Load euboundary  ---------
 #--------------------------------------------
 euboundary_path<-file.path("data", "external", "GIS", "Europe", "EUboundary.shp")
 euboundary<-sf::st_read(euboundary_path)
@@ -40,7 +40,7 @@ euboundary<-sf::st_read(euboundary_path)
 #----- Load country boundary ------
 #---------------------------------------------
 habitat_stack<-terra::rast(habitatstack_file)
-if(tolower(country_of_interest)!="europe" || !is.null(custom_country_boundary_path)){
+if(tolower(country_of_interest)!="europe"||!is.null(custom_country_boundary_path)){
   country_boundary <- sf::read_sf(here::here("data","external","GIS","Country","country.shp"))%>%
     sf::st_transform(crs(habitat_stack[[1]]))%>%
     terra::vect()
@@ -358,7 +358,7 @@ with_progress({
     # scale_fill_continuous(na.value = "transparent",low = "blue", high = "orange")+
     # labs(x="Longitude", y="Latitude")+
     # theme_bw()
-
+    
     
     #--------------------------------------------------------------
     #Generate pseudoabsences weighted by sampling bias---------
@@ -590,7 +590,7 @@ with_progress({
     
     # Assign layer names based on model methods
     names(fav_stack) <- names(modeloutput)
-   
+    
     #Clean up
     rm(modeloutput)
     gc()
@@ -598,7 +598,7 @@ with_progress({
     #make PCA: sample a representative number of pixels (in total less than 6000000 non NA cells)
     set.seed(100)
     pca_result <- rasterPCA(fav_stack, nSamples = 100000, spca = FALSE, maskCheck = TRUE)
-
+    
     
     #-----------------GET TOP 5 variance models----------------
     # Step 1: Extract PC1 loadings from princomp object
@@ -645,7 +645,7 @@ with_progress({
     consensus_habitat_sd <- stdev(top5_stack, pop=TRUE)
     
     # Step 9: Crop to extent of country if relevant
-    if(tolower(country_of_interest)!="europe" || !is.null(custom_country_boundary_path)){
+    if(tolower(country_of_interest)!="europe"||!is.null(custom_country_boundary_path)){
       ensemble_habitat_suitability<- consensus_habitat%>%
         terra::crop(country_boundary)%>%
         terra::mask(country_boundary)
@@ -657,7 +657,6 @@ with_progress({
       ensemble_habitat_mean <- consensus_habitat_mean%>%
         terra::crop(country_boundary)%>%
         terra::mask(country_boundary)
-      
     }else{
       ensemble_habitat_suitability<-consensus_habitat
       ensemble_habitat_sd <- consensus_habitat_sd
@@ -722,6 +721,10 @@ with_progress({
     #------------------------------------------
     #------------ Create binary map -----------
     #------------------------------------------
+    #Create lists for storing thresholds
+    habitat_thresholds<-list()
+    climhab_thresholds<-list()
+    
     # Get predictor values at occurrence points
     predictors_only <- occ.full.data.df%>%
       dplyr::filter(occ=="present")%>%
@@ -784,7 +787,7 @@ with_progress({
                   filename = filename)
       }
       
-      assign(paste0(mtp_value,"pct_habitat_threshold"), thr)
+      habitat_thresholds[[mtp_pct]] <- thr
       rm(binary_map_pct, binary_file, thr)
     }
     
@@ -857,11 +860,10 @@ with_progress({
     #------------------------------------------------------------    
     #-- Create final predictions combining habitat and climate --
     #------------------------------------------------------------
-    if(tolower(country_of_interest)!="europe" || !is.null(custom_country_boundary_path)){
+    if(tolower(country_of_interest)!="europe"||!is.null(custom_country_boundary_path)){
       consensus_climate<-terra::rast(file.path( climate_raster_folder,
                                                 paste0(speciesName, "_Climate_current_ensemble_Europe.tif")))%>%
         terra::project(consensus_habitat)
-
     }else{
       consensus_climate<-terra::rast( file.path(climate_raster_folder,
                                                 paste0(speciesName,"_Climate_current_ensemble.tif")))%>%
@@ -876,7 +878,7 @@ with_progress({
     #--Export maps with final suitability predictions -
     #--------------------------------------------------
     # Crop to extent of country if relevant
-    if(tolower(country_of_interest)!="europe" || !is.null(custom_country_boundary_path)){
+    if(tolower(country_of_interest)!="europe"||!is.null(custom_country_boundary_path)){
       ensemble_combined_suitability<- clim_hab%>%
         terra::crop(country_boundary)%>%
         terra::mask(country_boundary)
@@ -1018,7 +1020,7 @@ with_progress({
                   filename = filename)
       }
       
-      assign(paste0(mtp_value,"pct"), thr)
+      climhab_thresholds[[mtp_pct]]<-thr
       rm(binary_map_pct, binary_file, thr)
     }
     
@@ -1078,7 +1080,7 @@ with_progress({
           mtp_thr <- paste0(mtp_value, "pct")
           
           #Get threshold value and apply to consensus predictions
-          threshold<-get(mtp_thr)
+          threshold<- climhab_thresholds[[mtp_pct]]
           binary_map_future <- final_ensemble  >= threshold
           binary_map_future <- as.factor( binary_map_future*1) #Convert TRUE/FALSE to 1/0 and then to Present/Absent
           levels( binary_map_future) <- data.frame(ID = c(0, 1),
@@ -1187,10 +1189,8 @@ with_progress({
                          eu_presabs = eu_presabs,    # sf of presence + pseudoabsence data
                          occ_full_df = occ.full.data.df, # presabs data and their habitat values
                          prevalence_ratio = prev_ratio, # used for favourability scaling
-                         habitat_5pct_threshold = `5pct_habitat_threshold`,# 5% mtp threshold habitat model
-                         habitat_1pct_threshold = `1pct_habitat_threshold`,# 1% mtp threshold habitat model
-                         climhab_5pct_threshold = `5pct`, # 5% min training presence threshold ensemble model
-                         climhab_1pct_threshold = `1pct`, # 1% min training presence threshold ensemble model
+                         habitat_thresholds = habitat_thresholds,
+                         climhab_thresholds = climhab_thresholds,
                          response_df = response_df,
                          varimp_df = varimp_df,
                          selected_predictors = names(fullstack),
