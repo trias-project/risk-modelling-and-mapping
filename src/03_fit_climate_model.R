@@ -1148,6 +1148,9 @@ with_progress({
     #--------------------------------------------
     rm(list = setdiff(ls(), c("p","wwf_eco_biome","custom_country_boundary_path","eu_climpreds_file","country_climpreds_file", "globalclimpreds_file","future_paths","globalclimpreds_5k_file","split_df",  "decimalplaces","bias_grid_paths", "i", "world", "project", "create_folder", "split_df_all_occs", "exportPDF", "remove_duplicates", "remove_nodata_occurrences", "favourability_from_prob", "cleaned_1km", "occurrence_thinning_method", "n_clusters","future_paths","mtp_probabilities", "pseudoabsence_thinning_method", "country_of_interest", "country_boundary")))
     
+    #Clean terra tempfiles
+    terra::tmpFiles(remove = TRUE)
+    
   }
 })
 

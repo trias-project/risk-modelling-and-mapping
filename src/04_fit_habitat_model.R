@@ -1212,6 +1212,9 @@ with_progress({
     
     rm(list = setdiff(ls(), c("p", "project",  "habitatstack_file","create_folder", "custom_country_boundary_path","country_boundary", "split_df","euboundary", "habitat_stack",  "accepted_taxonkeys", "taxa_info", "key", "exportPDF", "remove_duplicates", "remove_nodata_occurrences", "favourability_from_prob", "mtp_probabilities", "occurrence_thinning_method", "mtp_probabilities", "pseudoabsence_thinning_method", "country_of_interest")))
     
+    #Clean terra tempfiles
+    terra::tmpFiles(remove = TRUE)
+    
   }
 })
 
