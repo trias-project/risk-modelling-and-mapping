@@ -1,779 +1,1070 @@
-#--------------------------------------------
-#-----------    Load packages      ----------
-#--------------------------------------------
-options("rgdal_show_exportToProj4_warnings"="none")
+#-------------------------------------------------------------------------------
+#--------------------------    Load packages      ------------------------------
+#-------------------------------------------------------------------------------
+packages <- c( "dplyr", "qs", "terra", "tidyterra", "sf", "here", "matrixStats",
+               "ggplot2", "dismo",  "sdm", "purrr", "ecospat", "blockCV")
 
-packages <- c("viridis","dplyr","here","qs","terra","tidyterra","sf","ggplot2","RColorBrewer", "magick","patchwork","grid","randomForest","progressr","raster","dismo","caret","caretEnsemble","kableExtra","gbm","PresenceAbsence","RStoolbox","sdm","future","future.apply","sp","ecospat","blockCV")
-
+installed <- rownames(installed.packages())
 for (package in packages) {
-  if (!package %in% rownames(installed.packages())) install.packages(package)
+  print(package)
+  if (!package %in% installed) install.packages(package)
   library(package, character.only = TRUE)
 }
 
-# Installs all sdm plugin backends if missing (incl. maxent). 
-sdm::installAll()
+suppressWarnings(try(sdm::installAll(), silent = TRUE))
+
+
+#-------------------------------------------------------------------------------
+#------------------------- Set Terra options -----------------------------------
+#-------------------------------------------------------------------------------
+options("rgdal_show_exportToProj4_warnings"="none")
+terra::setGDALconfig("GDAL_PAM_ENABLED", "FALSE")#Prevent terra from writing aux.xml files
+terraOptions(memfrac = 0.4,
+             tempdir = file.path(tempdir()),
+             todisk = TRUE)
+
+
+#-------------------------------------------------------------------------------
+#---------------- Load helper functions and configurations ---------------------
+#-------------------------------------------------------------------------------
+source(here::here("src", "helper_functions.R"))
+source(here::here("src", "00_configurations.R"))
+
+
+#-------------------------------------------------------------------------------
+#-------------------------- Define file paths ----------------------------------
+#-------------------------------------------------------------------------------
+#climate stack
+climate_path <- file.path("data", "external", "climate", "chelsa_current","processed", "globalclimpreds.tif")
+
+#EU climate stack
+eu_climpreds_path <- file.path("data", "external", "climate", "chelsa_current","processed","euclimpreds.tif")
+
+#habitat stack
+habitat_path <- file.path("data", "external", "habitat", "processed", "habitat_stack.tif")
+
+#Biome file path
+biome_path<-file.path("data", "external", "GIS", "official", "newRealms.shp")
 
 
 #--------------------------------------------
-#- Load helper functions and configurations -
+#------------- Load species data ------------
 #--------------------------------------------
-source(pr("src","helper_functions.R"))
-source(pr("src","Configurations.R"))
+#Get taxa info
+taxa_info <- read.csv2(file.path("data", "projects", project, paste0(project, "_taxa_info.csv")))
 
-
-#--------------------------------------------
-#-------- Load European habitat rasters -----
-#--------------------------------------------
-# Load all habitat rasters
-habitat_files <- list.files(file.path("./data/external/habitat"), pattern = 'tif$', full.names = TRUE)
-habitat_rasters <- lapply(habitat_files, terra::rast)
-
-# compute common intersection extent across all rasters
-common_ext <- Reduce(intersect, lapply(habitat_rasters, ext))
-
-# Crop all rasters to the common (smallest) extent
-habitat_rasters <- lapply(habitat_rasters, terra::crop, common_ext)
-
-# Combine into raster stack 
-habitat_stack <- terra::rast(habitat_rasters)
-rm(habitat_rasters)
-
-#Scale habitat rasters
-habitat_stack <- terra::scale(habitat_stack, center = TRUE, scale = TRUE)
-
-#Obtain target CRS
-target_crs <- sf::st_crs(terra::crs(habitat_stack))  # WKT-aware
-
-
-#---------------------------------------------
-#----- Remove NA pixels from predictors ------
-#---------------------------------------------
-#This is to avoid that some layers have NA while others have values in certain pixels
-na_mask_habitat_stack <- anyNA(habitat_stack)
-habitat_stack <- terra::mask(habitat_stack, na_mask_habitat_stack, maskvalue=1)
-
-
-#---------------------------------------------
-#--------- Load WWF ecoregions file ----------
-#---------------------------------------------
-wwf_eco_biome <- sf::st_read(here("./data/external/GIS/official/wwf_terr_ecos.shp")) %>%
-  sf::st_make_valid() %>%
-  sf::st_transform(target_crs)
+#Select unique taxonkeys
+accepted_taxonkeys <- unique(taxa_info$acceptedTaxonKey)
 
 
 #--------------------------------------------
-#---------   Load shape of Europe   ---------
+#------------ Load euboundary  --------------
 #--------------------------------------------
-euboundary <- sf::st_read(here("./data/external/GIS/Europe/EUROPE.shp")) %>%
-  sf::st_make_valid() %>%
-  sf::st_transform(target_crs)
-
-
-#--------------------------------------------
-#------------- Load species data -----------
-#--------------------------------------------
-taxa_info <- read.csv2(paste0("./data/projects/",project,"/",project,"_taxa_info.csv"))
-accepted_taxonkeys <- taxa_info %>%
-  dplyr::pull(acceptedTaxonKey) %>%
-  unique()
-
-rm(taxa_info); gc()
+euboundary_path<-file.path("data", "external", "GIS", "Europe", "EUboundary.shp")
+euboundary<-sf::st_read(euboundary_path)
+euboundary_wgs84<-euboundary%>%
+  sf::st_transform(crs = 4326)
 
 
 #--------------------------------------------
-#----------- Start modelling loop  ----------
+#-----------------Load rasters---------------
 #--------------------------------------------
+#Load rasters 
+climate_stack <- terra::rast(climate_path)
+habitat_stack <- terra::rast(habitat_path)
+eu_climate_stack<- terra::rast(eu_climpreds_path)%>%
+  terra::project(habitat_stack[[1]])
 
-with_progress({
-  p <- progressr::progressor(along = 1:length(accepted_taxonkeys)) 
-  for(key in accepted_taxonkeys){ #Approx. 13 min per species
-    
-    #--------------------------------------------
-    #---------------Map progress  ---------------
-    #--------------------------------------------
-    p()
-    
+
+#-----------------------------------------------------------
+#- Sample background data once
+#-----------------------------------------------------------
+#Extract a subsample of European pixels for Boyce calculation 
+set.seed(728)
+eu_subsample <- terra::spatSample(
+  habitat_stack[[1]],
+  size = boyce_background_size, 
+  method = "random", 
+  na.rm = TRUE, #Ignore NA pixels
+  as.points = TRUE)
+
+# Extract climate data at eu subsample points
+eu_climate_sub <- terra::extract(eu_climate_stack, eu_subsample, ID = FALSE, xy = FALSE)
+
+# Extract habitat data at eu subsample points
+eu_habitat_sub <- terra::extract(habitat_stack, eu_subsample, ID = FALSE, xy = FALSE)
+
+
+#----------------------------------------------
+#----------- Define results directory ---------
+#----------------------------------------------
+validation_dir <- file.path("data", "projects", project, "Model_validation")
+dir.create(validation_dir, recursive = TRUE, showWarnings = FALSE)
+validation_summary<-list()
+
+
+#--------------------------------------------
+#----------- Start species loop -------------
+#--------------------------------------------
+for (i in seq_along(accepted_taxonkeys)) {
+  
+  species_validation_summary<-data.frame()
   
   #--------------------------------------------
-  #--------Extract species-specific data  -----
+  #----------- Load species details -----------
   #--------------------------------------------
-  #Extract species name
-  species<-taxa_info%>%
-    dplyr::filter(acceptedTaxonKey==key)%>%
-    dplyr::pull(acceptedScientificName)%>%
-    unique()
+  species <- taxa_info$acceptedScientificName[i]
+  taxonkey<- taxa_info$acceptedTaxonKey[i]
+  speciesName <- sub("^(\\w+)\\s+(\\w+).*", "\\1_\\2", species)  # Extract first two words of species name
   
-  #Extract first two words of species name
-  speciesName <- sub("^(\\w+)\\s+(\\w+).*", "\\1_\\2", species)
-  
-  #Extract rest of species name
-  nameExtension <- if (grepl("^\\S+\\s+\\S+$", species)) "" else sub("^\\S+\\s+\\S+\\s+", "", species)
-  
-  #Specify species for plot title
-  species_title <- gsub("_", " ", speciesName)
-  
-  #Define taxonkey
-  taxonkey<- key
-  
-  
-  #--------------------------------------------
-  #------- Define file paths model files  -----
-  #-------------------------------------------- 
-  base_dir <- file.path("data", "projects", project, paste0(speciesName,"_",taxonkey))
-  climate_model_file <- file.path(base_dir,"Climate",
-                                 paste0("Climate_model_",speciesName,"_",taxonkey,".qs"))
-  habitat_model_file <- file.path(base_dir,"Habitat",
-                                  paste0("Habitat_model_",speciesName,"_",taxonkey,".qs"))
+  message(
+    "\n", strrep("=", 72),
+    "\nSPECIES: ", speciesName,
+    "  [taxonkey: ", taxonkey, "]",
+    "\n", strrep("=", 72)
+  )
   
   
   #--------------------------------------------
-  #----- Check if habitat model exists --------
+  #-----------  Specify base_dir  -------------
   #--------------------------------------------
-  if(file.exists(habitat_model_file)){
-    
-    #This was stored as part of  script 03
-    habitatmodel <- qs::qread(habitat_model_file)
-    
-    #Extract different data objects stored in globalmodels
-    occ_data <- habitatmodel$eu_occ # sf of filtered EU occurrences
-    
-  }else{
-    warning(paste0("Cross validation will be performed on the climate model for ", species, " because no habitat model could be fitted"))
+  base_dir <- file.path("data", "projects", project, paste0(speciesName, "_", taxonkey))
+  
+  
+  #==============================================
+  #=                                            =
+  #=           PART 1: Climate model            =
+  #=                                            =
+  #==============================================
+  
+  message("\n--- Part 1: Global climate model ---")
+  
+  
+  #--------------------------------------------
+  #------- Define qs file paths --------
+  #--------------------------------------------
+  climate_qs_file <- file.path(base_dir, "Climate",
+                               paste0("Climate_model_", speciesName, "_", taxonkey, ".qs"))
+  
+  habitat_qs_file <- file.path(base_dir, "Habitat",
+                               paste0("Habitat_model_", speciesName, "_", taxonkey, ".qs"))
+  
+  
+  #----------------------------------------------
+  #- Only do validation if climate model exists -
+  #----------------------------------------------
+  if (!file.exists(climate_qs_file)) {
+    warning("No climate model was found for ",species,
+            "\nRun 03_fit_climate_model.R first.\n Skipping species.")
+    next
   }
   
   
   #--------------------------------------------
-  #-Check if climate model exists,if not, skip-
+  #--- Load  data stored in climate model qs --
   #--------------------------------------------
-  if(file.exists(climate_model_file)){
-    
-    #This was stored as part of  script 02_fit_global_model
-    climatemodel <- qs::qread(climate_model_file) #named climatemodel instead of globalmodels
-    
-    if(!file.exists(habitat_model_file)){
-      
-      occ_data <- global.occ.sf
-    }
-  }else{
-    warning(paste0("Skipping species ", species, " because no climate model could be fitted"))
-    next  # Skip the rest of the loop and move to the next iteration
+  climatemodel   <- qs::qread(climate_qs_file)
+  top5_methods  <- climatemodel$top5_models
+  global_presabs <- climatemodel$global_presabs
+  climate_predictors <- climatemodel$selected_predictors
+  rm(climatemodel)
+  
+  
+  #--------------------------------------------------
+  #------------------Define validation types---------
+  #--------------------------------------------------
+  eu_occ <- global_presabs%>%
+    dplyr::filter(species==1)%>%
+    sf::st_filter(euboundary_wgs84) 
+  
+  #Only validate climate model in Europe if 40 or more occs 
+  eu_climate_validation <- nrow(eu_occ) >= 40
+  
+  #Only validate ensemble model if habitat model could be fitted
+  ensemble_validation <- file.exists(habitat_qs_file)
+  
+  
+  #---------------------------------------------------------
+  #- Select climate rasters used in 03_fit_climate_model.R -
+  #---------------------------------------------------------
+  climate_selection <- terra::subset(climate_stack,
+                                     climate_predictors[climate_predictors %in%
+                                                          names(climate_stack)])
+  
+  
+  #-----------------------------------------------------------
+  #- Obtain global climate subsample values for selected predictors
+  #-----------------------------------------------------------
+  #Load biomes
+  wwf_eco_biome<-sf::st_read(biome_path) 
+  
+  # Keep only biome polygons that intersect at least one occurrence point
+  global_presences<-dplyr::filter(global_presabs, species==1)
+  sf::sf_use_s2(FALSE)
+  has_occurrence <- lengths(sf::st_intersects(wwf_eco_biome, global_presences)) > 0
+  wwf_ecoSub1 <- wwf_eco_biome[has_occurrence, ]
+  rm(wwf_eco_biome)
+  sf::sf_use_s2(TRUE)
+  
+  
+  #Mask Chelsa layer with biomes with occurrences
+  wwf_ecoSub1_ext<-terra::ext(wwf_ecoSub1) 
+  wwf_ecoSub1_vector <- terra::vect(wwf_ecoSub1) 
+  climate_sub <- terra::crop(climate_selection[[1]], wwf_ecoSub1_ext) 
+  climate_sub <- terra::mask(climate_sub, wwf_ecoSub1_vector)
+  
+  #Extract a subsample of global pixels for Boyce calculation
+  set.seed(728)
+  global_subsample<- terra::spatSample(
+    climate_sub,
+    size = boyce_background_size, 
+    method = "random", 
+    na.rm = TRUE, #Ignore NA pixels
+    as.points = TRUE) 
+  
+  # Extract climate data at global subsample points
+  global_points<- terra::extract(climate_selection, global_subsample, ID = FALSE, xy = FALSE)%>%
+    dplyr::mutate(ID = dplyr::row_number())
+  
+  #Clean up
+  rm( wwf_ecoSub1, wwf_ecoSub1_ext, wwf_ecoSub1_vector,climate_sub, global_subsample)
+  
+  
+  #-----------------------------------------------------------
+  #- Obtain European climate subsample values for selected predictors
+  #-----------------------------------------------------------
+  if(eu_climate_validation || ensemble_validation){
+    eu_points <- eu_climate_sub %>%
+      dplyr::select(any_of(climate_predictors))%>%
+      dplyr::mutate(ID = dplyr::row_number())
   }
   
   
-  #--------------------------------------------
-  #------------ Import raster layers ----------
-  #--------------------------------------------
-  #Define file paths
-  biasgrid_file <- file.path(base_dir,"Climate", "Current", "Interim", paste0("Biasgrid_",speciesName,"_",taxonkey,".tif"))
-  climate_file <- file.path(base_dir,"Climate", "Current","Predictions","Rasters",
-                            paste0(speciesName,"_Climate_current_ensemble.tif"))
-  ensemble_file <- file.path(base_dir,"Combined", "Current","Predictions","Rasters",
-                             paste0(speciesName,"_Combined_current_ensemble.tif"))
+  #-----------------------------------------------------------------
+  #- Define if cross validation can be done and for how many folds -
+  #-----------------------------------------------------------------
   
-  #Load rasterlayers
-  biasgrid_sub <- terra::rast(biasgrid_file)
-  climate_predictions <- terra::rast(climate_file)%>%
-    terra::project( habitat_stack)
-  ensemble_predictions <- terra::rast(ensemble_file)
+  #Default is 0 folds and no CV
+  cv_folds <- 0L
+  use_cv <- FALSE
+  use_cv_climate_only <- FALSE
   
-    if (!file.exists(biasgrid_file) || !file.exists(ensemble_file)) {
-      warning(sprintf("Skipping %s: missing biasgrid or ensemble raster.", species))
-      return(list(species = species, taxonkey = taxonkey, skipped = TRUE, reason = "missing_bias_or_ensemble"))
-    }
-
-###################STOPPED HERE#####################
+  #If ensemble validation is done, let EU data drive number of folds
+  if(ensemble_validation){
     
-    # Load species-level objects (then free big list)
-    EUmodels <- qs::qread(global_model_file_qs)
-    methods  <- EUmodels$top5_models
-    EU.occ.sf <- EUmodels$occurrences1km |>
-      sf::st_as_sf(coords = c("decimalLongitude","decimalLatitude"), crs = 4326) |>
-      sf::st_transform(target_crs)
-    rm(EUmodels); gc()
+    #Load presabs data of habitat model
+    habitatmodel   <- qs::qread(habitat_qs_file)
+    eu_presabs <- habitatmodel$eu_presabs
+    n_pres_ensemble <- sum(eu_presabs$species == 1)
+    rm(habitatmodel)
     
-    biasgrid_sub <- terra::rast(biasgrid_file)
-    Global_climate_for_eu <- terra::rast(ensemble_file) |> terra::project(habitat_stack)
-    
-    #------------- Fast point-in-polygon -------------
-    EU.occ.sf <- sf::st_crop(EU.occ.sf, sf::st_bbox(euboundary))
-    inside <- lengths(sf::st_intersects(EU.occ.sf, euboundary)) > 0
-    eu_occ <- EU.occ.sf[inside, , drop = FALSE]
-    
-    if (nrow(eu_occ) == 0) {
-      warning(sprintf("0 EU occurrences for %s — skipping EU model.", species))
-      return(list(species = species, taxonkey = taxonkey, skipped = TRUE, reason = "no_eu_occ"))
-    }
-    
-    # Unique cells + drop NA habitat
-    coords_mat <- sf::st_coordinates(eu_occ)
-    cells      <- terra::cellFromXY(habitat_stack[[1]], coords_mat)
-    keep       <- !duplicated(cells)
-    eu_occ     <- eu_occ[keep, , drop = FALSE]
-    
-    vals_all <- terra::extract(habitat_stack, terra::vect(eu_occ), ID = FALSE)
-    non_na   <- stats::complete.cases(vals_all)
-    eu_occ   <- eu_occ[non_na, , drop = FALSE]
-    
-    #-----------------------------------------------
-    #------ Limit to 10,000 occupied grid cells ----
-    #-----------------------------------------------
-    if (nrow(eu_occ) > 10000) {
-      if (occurrence_thinning_method == "random") {
-        set.seed(101)
-        eu_occ <- eu_occ[sample(nrow(eu_occ), 10000, replace = FALSE), ]
-      } else if (occurrence_thinning_method == "kmeans_clustering") {
-        habitat_data <- terra::extract(habitat_stack, eu_occ, ID = FALSE)
-        set.seed(101)
-        clust <- kmeans(habitat_data, centers = n_clusters, iter.max = 10, nstart = 1)$cluster
-        occ_habitat <- cbind(eu_occ, habitat_data, clust)
-        max_per_cluster <- 10000/n_clusters
-        row_sample <- sapply(1:10000, function(x) {
-          rowids <- which(clust == x)
-          sample(rowids, min(max_per_cluster, length(rowids)), replace = FALSE)
-        })
-        eu_occ <- occ_habitat[row_sample,] %>%
-          dplyr::select(decimalLongitude, decimalLatitude, geometry, species)
-      }
-    }
-    
-    euocc_xy <- sf::st_coordinates(eu_occ) |> as.data.frame()
-    if (nrow(euocc_xy) < 20) {
-      warning(sprintf("%d EU occurrences for %s — skipping EU model.", nrow(euocc_xy), species))
-      return(list(species = species, taxonkey = taxonkey, skipped = TRUE, reason = "too_few_eu_occ"))
-    }
-    
-    #------------- Align bias grid to habitat -----------
-    biasgrid_aligned <- terra::project(biasgrid_sub, habitat_stack[[1]], method = "bilinear")
-    biasgrid_aligned <- terra::mask(biasgrid_aligned, habitat_stack[[1]])
-    
-    #------------- Invaded ecoregions mask --------------
-    stopifnot(sf::st_crs(wwf_eco_biome) == sf::st_crs(eu_occ))
-    hit_mat <- sf::st_intersects(wwf_eco_biome, eu_occ, sparse = FALSE)
-    polys_with_pts <- rowSums(hit_mat) > 0
-    wwf_eco_biome_filtered <- wwf_eco_biome[polys_with_pts, , drop = FALSE]
-    
-    inside_mask <- terra::rasterize(
-      terra::vect(wwf_eco_biome_filtered),
-      biasgrid_aligned, field = 1, background = NA
-    )
-    biasgrid_temp <- terra::ifel(!is.na(inside_mask), biasgrid_aligned, 1)
-    biasgrid_eu   <- terra::mask(biasgrid_temp, biasgrid_aligned)
-    
-    #------------- Pseudoabsences ------------------------
-    EU_points <- terra::spatSample(
-      biasgrid_eu, size = 10000, method = "weights", as.points = TRUE, na.rm = TRUE
-    )
-    
-    # presences (sf) — add explicit XY columns and align column order
-    eu_coords <- sf::st_coordinates(eu_occ)
-    eu_occ_pa <- eu_occ |>
-      dplyr::mutate(
-        decimalLongitude = eu_coords[, 1],
-        decimalLatitude  = eu_coords[, 2],
-        species = "present"
-      ) |>
-      dplyr::select(decimalLongitude, decimalLatitude, species, geometry)
-    
-    # pseudoabsences (sf)
-    EU_points_sf <- EU_points[, 0] |>
-      sf::st_as_sf() |>
-      dplyr::mutate(
-        coords = sf::st_coordinates(geometry),
-        decimalLongitude = coords[, 1],
-        decimalLatitude  = coords[, 2],
-        species = "absent"
-      ) |>
-      dplyr::select(decimalLongitude, decimalLatitude, species, geometry)
-    
-    # combine
-    eu_presabs <- rbind(eu_occ_pa, EU_points_sf)
-    
-    #------------- Correlation filter --------------------
-    presabs_df <- terra::extract(habitat_stack, terra::vect(eu_presabs), ID = FALSE)
-    cor_matrix <- stats::cor(presabs_df, use = "complete.obs")
-    drop_vars  <- caret::findCorrelation(cor_matrix, cutoff = 0.7, exact = TRUE, names = TRUE)
-    fullstack  <- subset(habitat_stack, !(names(habitat_stack) %in% drop_vars))
-    
-    occ.full.data.df <- terra::extract(fullstack, terra::vect(eu_presabs), ID = FALSE) |>
-      dplyr::mutate(occ = eu_presabs$species)
-    if (anyNA(occ.full.data.df)) warning("Some EU points fell in NA habitat cells")
-    
-    # sdm data (Raster*/sp), numeric species
-    eu_presabs_num <- eu_presabs |>
-      dplyr::mutate(species = ifelse(species == "present", 1, 0)) |>
-      dplyr::select(-decimalLongitude, -decimalLatitude)
-    eu_presabs_sp <- methods::as(eu_presabs_num, "Spatial")
-    fullstack_r   <- raster::stack(fullstack)
-    
-    # Ensure Raster* advertises SAME WKT as sf
-    raster::crs(fullstack_r) <- sf::st_crs(terra::crs(habitat_stack))$wkt
-    
-    rm(presabs_df, cor_matrix, drop_vars, fullstack); gc()
-    
-    # ==== CONFIG ====
-    set.seed(42)
-    hex_size_km <- 100
-    hex_size_m  <- hex_size_km * 1000
-    
-    # ==== HELPERS ====
-    count_pres <- function(spdf, col = "species") sum(spdf[[col]] == 1L, na.rm = TRUE)
-    count_abs  <- function(spdf, col = "species") sum(spdf[[col]] == 0L, na.rm = TRUE)
-    
-    favourability_from_prob <- function(prob, prev_ratio) {
-      f <- function(p) {
-        odds <- p / (1 - p)
-        fav  <- odds / (prev_ratio + odds)
-        fav[!is.finite(fav)] <- NA
-        fav[fav < 0] <- 0
-        fav[fav > 1] <- 1
-        fav
-      }
-      if (inherits(prob, "SpatRaster")) {
-        terra::app(prob, f)
-      } else if (inherits(prob, "Raster")) {
-        raster::calc(prob, f)
-      } else {
-        stop("Unsupported raster class: ", class(prob)[1])
-      }
-    }
-    
-    .build_stack <- function(x_list, k) {
-      keep <- !vapply(x_list, is.null, logical(1))
-      x_list <- x_list[keep]
-      if (!length(x_list)) return(NULL)
-      cls <- unique(vapply(x_list, function(x) class(x)[1], character(1)))
-      if (all(cls == "SpatRaster")) {
-        st <- terra::rast(x_list)
-        names(st) <- paste0("fold_", which(keep))
-        outfile <- file.path(td_terra, paste0("stack_", as.integer(runif(1,1,1e9)), ".tif"))
-        st <- terra::writeRaster(st, outfile, overwrite = TRUE)
-        return(st)
-      } else {
-        st <- raster::stack(x_list)
-        names(st) <- paste0("fold_", which(keep))
-        outfile <- raster::rasterTmpFile()
-        st <- raster::writeRaster(st, filename = outfile, overwrite = TRUE)
-        return(st)
-      }
-    }
-    
-    # ==== MAIN FLOW ====
-    n_pres <- count_pres(eu_presabs_sp, "species")
-    k <- 0L
-    use_cv <- FALSE
-    
-    if (n_pres >= 40L) {
-      k <- min(5L, floor(n_pres / 20L))
-      use_cv <- k >= 2L
-    }
-    
-    ens_fav_median <- NULL
-    sb <- NULL
-    
-    if (use_cv) {
-      # Final CRS sanity before blockCV — enforce same CRS as the raster
-      eu_presabs_sp <- methods::as(
-        sf::st_transform(sf::st_as_sf(eu_presabs_sp), sf::st_crs(raster::crs(fullstack_r))),
-        "Spatial"
-      )
+    if (n_pres_ensemble>= 40L) {
+      use_cv <- TRUE
+      cv_folds <- min(5L, floor(n_pres_ensemble / 20L))
+    }else if (nrow(global_presences) >= 40L) {
+      use_cv_climate_only <- TRUE
+      cv_folds <- min(5L, floor(nrow(global_presences) / 20L))
+      eu_presabs <- eu_presabs%>%
+        dplyr::mutate(ID = dplyr::row_number())
       
-      # Hex, class-balanced spatial folds
+    }else{
+      eu_presabs <- eu_presabs%>%
+        dplyr::mutate(ID = dplyr::row_number())
+    }
+    
+  }else{
+    
+    if (nrow(global_presences) >= 40L) {
+      use_cv <- TRUE
+      cv_folds <- min(5L, floor(nrow(global_presences) / 20L))
+    }else{
+      global_presabs <- global_presabs%>%
+        dplyr::mutate(ID = dplyr::row_number())
+    }
+  }
+  
+  
+  #-----------------------------------------------------------------
+  #            OPTION 1: SPATIAL CROSS VALIDATION
+  #-----------------------------------------------------------------
+  if (use_cv || use_cv_climate_only) {
+    
+    #---------------------------------
+    #----- Create spatial folds-------
+    #---------------------------------
+    
+    if(ensemble_validation && !use_cv_climate_only){
+      
+      #--------------------------------------------------------------
+      #---Prepare combined dataset of global_presabs and eu_presabs
+      #--------------------------------------------------------------
+      # Combine data
+      all_presabs<-eu_presabs%>%
+        sf::st_transform(crs=sf::st_crs(global_presabs))%>%
+        dplyr::mutate(decimalLatitude = sf::st_coordinates(.)[, "Y"],
+                      decimalLongitude = sf::st_coordinates(.)[, "X"])%>%
+        dplyr::bind_rows(global_presabs)
+      
+      #Remove duplicates
+      all_presabs$cell <- terra::cellFromXY( climate_stack[[1]], 
+                                             all_presabs%>%
+                                               st_coordinates%>%
+                                               as.data.frame()) 
+      
+      all_presabs <- all_presabs %>%
+        dplyr::filter(!is.na(cell))%>%
+        group_by(cell) %>%
+        dplyr::distinct(cell, .keep_all=TRUE)%>%
+        dplyr::ungroup()
+      
+      
+      #-----------------------------
+      #---Generate spatial folds
+      #-----------------------------
+      sf::sf_use_s2(FALSE)
+      set.seed(123)
       sb <- blockCV::cv_spatial(
-        x         = eu_presabs_sp,
+        x         = vect(all_presabs),
         column    = "species",
-        r         = fullstack_r,
-        k         = k,
+        k         = cv_folds,
         hexagon   = TRUE,
         selection = "random",
         iteration = 200,
-        size      = hex_size_m
-      )
-      fold_ids <- sb$folds_ids
-      stopifnot(length(fold_ids) == nrow(eu_presabs_sp))
+        size      = 100000) #100 km
       
-      # Per-fold train/predict (keep favourability only)
-      fold_fav  <- vector("list", k)
+      sf::sf_use_s2(TRUE)
+      fold_structure<-sb$blocks["folds"]
       
-      for (i in seq_len(k)) {
-        message(sprintf("Fold %d/%d: training on folds != %d", i, k, i))
-        train_idx <- which(fold_ids != i)
-        eu_train  <- eu_presabs_sp[train_idx, ]
-        
-        sdm_data <- sdm::sdmData(
-          species ~ .,
-          train      = eu_train,
-          predictors = fullstack_r
-        )
-        model <- sdm::sdm(species ~ ., data = sdm_data, methods = methods)
-        
-        # Prevalence ratio from TRAINING data
-        pres_tr <- count_pres(eu_train, "species")
-        abs_tr  <- count_abs(eu_train,  "species")
-        prev_ratio <- abs_tr / max(1L, pres_tr)
-        
-        # Build lookup: method name -> numeric modelID
-        mi <- sdm::getModelInfo(model)
-        col_m <- if ("methods" %in% names(mi)) "methods" else if ("method" %in% names(mi)) "method" else stop("getModelInfo: no method column")
-        stopifnot("modelID" %in% names(mi))
-        mi$modelID <- as.integer(mi$modelID)
-        id_by_method <- split(mi[["modelID"]], mi[[col_m]])
-        
-        fav_i <- vector("list", length(methods)); names(fav_i) <- methods
-        
-        cap01 <- function(x) { x[x < 0] <- 0; x[x > 1] <- 1; x }
-        
-        for (m in methods) {
-          id_m <- as.integer(id_by_method[[m]][1])
-          if (length(id_m) == 0L || is.na(id_m)) {
-            warning("No numeric model id found for method ", m, "; skipping.")
-            next
-          }
-          message("  Predicting with ", m, " (id=", id_m, ") ...")
-          
-          pr <- try(predict(model, newdata = fullstack_r, id = id_m), silent = TRUE)
-          if (inherits(pr, "try-error")) {
-            message("    predict() failed for ", m, " (id=", id_m, "): ",
-                    conditionMessage(attr(pr, "condition")))
-            next
-          }
-          if (inherits(pr, "SpatRaster")) pr <- raster::raster(pr)
-          pr <- raster::calc(pr, fun = cap01)
-          
-          fv <- favourability_from_prob(pr, prev_ratio)
-          fv_file <- raster::rasterTmpFile()
-          fv <- raster::writeRaster(fv, filename = fv_file, overwrite = TRUE)
-          
-          fav_i[[m]] <- fv
-          rm(pr, fv); gc()
-        }
-        
-        fold_fav[[i]] <- fav_i
-        rm(model, sdm_data, eu_train); gc()
+      
+      #------------------------------------------
+      #- Assign occs of ensemble model to folds -
+      #------------------------------------------
+      eu_presabs_perfold <- sf::st_join(sf::st_transform(eu_presabs, crs=sf::st_crs(global_presabs)),
+                                        fold_structure,  
+                                        join = sf::st_within,        
+                                        left = TRUE)%>%
+        dplyr::filter(!is.na(folds))%>%
+        dplyr::mutate(ID = dplyr::row_number())
+      
+      if(nrow(eu_presabs_perfold)!=nrow(eu_presabs)){
+        warning(nrow(eu_presabs)- nrow(eu_presabs_perfold)," Ensemble model point(s) not assigned to a fold and removed from dataset.")
       }
       
-      # Per-method stacks (layers = held-out folds)
-      fav_by_method  <- setNames(vector("list", length(methods)), methods)
-      for (m in methods) {
-        layers_fav_m  <- lapply(seq_len(k), function(i) fold_fav[[i]][[m]])
-        fav_by_method[[m]]  <- .build_stack(layers_fav_m,  k)
-      }
-      rm(fold_fav); gc()
+    }else{
       
-      # Median ensemble per fold
-      ensemble_median_by_fold <- function(fbm, k) {
-        stopifnot(k > 0L)
-        out_layers <- vector("list", k)
-        for (j in seq_len(k)) {
-          layers_j <- lapply(fbm, function(st) {
-            if (is.null(st)) return(NULL)
-            if (inherits(st, "SpatRaster")) {
-              if (terra::nlyr(st) < j) return(NULL)
-              st[[j]]
-            } else if (inherits(st, c("RasterLayer","RasterBrick","RasterStack"))) {
-              if (raster::nlayers(st) < j) return(NULL)
-              terra::rast(st[[j]])
-            } else {
-              NULL
-            }
-          })
-          layers_j <- layers_j[!vapply(layers_j, is.null, logical(1))]
-          if (!length(layers_j)) stop(sprintf("No layers found for fold %d", j))
-          s <- terra::rast(layers_j)
-          tmpstack <- file.path(td_terra, paste0("fold_", j, "_stack.tif"))
-          s <- terra::writeRaster(s, tmpstack, overwrite=TRUE)
-          tmpmed <- file.path(td_terra, paste0("fold_", j, "_median.tif"))
-          out_layers[[j]] <- terra::app(s, median, na.rm=TRUE, filename=tmpmed, overwrite=TRUE)
-          rm(s); gc()
-        }
-        ens_file <- file.path(td_terra, "ens_fav_median.tif")
-        ens <- terra::rast(out_layers)
-        terra::writeRaster(ens, ens_file, overwrite=TRUE)
-        ens
-      }
+      sf::sf_use_s2(FALSE)
+      # Hex, class-balanced spatial folds
+      set.seed(123)
+      sb <- blockCV::cv_spatial(
+        x         = vect(global_presabs),
+        column    = "species",
+        k         = cv_folds,
+        hexagon   = TRUE,
+        selection = "random",
+        iteration = 200,
+        size      = 100000) #100 km
       
-      ens_fav_median <- ensemble_median_by_fold(fav_by_method, k)
+      sf::sf_use_s2(TRUE)
+      fold_structure<-sb$blocks["folds"]
+    }
+    
+    
+    #-----------------------------------------
+    #- Assign occs of climate model to folds -
+    #-----------------------------------------
+    global_presabs_perfold <- sf::st_join(global_presabs,
+                                          fold_structure,  
+                                          join = sf::st_within,        
+                                          left = TRUE)%>%
+      dplyr::filter(!is.na(folds))%>%
+      dplyr::mutate(ID = dplyr::row_number())
+    
+    if(nrow(global_presabs_perfold)!=nrow(global_presabs)){
+      warning(nrow(global_presabs)- nrow(global_presabs_perfold)," global point(s) not assigned to a fold and removed from dataset.")
+    }
+    
+    
+    #-----------------------------------------
+    #- Create lists for storing results -
+    #-----------------------------------------
+    global_validation_climate <- list()
+    if(eu_climate_validation) eu_validation_climate <- list()
+    median_favourability_climate_perfold <- vector("list", cv_folds)
+    
+    
+    #----------------------------------------------------------
+    #-- Fit models on each training set and predict test set --
+    #----------------------------------------------------------
+    #Start loop per fold
+    for (fold in seq_len(cv_folds)) {
       
-    } else {
-      # ===== Fallback: train on ALL data (no folds) =====
-      message("Not enough presences for CV (n_pres=", n_pres, "). Running train-only (no folds).")
+      message(sprintf("Creating climate validation metrics for fold %d/%d: use folds %s for training", 
+                      fold, cv_folds, paste(seq_len(cv_folds)[-fold], collapse = ", ")))
       
-      sdm_data_all <- sdm::sdmData(
+      
+      #--------------------------------------
+      #-          Define train data         -
+      #--------------------------------------
+      #Create training dataset
+      train_data  <- global_presabs_perfold%>%
+        dplyr::filter(folds!=fold)
+      
+      # Prevalence ratio from training data
+      pres_train <- sum(train_data$species == 1)
+      abs_train  <- sum(train_data$species == 0)
+      prev_ratio <- pres_train/abs_train
+      
+      
+      #--------------------------------------
+      #-      Fit models on train data      -
+      #--------------------------------------
+      #Prepare model framework
+      sdm_data <- sdm::sdmData(
         species ~ .,
-        train      = eu_presabs_sp,
-        predictors = fullstack_r
+        train      = vect(train_data),
+        predictors = climate_selection
       )
-      model_all <- sdm::sdm(species ~ ., data = sdm_data_all, methods = methods)
       
-      pres_all <- count_pres(eu_presabs_sp, "species")
-      abs_all  <- count_abs(eu_presabs_sp,  "species")
-      prev_ratio_all <- abs_all / max(1L, pres_all)
+      #Fit models
+      model <- sdm::sdm(species ~ ., data = sdm_data, methods = top5_methods)
       
-      mi <- sdm::getModelInfo(model_all)
-      col_m <- if ("methods" %in% names(mi)) "methods" else if ("method" %in% names(mi)) "method" else stop("getModelInfo: no method column")
-      stopifnot("modelID" %in% names(mi))
-      mi$modelID <- as.integer(mi$modelID)
-      id_by_method <- split(mi[["modelID"]], mi[[col_m]])
       
-      cap01 <- function(x) { x[x < 0] <- 0; x[x > 1] <- 1; x }
-      fav_list <- list()
-      for (m in methods) {
-        id_m <- as.integer(id_by_method[[m]][1])
-        if (length(id_m) == 0L || is.na(id_m)) {
-          warning("No numeric model id found for method ", m, "; skipping.")
-          next
-        }
-        message("  Predicting (train-only) with ", m, " (id=", id_m, ") ...")
-        pr <- try(predict(model_all, newdata = fullstack_r, id = id_m), silent = TRUE)
-        if (inherits(pr, "try-error")) {
-          message("    predict() failed for ", m, " (id=", id_m, "): ",
-                  conditionMessage(attr(pr, "condition")))
-          next
-        }
-        if (inherits(pr, "SpatRaster")) pr <- raster::raster(pr)
-        pr <- raster::calc(pr, fun = cap01)
+      #-----------------------------------------------------------
+      #--    Prepare datasets with climate data for predictions --
+      #-----------------------------------------------------------
+      #Extract data for global validation
+      test_data  <- global_presabs_perfold%>%
+        dplyr::filter(folds == fold)
+      
+      global_env <- extract_env(test_data, climate_selection)
+      datasets <- list(global_points = global_points,
+                       occ_env       = global_env$presences,
+                       abs_env       = global_env$absences)
+      
+      #Extract data for validation in Europe
+      if(eu_climate_validation){
+        eu_test_data  <- test_data%>%
+          sf::st_filter(euboundary_wgs84)
         
-        fv <- favourability_from_prob(pr, prev_ratio_all)
-        fav_list[[m]] <- terra::rast(fv)
-        rm(pr, fv); gc()
-      }
-      fav_list <- fav_list[!vapply(fav_list, is.null, logical(1))]
-      stopifnot(length(fav_list) > 0L)
-      s <- terra::rast(fav_list)
-      ens_fav_median <- terra::app(s, median, na.rm = TRUE)
-      names(ens_fav_median) <- "full"
-      rm(s, fav_list, model_all, sdm_data_all); gc()
-      k <- 0L
-    }
-    
-    #---- merge with climate predictions from global model
-    if (!terra::compareGeom(ens_fav_median, Global_climate_for_eu, stopOnError = FALSE)) {
-      Global_climate_for_eu <- terra::resample(
-        Global_climate_for_eu, ens_fav_median, method = "bilinear"
-      )
-    }
-    ens_fav_median <- sqrt(ens_fav_median * Global_climate_for_eu)
-    if (k > 0L && terra::nlyr(ens_fav_median) == k) {
-      names(ens_fav_median) <- paste0("fold_", seq_len(k))
-    }
-    rm(Global_climate_for_eu); gc()
-    
-    #################################################
-    #####        EVALUATION STATISTICS           ####
-    #################################################
-    get_boyce_cor <- function(res) {
-      if (is.null(res)) return(NA_real_)
-      if (!is.null(res$Spearman.cor)) return(as.numeric(res$Spearman.cor)[1])
-      if (!is.null(res$cor))          return(as.numeric(res$cor)[1])
-      NA_real_
-    }
-    safe_extract_vals <- function(r, sf_points) {
-      if (!nrow(sf_points)) return(numeric(0))
-      out <- try(terra::extract(r, terra::vect(sf_points)), silent = TRUE)
-      if (inherits(out, "try-error") || is.null(out) || ncol(out) < 2) return(numeric(0))
-      as.numeric(out[[2]])
-    }
-    sample_fit_vals <- function(r, n = 50000, thresh = 1e6) {
-      n_cells <- try(terra::global(!is.na(r), "sum", na.rm = TRUE)[1,1], silent = TRUE)
-      if (!inherits(n_cells, "try-error") && is.finite(n_cells) && n_cells <= thresh) {
-        v <- as.vector(terra::values(r))
-        return(v[is.finite(v)])
-      }
-      smp <- try(terra::spatSample(r, size = n, method = "random", na.rm = TRUE,
-                                   as.points = FALSE, values = TRUE), silent = TRUE)
-      if (inherits(smp, "try-error") || is.null(smp) || ncol(smp) < 1) return(numeric(0))
-      as.numeric(smp[[1]])
-    }
-    compute_boyce_robust <- function(fit_vals, obs_vals) {
-      fit_vals <- fit_vals[is.finite(fit_vals)]
-      obs_vals <- obs_vals[is.finite(obs_vals)]
-      if (length(obs_vals) < 5 || length(fit_vals) < 200) return(NA_real_)
-      if (length(unique(fit_vals)) < 3) return(NA_real_)
-      res1 <- try(ecospat.boyce(fit = fit_vals, obs = obs_vals, nclass = 0, PEplot = FALSE),
-                  silent = TRUE)
-      sc <- get_boyce_cor(if (!inherits(res1, "try-error")) res1 else NULL)
-      if (is.finite(sc)) return(sc)
-      for (nc in c(10, 20)) {
-        res2 <- try(ecospat.boyce(fit = fit_vals, obs = obs_vals, nclass = nc, PEplot = FALSE),
-                    silent = TRUE)
-        sc2 <- get_boyce_cor(if (!inherits(res2, "try-error")) res2 else NULL)
-        if (is.finite(sc2)) return(sc2)
-      }
-      NA_real_
-    }
-    
-    boyce_df <- NULL
-    
-    if (k > 0L) {
-      # ====== CV-based Boyce (train/test per fold) ======
-      sb_cv <- sb
-      blocks_sf <- sb_cv$blocks
-      pts_sf    <- sf::st_as_sf(eu_presabs_sp)
-      if (!sf::st_crs(pts_sf) == sf::st_crs(blocks_sf)) {
-        pts_sf <- sf::st_transform(pts_sf, sf::st_crs(blocks_sf))
-      }
-      pts_sf$fold <- sb_cv$folds_ids
-      blocks_sf$BLOCK_ROWID <- seq_len(nrow(blocks_sf))
-      
-      pts_with_block <- sf::st_join(
-        pts_sf[c("species","fold")],
-        blocks_sf["BLOCK_ROWID"],
-        join = sf::st_within,
-        left = FALSE
-      )
-      blocks_for_folds <- function(folds_vec) {
-        unique(pts_with_block$BLOCK_ROWID[pts_with_block$fold %in% folds_vec])
+        eu_env<-extract_env(eu_test_data, climate_selection)
+        datasets$eu_occ_env <- eu_env$presences
+        datasets$eu_abs_env <- eu_env$absences
       }
       
-      k_layers <- terra::nlyr(ens_fav_median)
-      stopifnot(k_layers == k, k > 0L)
-      
-      boyce_rows <- vector("list", k)
-      for (j in seq_len(k)) {
-        message(sprintf("Boyce fold %d/%d", j, k))
+      #Extract data for validation of ensemble model
+      if(ensemble_validation & !use_cv_climate_only){
+        ensemble_test_data<-eu_presabs_perfold%>%
+          dplyr::filter(folds == fold)
         
-        pres_test  <- pts_sf %>% dplyr::filter(species == 1L, fold == j)
-        pres_train <- pts_sf %>% dplyr::filter(species == 1L, fold != j)
-        
-        blk_test_ids  <- blocks_for_folds(j)
-        blk_train_ids <- blocks_for_folds(setdiff(seq_len(k), j))
-        
-        blocks_test   <- blocks_sf %>% dplyr::filter(BLOCK_ROWID %in% blk_test_ids)
-        blocks_train  <- blocks_sf %>% dplyr::filter(BLOCK_ROWID %in% blk_train_ids)
-        
-        rj <- ens_fav_median[[j]]
-        
-        r_test_area  <- if (nrow(blocks_test))  terra::mask(rj, terra::vect(blocks_test))  else rj * NA
-        r_train_area <- if (nrow(blocks_train)) terra::mask(rj, terra::vect(blocks_train)) else rj * NA
-        
-        fit_test  <- sample_fit_vals(r_test_area,  n = 50000, thresh = 1e6)
-        fit_train <- sample_fit_vals(r_train_area, n = 50000, thresh = 1e6)
-        
-        obs_test  <- safe_extract_vals(rj, pres_test)
-        obs_train <- safe_extract_vals(rj, pres_train)
-        
-        boyce_test  <- compute_boyce_robust(fit_test,  obs_test)
-        boyce_train <- compute_boyce_robust(fit_train, obs_train)
-        
-        boyce_rows[[j]] <- data.frame(
-          fold          = j,
-          n_pres_test   = length(obs_test),
-          n_pres_train  = length(obs_train),
-          n_fit_test    = length(fit_test),
-          n_fit_train   = length(fit_train),
-          uniq_fit_test = length(unique(fit_test)),
-          uniq_fit_trn  = length(unique(fit_train)),
-          boyce_test    = boyce_test,
-          boyce_train   = boyce_train
-        )
-        rm(rj, r_test_area, r_train_area, fit_test, fit_train, obs_test, obs_train); gc()
+        ensemble_env<-extract_env(ensemble_test_data, climate_selection)
+        datasets$ens_occ_env <- ensemble_env$presences
+        datasets$ens_abs_env <- ensemble_env$absences
       }
       
-      boyce_df <- do.call(rbind, boyce_rows)
+      #Add EU background data for validation of ensemble and Europe
+      if (eu_climate_validation || ensemble_validation) {datasets$eu_points  <- eu_points}
       
-    } else {
-      # ====== Train-only Boyce (no folds) ======
-      pts_sf <- sf::st_as_sf(eu_presabs_sp) %>% dplyr::filter(species == 1L)
-      rj <- ens_fav_median[[1]]
-      fit_all   <- sample_fit_vals(rj, n = 50000, thresh = 1e6)
-      obs_train <- safe_extract_vals(rj, pts_sf)
-      boyce_train <- compute_boyce_robust(fit_all, obs_train)
       
-      boyce_df <- data.frame(
-        fold          = 0,
-        n_pres_test   = 0L,
-        n_pres_train  = length(obs_train),
-        n_fit_test    = 0L,
-        n_fit_train   = length(fit_all),
-        uniq_fit_test = 0L,
-        uniq_fit_trn  = length(unique(fit_all)),
-        boyce_test    = NA_real_,
-        boyce_train   = boyce_train
-      )
-      rm(rj, fit_all, obs_train); gc()
+      #---------------------------------------------------------------------
+      #---- Make predictions per model algorithm and dataset and get median 
+      #----------------------------------------------------------------------
+      median_favourability_climate_perfold[[fold]]<- compute_median_favourability(model,
+                                                                                  datasets,
+                                                                                  top5_methods,
+                                                                                  prev_ratio)
+      
+      #-----------------------------------------
+      #------- Compute Boyce, AUC, and TSS -----
+      #-----------------------------------------
+      climate_fav<-median_favourability_climate_perfold[[fold]]
+      
+      #Global
+      global_validation_climate[[fold]] <- compute_validation_metrics(
+        species= speciesName,
+        type = "Climate",
+        region = "Global",
+        fold = fold,
+        all_suit_vals = climate_fav$global_points$median_favourability,
+        occ_suit_vals = climate_fav$occ_env$median_favourability,
+        abs_suit_vals = climate_fav$abs_env$median_favourability)
+      
+      #EU
+      if(eu_climate_validation){
+        eu_validation_climate[[fold]] <- compute_validation_metrics(
+          species= speciesName,
+          type = "Climate",
+          region = "Europe",
+          fold = fold,
+          all_suit_vals = climate_fav$eu_points$median_favourability,
+          occ_suit_vals = climate_fav$eu_occ_env$median_favourability,
+          abs_suit_vals = climate_fav$eu_abs_env$median_favourability)
+      }
+      
+      #Clean
+      terra::tmpFiles(remove = TRUE)
     }
     
-    summarize_boyce <- function(boyce_df, species, key, k_folds) {
-      data.frame(
-        species          = species,
-        gbif_key         = key,
-        k_folds          = as.integer(k_folds),
-        boyce_test_mean  = mean(boyce_df$boyce_test,  na.rm = TRUE),
-        boyce_test_sd    = sd(  boyce_df$boyce_test,  na.rm = TRUE),
-        boyce_train_mean = mean(boyce_df$boyce_train, na.rm = TRUE),
-        boyce_train_sd   = sd(  boyce_df$boyce_train, na.rm = TRUE),
-        stringsAsFactors = FALSE
-      )
-    }
     
-    boyce_summary <- summarize_boyce(boyce_df,
-                                     species = species,
-                                     key     = key,
-                                     k_folds = k)
+    #-----------------------------------------
+    #---- Store validation metrics in dfs ----
+    #-----------------------------------------
+    #Set AUC and tss to NA in global validation as these are calculated for different regions per species and, hence, are not comparable
+    global_validation_climate <- dplyr::bind_rows(global_validation_climate)
+    if(eu_climate_validation){
+      eu_validation_climate <- dplyr::bind_rows(eu_validation_climate)
+    } 
     
-    # ===== Persist per-species results =====
-    out_dir <- pr("data", "projects", project, "Results_CV_Boyce")
-    dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)   # ensure exists in worker
-    message("Writing outputs to: ", out_dir)
     
-    summ_file_tmp <- file.path(out_dir, sprintf("boyce_summary_%s_%s.tmp.csv", first_two_words, taxonkey))
-    summ_file     <- file.path(out_dir, sprintf("boyce_summary_%s_%s.csv",      first_two_words, taxonkey))
-    utils::write.csv(boyce_summary, summ_file_tmp, row.names = FALSE, na = "")
-    ok1 <- file.rename(summ_file_tmp, summ_file)
-    if (!ok1) utils::file.copy(summ_file_tmp, summ_file, overwrite = TRUE)
+  } else if (!use_cv) {
     
-    fold_file_tmp <- file.path(out_dir, sprintf("boyce_folds_%s_%s.tmp.csv", first_two_words, taxonkey))
-    fold_file     <- file.path(out_dir, sprintf("boyce_folds_%s_%s.csv",      first_two_words, taxonkey))
-    utils::write.csv(boyce_df, fold_file_tmp, row.names = FALSE, na = "")
-    ok2 <- file.rename(fold_file_tmp, fold_file)
-    if (!ok2) utils::file.copy(fold_file_tmp, fold_file, overwrite = TRUE)
+    #--------------------------------------------------
+    #-          OPTION 2: NO CROSS VALIDATION
+    #--------------------------------------------------
     
-    ens_file <- file.path(out_dir, sprintf("ens_fav_median_%s_%s.tif", first_two_words, taxonkey))
-    terra::writeRaster(ens_fav_median, ens_file, overwrite = TRUE)
-    
-    rm(ens_fav_median, boyce_df, habitat_stack,
-       biasgrid_sub, biasgrid_aligned, biasgrid_temp, biasgrid_eu, inside_mask,
-       wwf_eco_biome, wwf_eco_biome_filtered, occ.full.data.df, fullstack_r, eu_presabs_sp,
-       EU_points, EU_points_sf, eu_occ, eu_occ_pa, eu_presabs, sb); gc()
-    
-    list(
-      species    = species,
-      taxonkey   = taxonkey,
-      status     = "ok",
-      k          = k,              # 0 for fallback; 1..5 for CV
-      summary_csv= summ_file,
-      folds_csv  = fold_file,
-      ens_tif    = ens_file
+    #--------------------------------------
+    #-      Fit models on full data      -
+    #--------------------------------------
+    #Prepare model framework
+    sdm_data <- sdm::sdmData(
+      species ~ .,
+      train      = vect(global_presabs),
+      predictors = climate_selection
     )
-  }  # <-- close run_one_key()
-  ## -------- end worker --------
+    
+    #Fit models
+    model <- sdm::sdm(species ~ ., data = sdm_data, methods = top5_methods)
+    
+    
+    #--------------------------------------
+    #------- Define prevalence ratio ------
+    #--------------------------------------
+    pres_total <- sum(global_presabs$species == 1)
+    abs_total  <- sum(global_presabs$species == 0)
+    prev_ratio <- pres_total / abs_total
+    
+    
+    #-----------------------------------------------------------
+    #---- Prepare datasets with climate data for predictions --
+    #-----------------------------------------------------------
+    datasets<-list()
+    
+    if(!use_cv_climate_only){
+      #Extract data for global validation
+      global_env<-extract_env(global_presabs, climate_selection)
+      datasets <- list(global_points = global_points,
+                       occ_env       = global_env$presences,
+                       abs_env       = global_env$absences)
+      
+      #Extract data for validation in Europe
+      if(eu_climate_validation){
+        euboundary_presabs  <- global_presabs%>%
+          sf::st_filter(euboundary_wgs84)
+        
+        eu_env<-extract_env(euboundary_presabs, climate_selection)
+        datasets$eu_occ_env <- eu_env$presences
+        datasets$eu_abs_env <- eu_env$absences
+      }
+    }
+    
+    #Extract data for validation of ensemble model
+    if(ensemble_validation){
+      ensemble_presabs<-eu_presabs%>%
+        st_transform(crs=sf::st_crs(global_presabs))
+      
+      ensemble_env<-extract_env(ensemble_presabs, climate_selection)
+      datasets$ens_occ_env <- ensemble_env$presences
+      datasets$ens_abs_env <- ensemble_env$absences
+    }
+    
+    #Add EU background data for validation of ensemble and Europe
+    if (eu_climate_validation || ensemble_validation) {datasets$eu_points  <- eu_points}
+    
+    
+    #-----------------------------------------------------------
+    #---- Make predictions per model algorithm and dataset----
+    #-----------------------------------------------------------
+    median_fav_climate<- compute_median_favourability(model,
+                                                      datasets,
+                                                      top5_methods,
+                                                      prev_ratio)
+    
+    
+    #-----------------------------------------
+    #------- Compute Boyce, AUC, and TSS -----
+    #-----------------------------------------
+    
+    if(!use_cv_climate_only){
+      message("Calculating validation metrics (no cross-validation)")
+      
+      #Global
+      global_validation_climate <- compute_validation_metrics(
+        species = speciesName,
+        type =  "Climate",
+        region = "Global",
+        fold = "No cross-validation",
+        all_suit_vals = median_fav_climate$global_points$median_favourability,
+        occ_suit_vals = median_fav_climate$occ_env$median_favourability,
+        abs_suit_vals = median_fav_climate$abs_env$median_favourability)
+      
+      
+      #EU
+      if(eu_climate_validation){
+        eu_validation_climate <- compute_validation_metrics(
+          species = speciesName,
+          type =  "Climate",
+          region = "Europe",
+          fold = "No cross-validation",
+          all_suit_vals = median_fav_climate$eu_points$median_favourability,
+          occ_suit_vals = median_fav_climate$eu_occ_env$median_favourability,
+          abs_suit_vals = median_fav_climate$eu_abs_env$median_favourability)
+        
+      }
+    }
+    
+  }
   
-  # ------- run all keys in parallel -------
-  keys_to_run <- accepted_taxonkeys  # or subset for testing
+  #--------------------------------------------
+  #-------------- Export results --------------
+  #--------------------------------------------
+  # Define directories
+  climate_validation_dir<-file.path(base_dir, "Climate", "Current", "Diagnostics", "Model_validation")
+  if(!dir.exists(climate_validation_dir)) dir.create(climate_validation_dir, recursive = TRUE, showWarnings = FALSE)
   
-  results <- future_lapply(
-    keys_to_run,
-    function(k) {
-      p(sprintf("Running key %s", k))
-      tryCatch(
-        run_one_key(k),
-        error = function(e) list(taxonkey = k, status = "error", message = conditionMessage(e))
+  
+  # Export validation summary (mean across folds) when relevant
+  if(use_cv || use_cv_climate_only){
+    
+    #Export per fold validation
+    readr::write_csv(global_validation_climate,
+                     file.path(climate_validation_dir, paste0(speciesName, "_global_climate_validation_per_fold.csv"))) 
+    
+    #Export summary
+    global_validation_clim_mean <- summarise_validation(df = global_validation_climate, 
+                                                        validation = "Cross-validation")
+    readr::write_csv(global_validation_clim_mean,
+                     file.path(climate_validation_dir, paste0(speciesName, "_global_climate_validation_summary.csv"))) 
+    
+    #Bind results to validation summary
+    species_validation_summary <- species_validation_summary %>%
+      dplyr::bind_rows(global_validation_clim_mean)
+    
+    if (eu_climate_validation) {
+      
+      #Export per fold validation
+      readr::write_csv(eu_validation_climate,
+                       file.path(climate_validation_dir, paste0(speciesName, "_eu_climate_validation_per_fold.csv")))
+      
+      #Export summary
+      eu_validation_clim_mean <- summarise_validation(eu_validation_climate, 
+                                                      validation ="Cross-validation")
+      readr::write_csv(eu_validation_clim_mean,
+                       file.path(climate_validation_dir, paste0(speciesName, "_eu_climate_validation_summary.csv")))
+      
+      #Add summary to species validation df
+      species_validation_summary<-species_validation_summary%>%
+        dplyr::bind_rows(eu_validation_clim_mean)
+      
+    }
+    
+  }else{
+    #Export non-cross-validated results
+    readr::write_csv(global_validation_climate,
+                     file.path(climate_validation_dir, paste0(speciesName, "_global_climate_validation_summary.csv")))
+    
+    #Add summary to species validation df
+    global_validation_clim_mean<-summarise_validation(df = global_validation_climate,
+                                                      validation = "No cross-validation")
+    
+    species_validation_summary<-species_validation_summary%>%
+      dplyr::bind_rows(global_validation_clim_mean)
+    
+    if (eu_climate_validation) {
+      #Export non crossvalidated results
+      readr::write_csv(eu_validation_climate,
+                       file.path(climate_validation_dir, paste0(speciesName, "_eu_climate_validation_summary.csv")))
+      
+      #Store summary in species validation df
+      eu_validation_clim_mean<-summarise_validation(eu_validation_climate,
+                                                    validation = "No cross-validation")
+      
+      species_validation_summary<-species_validation_summary%>%
+        dplyr::bind_rows(eu_validation_clim_mean)
+      
+    }
+  }
+  
+  
+  
+  #==============================================
+  #=                                            =
+  #=     PART 2: European landcover model       =
+  #=                                            =
+  #==============================================
+  
+  #--------------------------------------------
+  #---- Should habitat validation be done? ----
+  #--------------------------------------------
+  if (!ensemble_validation) {
+    warning("No habitat model was fitted for species ", species,
+            "\n Skipping habitat model validation.")
+    validation_summary[[speciesName]]<-  species_validation_summary
+    next
+    
+  }
+  
+  
+  #--------------------------------------------
+  #--- Load  data stored in climate model qs --
+  #--------------------------------------------
+  habitatmodel   <- qs::qread(habitat_qs_file)
+  eu_presabs <- habitatmodel$eu_presabs
+  top5_habitat_methods  <- habitatmodel$top5_models
+  habitat_predictors <- habitatmodel$selected_predictors
+  #habitat_predictors<-unique(habitatmodel[["varimp_df"]][["Predictor"]])
+  rm(habitatmodel)
+  
+  
+  #---------------------------------------------------------
+  #- Select landcover rasters used in 04_fit_climate_model.R -
+  #---------------------------------------------------------
+  habitat_selection <- terra::subset(habitat_stack,
+                                     habitat_predictors[habitat_predictors %in%
+                                                          names(habitat_stack)])
+  
+  
+  #-----------------------------------------------------------
+  #- Obtain habitat subsample values for selected predictors
+  #-----------------------------------------------------------
+  eu_habitat_points<-eu_habitat_sub %>%
+    dplyr::select(any_of(habitat_predictors))%>%
+    dplyr::mutate(ID = dplyr::row_number())
+  
+  
+  #-----------------------------------------------------------------
+  #            OPTION 1: SPATIAL CROSS VALIDATION
+  #-----------------------------------------------------------------
+  if (use_cv) {
+    
+    #--------------------------------------------
+    #--Put fold assignment data in right CRS ----
+    #--------------------------------------------
+    eu_presabs_perfold<- eu_presabs_perfold%>%
+      sf::st_transform(crs=sf::st_crs(eu_presabs))
+    
+    
+    #----------------------------------------------------------
+    #-- Fit models on each training set and predict test set --
+    #----------------------------------------------------------
+    #Define lists to store validation metrics
+    validation_habitat <- list()
+    median_favourability_habitat_perfold <- vector("list", cv_folds)
+    
+    #Start loop per fold
+    for (fold in seq_len(cv_folds)) {
+      
+      message(sprintf("Creating habitat validation metrics for fold %d/%d: use folds %s for training", 
+                      fold, cv_folds, paste(seq_len(cv_folds)[-fold], collapse = ", ")))
+      
+      
+      #--------------------------------------
+      #-          Define train data         -
+      #--------------------------------------
+      #Create training dataset
+      train_data  <- eu_presabs_perfold%>%
+        dplyr::filter(folds!=fold)
+      
+      # Prevalence ratio from training data
+      pres_train <- sum(train_data$species == 1)
+      abs_train  <- sum(train_data$species == 0)
+      prev_ratio <- pres_train/abs_train
+      
+      
+      #--------------------------------------
+      #-      Fit models on train data      -
+      #--------------------------------------
+      #Prepare model framework
+      sdm_data <- sdm::sdmData(
+        species ~ .,
+        train      = vect(train_data),
+        predictors = habitat_selection
       )
-    },
-    future.seed = TRUE
-  )
-})  # <-- closes with_progress
-
-# ------- merge per-species summaries into a single CSV -------
-out_dir <- pr("data", "projects", project, "Results_CV_Boyce")
-dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
-
-summ_files <- list.files(out_dir, pattern = "^boyce_summary_.*\\.csv$", full.names = TRUE)
-
-if (length(summ_files)) {
-  merged <- do.call(rbind, lapply(summ_files, utils::read.csv, stringsAsFactors = FALSE))
-  merged_path <- file.path(out_dir, sprintf("boyce_summary_ALL_%s.csv", project))
-  utils::write.csv(merged, merged_path, row.names = FALSE, na = "")
-  message("Merged summary written to: ", merged_path)
-} else {
-  warning("No per-species summary files found to merge.")
+      
+      #Fit models
+      habitat_model <- sdm::sdm(species ~ ., data = sdm_data, methods = top5_habitat_methods)
+      
+      
+      #-----------------------------------------------------------
+      #---- Prepare datasets with habitat data for predictions --
+      #-----------------------------------------------------------
+      #Extract data for validation in Europe
+      test_data  <- eu_presabs_perfold%>%
+        dplyr::filter(folds == fold)
+      
+      europe_hab<-extract_env(test_data, habitat_selection)
+      habitat_datasets <- list(eu_habitat_points = eu_habitat_points,
+                               occ_hab       = europe_hab$presences,
+                               abs_hab       = europe_hab$absences)
+      
+      
+      #---------------------------------------------------------------------
+      #---- Make predictions per model algorithm and dataset and get median 
+      #----------------------------------------------------------------------
+      median_favourability_habitat_perfold[[fold]]<- compute_median_favourability(habitat_model,
+                                                                                  habitat_datasets,
+                                                                                  top5_habitat_methods,
+                                                                                  prev_ratio)
+      
+      
+      #-----------------------------------------
+      #------- Compute Boyce, AUC, and TSS -----
+      #-----------------------------------------
+      habitat_fav<-median_favourability_habitat_perfold[[fold]]
+      
+      #EU
+      validation_habitat[[fold]] <- compute_validation_metrics(
+        species= speciesName,
+        type = "Habitat",
+        region = "Europe",
+        fold = fold,
+        all_suit_vals = habitat_fav$eu_habitat_points$median_favourability,
+        occ_suit_vals = habitat_fav$occ_hab$median_favourability,
+        abs_suit_vals = habitat_fav$abs_hab$median_favourability)
+      
+      #Clean
+      terra::tmpFiles(remove = TRUE)
+    }
+    
+    
+    #-----------------------------------------
+    #---- Store validation metrics in dfs ----
+    #-----------------------------------------
+    eu_validation_habitat <- dplyr::bind_rows(validation_habitat)
+    
+    
+  } else {
+    
+    #--------------------------------------------------
+    #-          OPTION 2: NO CROSS VALIDATION
+    #--------------------------------------------------
+    
+    #--------------------------------------
+    #-      Fit models on full data      -
+    #--------------------------------------
+    #Prepare habitat_model framework
+    sdm_data <- sdm::sdmData(
+      species ~ .,
+      train      = vect(eu_presabs),
+      predictors = habitat_selection
+    )
+    
+    #Fit models
+    habitat_model <- sdm::sdm(species ~ ., data = sdm_data, methods = top5_habitat_methods)
+    
+    
+    #--------------------------------------
+    #------- Define prevalence ratio ------
+    #--------------------------------------
+    pres_total <- sum(eu_presabs$species == 1)
+    abs_total  <- sum(eu_presabs$species == 0)
+    prev_ratio <- pres_total / abs_total
+    
+    
+    #-----------------------------------------------------------
+    #---- Prepare datasets with habitat data for predictions --
+    #-----------------------------------------------------------
+    #Extract data for validation in Europe
+    europe_hab<-extract_env(eu_presabs, habitat_selection)
+    habitat_datasets <- list(eu_habitat_points = eu_habitat_points,
+                             occ_hab       = europe_hab$presences,
+                             abs_hab       = europe_hab$absences)
+    
+    
+    #---------------------------------------------------------------------
+    #---- Make predictions per model algorithm and dataset and get median 
+    #----------------------------------------------------------------------
+    median_fav_habitat<- compute_median_favourability(habitat_model,
+                                                      habitat_datasets,
+                                                      top5_habitat_methods,
+                                                      prev_ratio)
+    
+    
+    #-----------------------------------------
+    #------- Compute Boyce, AUC, and TSS -----
+    #-----------------------------------------
+    eu_validation_habitat <- compute_validation_metrics(
+      species= speciesName,
+      type = "Habitat",
+      region = "Europe",
+      fold = "No cross-validation",
+      all_suit_vals = median_fav_habitat$eu_habitat_points$median_favourability,
+      occ_suit_vals = median_fav_habitat$occ_hab$median_favourability,
+      abs_suit_vals = median_fav_habitat$abs_hab$median_favourability)
+    
+    
+  }
+  
+  #--------------------------------------------
+  #-------------- Export results --------------
+  #--------------------------------------------
+  # Export validation overview
+  habitat_validation_dir<-file.path(base_dir, "Habitat", "Current", "Diagnostics", "Model_validation")
+  if(!dir.exists(habitat_validation_dir)) dir.create(habitat_validation_dir, recursive = TRUE, showWarnings = FALSE)
+  
+  # Export validation summary (mean across folds) when relevant
+  if(use_cv){
+    
+    #Export per fold validation metrics
+    readr::write_csv(eu_validation_habitat,
+                     file.path(habitat_validation_dir, paste0(speciesName, "_habitat_validation_per_fold.csv")))
+    
+    #Export summary validation metrics
+    validation_hab_mean<-summarise_validation(eu_validation_habitat,
+                                              validation = "Cross-validation")
+    readr::write_csv(validation_hab_mean,
+                     file.path(habitat_validation_dir, paste0(speciesName, "_habitat_validation_summary.csv")))
+    
+  }else{
+    validation_hab_mean<-summarise_validation(eu_validation_habitat,
+                                              validation = "No cross-validation")
+    
+    readr::write_csv(eu_validation_habitat,
+                     file.path(habitat_validation_dir, paste0(speciesName, "_habitat_validation_summary.csv")))
+  }
+  
+  species_validation_summary<-species_validation_summary%>%
+    dplyr::bind_rows(validation_hab_mean)
+  
+  
+  
+  #==============================================
+  #=                                            =
+  #=         PART 3: Ensemble validation        =
+  #=                                            =
+  #==============================================
+  
+  
+  #-----------------------------------------------------------------
+  #            OPTION 1: SPATIAL CROSS VALIDATION
+  #-----------------------------------------------------------------
+  if (use_cv) {
+    
+    #----------------------------------------------------------
+    #-- Combine predictions of habitat and climate model --
+    #----------------------------------------------------------
+    #Define lists to store validation metrics
+    validation_ensemble<- list()
+    
+    #Start loop per fold
+    for (fold in seq_len(cv_folds)) {
+      
+      message(sprintf("Calculating ensemble validation metrics for test fold %d/%d", fold,cv_folds))
+      
+      # Extract median favourability for the current fold
+      hab_fav <- median_favourability_habitat_perfold[[fold]]
+      clim_fav <- median_favourability_climate_perfold[[fold]]
+      
+      #Generate ensemble favourability for background points, occs, and abs.
+      ensemble_background_fav <- ensemble_geom_mean(hab_fav$eu_habitat_points, clim_fav$eu_points, type="background")
+      ensemble_occ_fav <- ensemble_geom_mean(hab_fav$occ_hab,clim_fav$ens_occ_env, type="occurrence")
+      ensemble_abs_fav <- ensemble_geom_mean(hab_fav$abs_hab,clim_fav$ens_abs_env, type="absence")
+      
+      
+      #-----------------------------------------
+      #------- Compute Boyce, AUC, and TSS -----
+      #-----------------------------------------
+      validation_ensemble[[fold]] <- compute_validation_metrics(
+        species= speciesName,
+        type = "Ensemble",
+        region = "Europe",
+        fold = fold,
+        all_suit_vals = ensemble_background_fav,
+        occ_suit_vals =  ensemble_occ_fav ,
+        abs_suit_vals = ensemble_abs_fav)
+    }
+    
+    #-----------------------------------------
+    #---- Store validation metrics in df ----
+    #-----------------------------------------
+    eu_validation_ensemble <- dplyr::bind_rows(validation_ensemble)
+    
+    
+  } else{
+    
+    #--------------------------------------------------
+    #-          OPTION 2: NO CROSS VALIDATION
+    #--------------------------------------------------
+    
+    # Extract median favourability for habitat and climate
+    hab_fav <- median_fav_habitat
+    clim_fav <- median_fav_climate
+    
+    
+    #Generate ensemble favourability for background points, occs, and abs.
+    ensemble_background_fav <- ensemble_geom_mean(hab_fav$eu_habitat_points, clim_fav$eu_points, type="background")
+    ensemble_occ_fav <- ensemble_geom_mean(hab_fav$occ_hab,clim_fav$ens_occ_env, type="occurrence")
+    ensemble_abs_fav <- ensemble_geom_mean(hab_fav$abs_hab,clim_fav$ens_abs_env, type="absence")
+    
+    
+    #-----------------------------------------
+    #------- Compute Boyce, AUC, and TSS -----
+    #-----------------------------------------
+    message("Calculating ensemble validation metrics (no cross-validation)")
+    
+    eu_validation_ensemble <- compute_validation_metrics(
+      species= speciesName,
+      type = "Ensemble",
+      region= "Europe",
+      fold = "No cross-validation",
+      all_suit_vals = ensemble_background_fav,
+      occ_suit_vals =  ensemble_occ_fav ,
+      abs_suit_vals = ensemble_abs_fav)
+    
+  }
+  
+  
+  #--------------------------------------------
+  #-------------- Export results --------------
+  #--------------------------------------------
+  # Define directory
+  ensemble_validation_dir<-file.path(base_dir, "Combined", "Current", "Diagnostics", "Model_validation")
+  if(!dir.exists(ensemble_validation_dir)) dir.create(ensemble_validation_dir, recursive = TRUE, showWarnings = FALSE)
+  
+  # Export validation summary (mean across folds) when relevant
+  if(use_cv){
+    
+    #Export per fold validation metrics
+    readr::write_csv(eu_validation_ensemble,
+                     file.path(ensemble_validation_dir, paste0(speciesName, "_combined_validation_per_fold.csv")))
+    
+    #Export summary validation metrics
+    validation_ens_mean<- summarise_validation(eu_validation_ensemble,
+                                               validation = "Cross-validation")
+    readr::write_csv(validation_ens_mean,
+                     file.path(ensemble_validation_dir, paste0(speciesName, "_combined_validation_summary.csv")))
+    
+  }else{
+    
+    #Export summary validation metrics
+    validation_ens_mean<-summarise_validation(eu_validation_ensemble,
+                                              validation="No cross-validation")
+    readr::write_csv(eu_validation_ensemble,
+                     file.path(ensemble_validation_dir, paste0(speciesName, "_combined_validation_summary.csv")))
+    
+  }
+  
+  species_validation_summary<-species_validation_summary%>%
+    dplyr::bind_rows(validation_ens_mean)
+  
+  #--------------------------------------------
+  #-----Store results in validation summary ---
+  #--------------------------------------------
+  validation_summary[[speciesName]]<-  species_validation_summary
+  
 }
+
+#--------------------------------------------
+#----- Export combined validation results--------------
+#--------------------------------------------
+final_validation <- bind_rows(validation_summary)
+readr::write_csv(final_validation,
+                 file.path(validation_dir, "Validation_summary.csv"))

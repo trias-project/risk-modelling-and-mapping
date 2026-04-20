@@ -210,9 +210,9 @@ for (period in c("2041-2070","2071-2100")) {
     
     #Check if file is not corrupt, if so, redownload
     for(file in dest_files){
-     read_or_redownload(file=file, 
-                        folder = future_folder,
-                        doi =  "10.5281/zenodo.17724735")
+      read_or_redownload(file=file, 
+                         folder = future_folder,
+                         doi =  "10.5281/zenodo.17724735")
     }
   }
 }
@@ -302,11 +302,16 @@ for(file in dest_files){
 #----- Store the country boundary shapefile  -----
 #-------------------------------------------------
 #This may take some time!
-if(tolower(country_of_interest)!="europe"){
-country <- rnaturalearth::ne_countries(country=country_of_interest, scale=10)[1]
-country_vector <- terra::vect(country) #Convert to a SpatVector, used for masking
-country_ext <- terra::ext(country_vector) 
-sf::write_sf(country, here::here(country_folder,"country.shp"))
+if(tolower(country_of_interest)!="europe"||!is.null(custom_country_boundary_path)){
+  if(is.null(custom_country_boundary_path)){
+    country <- rnaturalearth::ne_countries(country=country_of_interest, scale=10)[1]
+  }else{
+    country <- sf::st_read(custom_country_boundary_path)%>%
+      st_transform(crs=4326)
+  }
+  country_vector <- terra::vect(country) #Convert to a SpatVector, used for masking
+  country_ext <- terra::ext(country_vector) 
+  sf::write_sf(country, here::here(country_folder,"country.shp"))
 }
 
 
@@ -370,9 +375,9 @@ euboundary <- terra::rast(file.path("data", "external", "habitat", "Agriculture.
   terra::project(globalclimpreds_terra[[1]])%>%
   terra::crop(terra::ext(-38, 50,  24.29152732065, 72.66652712715))
 
-if(tolower(country_of_interest)!="europe"){
+if(tolower(country_of_interest)!="europe"||!is.null(custom_country_boundary_path)){
   country_boundary<-sf::read_sf(here::here("data","external","GIS","Country","country.shp"))%>%
-    sf::st_transform(crs(globalclimpreds_terra))%>%
+    sf::st_transform(crs=4326)%>%
     terra::vect()
 }else{
   country_boundary<-euboundary
@@ -402,7 +407,7 @@ gc()
 #--------------------------------------------
 #--------Create country climate layers -------
 #--------------------------------------------
-if(tolower(country_of_interest)!="europe"){
+if(tolower(country_of_interest)!="europe"||!is.null(custom_country_boundary_path)){
   country_climpreds <- terra::crop(globalclimpreds_terra, country_boundary)
   country_climpreds <- terra::mask(country_climpreds, country_boundary)
   
@@ -500,6 +505,18 @@ terra::writeRaster(habitat_stack,
                    filename = habitatstack_file,
                    overwrite = TRUE,
                    wopt = list(gdal = c("COMPRESS=LZW")))
+
+
+#---------------------------------------------
+#----- Create an EU boundary shapefile -------
+#---------------------------------------------
+euboundary <- terra::rast(file.path("data", "external", "habitat", "Agriculture.tif"))
+euboundary<-(euboundary*0+1)
+euboundary <- terra::as.polygons(euboundary, dissolve = TRUE)  # merge adjacent cells
+euboundary <- sf::st_as_sf(euboundary)  # convert to sf
+euboundary_path<-file.path("data", "external", "GIS", "Europe")
+if(!dir.exists(euboundary_path)) dir.create(euboundary_path)
+sf::write_sf(euboundary, file.path(euboundary_path, "EUboundary.shp"))
 
 
 #--------------------------------------------

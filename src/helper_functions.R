@@ -61,11 +61,11 @@ remove_nodata_occurrences <- function(occurrences, rast_template, crs){
   initial_occurrences<-nrow(occurrences)
   
   #Remove occurrences in NA cells and convert to sf
-  occurrences <- terra::extract(rast_template, occurrences, xy = T, ID = F) %>%
+  env<- terra::extract(rast_template, occurrences, xy = F, ID = F)
+  
+  occurrences <- cbind(env, occurrences)%>%
     dplyr::filter(!is.na(.[[1]])) %>%   # keep only rows where first column is not NA
-    dplyr::select(c(x,y)) %>%
-    dplyr::rename(decimalLongitude = x,
-                  decimalLatitude = y) %>%
+    dplyr::select(c(decimalLongitude, decimalLatitude)) %>%
     sf::st_as_sf(coords = c("decimalLongitude", "decimalLatitude"), crs = crs, remove = FALSE)
   
   #Print how many occurrences were removed
@@ -924,4 +924,320 @@ read_or_redownload <- function(file, folder, doi, max_attempts = 3) {
   }
   
   stop(paste("Failed to obtain valid raster after", max_attempts, "attempts:", file))
+}
+
+
+
+#----------------------------------------------------------------------
+#- Make predictions per model algorithm and dataset and obtain median -
+#----------------------------------------------------------------------
+
+compute_median_favourability <- function(model,
+                                         datasets,
+                                         top5_methods,
+                                         prev_ratio) {
+  
+  #---------------------------
+  #---- Make predictions -----
+  #---------------------------
+  
+  env_favourability <- list()
+  for(modelmethod in top5_methods){
+    
+    message("Predicting for method: ", modelmethod,".")
+    
+    for(dataset_name in names(datasets)) {
+      
+      #Load datasets
+      dataset <- datasets[[dataset_name]]
+      IDs <-dataset$ID
+      dataset<-dplyr::select(dataset, -ID)
+      
+      #Predict for dataset
+      dataset_suit <- predict(model,
+                              newdata = dataset,
+                              method = modelmethod)
+      
+      #Convert suitability to favourability
+      dataset_fav<- favourability_from_prob(dataset_suit[[1]], prev_ratio)
+      
+      #Store in list
+      env_favourability[[modelmethod]][[dataset_name]] <- data.frame(ID = IDs,
+                                                                     fav = dataset_fav)
+      
+      #Clean up
+      rm(dataset_suit, dataset_fav, IDs, dataset)
+      
+    }
+  }  
+  
+  
+  #-----------------------------------------
+  #---- Calculate median favourability  ----
+  #-----------------------------------------
+  median_favourability<-lapply(
+    names(datasets),
+    function(dataset_name) {
+      
+      fav_matrix <- do.call(
+        cbind,
+        lapply(env_favourability, function(x) x[[dataset_name]]$fav)
+      )
+      
+      data.frame(ID = env_favourability[[1]][[dataset_name]]$ID,
+                 median_favourability = matrixStats::rowMedians(fav_matrix,na.rm = TRUE))
+    }
+  )
+  
+  names(median_favourability) <- names(datasets)
+  
+  return(median_favourability)
+}
+
+
+#------------------------------------------
+#----- Define Boyce helper functions -----
+#------------------------------------------
+#fit_vals are suitability or favourability values of a background sample or all available pixels in the target region
+#obs_vals are suitability or favourability values at occurrence locations
+
+compute_boyce_robust <- function(fit_vals, obs_vals) {
+  
+  #------------------------------------------
+  #----------- Basic checks -----------------
+  #------------------------------------------
+  #Define conditions for number of occurrences and total (or background) points
+  if (length(obs_vals) < 5 || length(fit_vals) < 200) return(NA_real_)
+  if (length(unique(fit_vals)) < 3)                   return(NA_real_)
+  
+  
+  #------------------------------------------
+  #---- Try moving window boyce ---
+  #-----------------------------------------
+  boyce_result <- try(ecospat::ecospat.boyce(fit = fit_vals, 
+                                             obs = obs_vals,
+                                             nclass = 0, #moving window boyce index
+                                             PEplot = FALSE), 
+                      silent = TRUE)
+  
+  
+  #------------------------------------------
+  #--- Return boyce index if all went well -----
+  #------------------------------------------
+  if (!inherits(boyce_result, "try-error") && !is.null(boyce_result$cor) && is.finite(boyce_result$cor)){
+    return(boyce_result$cor)
+    
+  }else{
+    
+    #------------------------------------------
+    #------------ Try binned Boyce ------------
+    #------------------------------------------
+    for (nc in c(10L, 20L)) {
+      boyce_result2 <- try(
+        ecospat::ecospat.boyce(
+          fit    = fit_vals,
+          obs    = obs_vals,
+          nclass = nc,
+          PEplot = FALSE
+        ),
+        silent = TRUE
+      )
+      
+      if (!inherits(boyce_result2, "try-error") && !is.null(boyce_result2$cor) && is.finite(boyce_result2$cor)){
+        return(boyce_result2$cor)
+      }
+    }
+  }  
+  #------------------------------------------
+  #--Return NA if binned boyce also fails ---
+  #------------------------------------------
+  return(NA_real_)
+  
+}
+
+
+#------------------------------------------
+#---Calculate model validation metrics ----
+#------------------------------------------
+compute_validation_metrics <- function(species, type, region, fold, all_suit_vals, occ_suit_vals, abs_suit_vals) {
+  
+  #Define number of presences and pseudoabsences
+  n_pres   <- length(occ_suit_vals)
+  n_abs    <- length(abs_suit_vals)
+  
+  #Define minimum number of presences and pseudoabsences needed
+  if (n_pres < 2L || n_abs < 2L)   return(c(fold = fold,
+                                            auc = NA_real_,
+                                            boyce = NA_real_,
+                                            tss = NA_real_))
+  
+  #---------------
+  #----- AUC -----
+  #---------------
+  # AUC via Wilcoxon statistic (exact, no ties correction needed for our use)
+  auc_val <- tryCatch({
+    wt <- wilcox.test(occ_suit_vals, abs_suit_vals, alternative = "greater", exact = FALSE)
+    as.numeric(wt$statistic) / (n_pres * n_abs)
+  }, error = function(e) NA_real_)
+  
+  
+  #---------------
+  #- Boyce index -
+  #---------------
+  boyce_val<-compute_boyce_robust(all_suit_vals, occ_suit_vals)
+  
+  
+  #---------------
+  #----- tss -----
+  #---------------
+  # max TSS: sweep candidate thresholds = unique sorted predicted values
+  tss_val <- tryCatch({
+    all_preds   <- c(occ_suit_vals, abs_suit_vals)
+    all_labels  <- c(rep(1L, n_pres), rep(0L, n_abs))
+    ord         <- order(all_preds, decreasing = TRUE)
+    preds_s     <- all_preds[ord]
+    labels_s    <- all_labels[ord]
+    
+    # Cumulative TP and FP as threshold descends
+    tp_cum <- cumsum(labels_s == 1L)
+    fp_cum <- cumsum(labels_s == 0L)
+    sens   <- tp_cum / n_pres      # sensitivity 
+    spec   <- 1 - fp_cum / n_abs   # specificity
+    tss_v  <- sens + spec - 1
+    
+    # Identify the optimal threshold
+    best_idx <- which.max(tss_v)
+    
+    list(TSS        = tss_v[best_idx],
+         sensitivity = sens[best_idx],
+         specificity = spec[best_idx],
+         threshold   = preds_s[best_idx]
+    )
+  }, error = function(e) {
+    list(TSS = NA_real_,
+         sensitivity = NA_real_,
+         specificity = NA_real_,
+         threshold = NA_real_
+    )
+  })
+  
+  
+  #------------------
+  #- Return metrics -
+  #------------------
+  return(data.frame(Species = species,
+                    Type = type,
+                    Region = region,
+                    test_fold = fold, 
+                    n_pres = as.numeric(n_pres),
+                    n_abs = as.numeric(n_abs),
+                    auc = as.numeric(auc_val),
+                    boyce = as.numeric(boyce_val),
+                    tss = as.numeric(tss_val$TSS),
+                    sens = as.numeric(tss_val$sensitivity),
+                    spec = as.numeric(tss_val$specificity)))
+ 
+}
+
+
+#-----------------------------------------------------------------
+#--Extract raster values at presence/absence points and return----
+#-----------------------------------------------------------------
+extract_env <- function(pres_abs_points, raster) {
+  
+  env_values <- terra::extract(raster,
+                               terra::vect(pres_abs_points),
+                               ID = FALSE,
+                               xy = FALSE)
+  
+  # Combine with species label 
+  df <- cbind(species = pres_abs_points$species, 
+              ID = pres_abs_points$ID,
+              env_values)
+
+  #remove NA rows
+  df <- df[complete.cases(df), ]
+  
+  list(
+    presences = df[df$species == 1, -1],
+    absences  = df[df$species == 0, -1]
+  )
+}
+
+
+#-----------------------------------------------------------------
+#--Calculate the geometric mean for ensemble validation------------
+#-----------------------------------------------------------------
+ensemble_geom_mean <- function(hab_df, clim_df, type,value_col_hab = "median_favourability", value_col_clim = "median_favourability") {
+  
+  merged <- dplyr::inner_join(hab_df, clim_df, by = "ID", suffix = c("_hab", "_clim"))
+  
+  geom_mean<-sqrt(merged[[paste0(value_col_hab, "_hab")]] *
+         merged[[paste0(value_col_clim, "_clim")]])
+  
+  #Create a message for printing
+  n_all  <- max(nrow(hab_df), nrow(clim_df))
+  n_merged <- nrow(merged)
+  perc_retained <- 100 * n_merged / n_all
+  n_lost <- n_all  - n_merged
+
+  
+  message(sprintf(paste("Ensemble validation:", "%d European",type ,"points retained (%.0f%%).",
+    "%d point(s) excluded due to missing predictions in the climate or habitat model."
+  ), n_merged, perc_retained, n_lost))
+  
+  return(geom_mean)
+}
+
+
+#-----------------------------------------------------------------
+#--Put NO CV validation data in right format ----------
+#-----------------------------------------------------------------
+summarise_validation<- function(df, validation){
+  
+  #Check that all necessary columns are present
+  required_cols <- c("Species", "Type", "Region", "test_fold","auc", "boyce", "tss", "sens", "spec")
+  missing_cols <- setdiff(required_cols, names(df))
+  
+  if (length(missing_cols) > 0) {
+    stop("Missing required columns: ", paste(missing_cols, collapse = ", "))
+  }
+  
+  if(validation=="Cross-validation"){
+    
+    df<-df %>%
+      dplyr::group_by(Species, Type, Region)%>%
+      dplyr::summarise(n_folds   = n_distinct(test_fold),
+                       mean_auc  = mean(auc, na.rm = TRUE),
+                       sd_auc    = sd(auc, na.rm = TRUE),
+                       mean_boyce = mean(boyce, na.rm = TRUE),
+                       sd_boyce   = sd(boyce, na.rm = TRUE),
+                       mean_tss  = mean(tss, na.rm = TRUE),
+                       sd_tss    = sd(tss, na.rm = TRUE),
+                       mean_sens  = mean(sens, na.rm = TRUE),
+                       sd_sens    = sd(sens, na.rm = TRUE),
+                       mean_spec  = mean(spec, na.rm = TRUE),
+                       sd_spec = sd(spec, na.rm = TRUE))%>%
+      dplyr::mutate(validation = "Cross-validation")
+  }else{
+  #Prepare data in right format
+  df<- df %>%
+  dplyr::transmute(Species,
+                   Type,
+                   Region,
+                   n_folds = NA_real_,
+                   mean_auc = auc,
+                   sd_auc = NA_real_,
+                   mean_boyce = boyce,
+                   sd_boyce = NA_real_,
+                   mean_tss = tss,
+                   sd_tss = NA_real_,
+                   mean_sens = sens,
+                   sd_sens = NA_real_,
+                   mean_spec = spec,
+                   sd_spec= NA_real_,
+                   validation = "No cross-validation")
+ 
+  }
+  return(df)
 }

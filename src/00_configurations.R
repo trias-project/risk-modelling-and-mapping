@@ -11,11 +11,17 @@ pseudoabsence_thinning_method <- "kmeans_clustering" #either "random" or "kmeans
 
 mtp_probabilities <- c(0.01, 0.05) #Define MTP thresholds (0.01 = 1%; 0.05 = 5%,...)
 
+custom_country_boundary_path <- NULL  #either NULL or a path to a shapefile, if not NULL this overwrites country_of_interest
+
 country_of_interest <- "Europe"
 
 update_files <- "ask" #either "ask", "yes", "no"
 
 workflow <-"single_step" #either single_step or two_step
+
+boyce_background_size <- 50000 #Number of non NA pixels in Europe to be selected for Boyce index calculation
+
+
 
 #------------------------------------------------------------
 #!ONLY ONCE: Add your GBIF credentials to your ./Renviron file
