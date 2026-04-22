@@ -981,7 +981,7 @@ with_progress({
           mtp_text <- paste0(probs*100,"pct")
           
           #Get threshold value and apply to consensus predictions
-          threshold<-climate_thresholds[[mtp_text]]
+          threshold<-climate_thresholds[[mtp_label]]
           binary_map_future <- future_consensus_median  >= threshold
           binary_map_future <- as.factor( binary_map_future*1) #Convert TRUE/FALSE to 1/0 and then to Present/Absent
           levels( binary_map_future) <- data.frame(ID = c(0, 1),
