@@ -378,13 +378,14 @@ if (!use_user_specific_climate) {
   #--------------------------------------------
   #----------- Load boundary layers -----------
   #--------------------------------------------
-  euboundary <- terra::rast(file.path("data", "external", "habitat", "Agriculture.tif"))%>%
-    terra::project(globalclimpreds_terra[[1]])%>%
-    terra::crop(terra::ext(-38, 50,  24.29152732065, 72.66652712715))
+  euboundary <- load_climate_eu_boundary(
+    custom_path = custom_eu_boundary_path,
+    reference = globalclimpreds_terra[[1]]
+  )
   
   if(tolower(country_of_interest)!="europe"||!is.null(custom_country_boundary_path)){
     country_boundary<-sf::read_sf(here::here("data","external","GIS","Country","country.shp"))%>%
-      sf::st_transform(crs=4326)%>%
+      sf::st_transform(crs(globalclimpreds_terra[[1]]))%>%
       terra::vect()
   }else{
     country_boundary<-euboundary
@@ -518,10 +519,7 @@ terra::writeRaster(habitat_stack,
 #---------------------------------------------
 #----- Create an EU boundary shapefile -------
 #---------------------------------------------
-euboundary <- terra::rast(file.path("data", "external", "habitat", "Agriculture.tif"))
-euboundary<-(euboundary*0+1)
-euboundary <- terra::as.polygons(euboundary, dissolve = TRUE)  # merge adjacent cells
-euboundary <- sf::st_as_sf(euboundary)  # convert to sf
+euboundary <- create_default_eu_boundary()
 euboundary_path<-file.path("data", "external", "GIS", "Europe")
 if(!dir.exists(euboundary_path)) dir.create(euboundary_path)
 sf::write_sf(euboundary, file.path(euboundary_path, "EUboundary.shp"))
