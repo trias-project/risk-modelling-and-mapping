@@ -1120,8 +1120,41 @@ load_eu_boundary <- function(custom_path = NULL,
 #--Load a named raster stack from manifest rows--------------------
 #-----------------------------------------------------------------
 load_named_raster_stack <- function(stack_rows) {
+  required_cols <- c("var_name", "file_path")
+  missing_cols <- setdiff(required_cols, names(stack_rows))
+  
+  if (length(missing_cols) > 0) {
+    stop(
+      "The raster stack rows are missing required columns: ",
+      paste(missing_cols, collapse = ", "),
+      call. = FALSE
+    )
+  }
+  
+  if (nrow(stack_rows) == 0) {
+    stop("No raster rows were supplied to build the climate stack.", call. = FALSE)
+  }
+  
+  if (anyDuplicated(stack_rows$var_name)) {
+    stop("The raster stack rows contain duplicated 'var_name' values.", call. = FALSE)
+  }
+  
   stack <- terra::rast(stack_rows$file_path)
-  names(stack) <- stack_rows$var_name
+  
+  if (terra::nlyr(stack) != nrow(stack_rows)) {
+    stop(
+      "The number of raster layers loaded does not match the number of manifest rows provided.",
+      call. = FALSE
+    )
+  }
+  
+  expected_names <- as.character(stack_rows$var_name)
+  names(stack) <- expected_names
+  
+  if (!identical(names(stack), expected_names)) {
+    stop("The climate raster stack could not be named exactly as specified in 'var_name'.", call. = FALSE)
+  }
+  
   stack
 }
 
