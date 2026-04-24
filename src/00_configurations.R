@@ -21,6 +21,8 @@ workflow <-"single_step" #either single_step or two_step
 
 boyce_background_size <- 50000 #Number of non NA pixels in Europe to be selected for Boyce index calculation
 
+user_specific_climate_data <- NULL #either NULL or a path to a CSV manifest with user-supplied climate rasters
+
 
 
 #------------------------------------------------------------
