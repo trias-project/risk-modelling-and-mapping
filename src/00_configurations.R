@@ -11,6 +11,8 @@ pseudoabsence_thinning_method <- "kmeans_clustering" #either "random" or "kmeans
 
 mtp_probabilities <- c(0.01, 0.05) #Define MTP thresholds (0.01 = 1%; 0.05 = 5%,...)
 
+custom_eu_boundary_path <- NULL  #either NULL or a path to a custom Europe boundary vector layer
+
 custom_country_boundary_path <- NULL  #either NULL or a path to a shapefile, if not NULL this overwrites country_of_interest
 
 country_of_interest <- "Europe"
