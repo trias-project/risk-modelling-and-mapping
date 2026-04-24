@@ -30,16 +30,18 @@ habitatstack_file <- file.path(processed_folder, "habitat_stack.tif")
 
 
 #--------------------------------------------
+habitat_stack<-terra::rast(habitatstack_file)
 #---------   Load euboundary  ---------
 #--------------------------------------------
-euboundary_path<-file.path("data", "external", "GIS", "Europe", "EUboundary.shp")
-euboundary<-sf::st_read(euboundary_path)
+euboundary <- load_eu_boundary(
+  custom_path = custom_eu_boundary_path,
+  reference = habitat_stack[[1]]
+)
 
 
 #---------------------------------------------
 #----- Load country boundary ------
 #---------------------------------------------
-habitat_stack<-terra::rast(habitatstack_file)
 if(tolower(country_of_interest)!="europe"||!is.null(custom_country_boundary_path)){
   country_boundary <- sf::read_sf(here::here("data","external","GIS","Country","country.shp"))%>%
     sf::st_transform(crs(habitat_stack[[1]]))%>%

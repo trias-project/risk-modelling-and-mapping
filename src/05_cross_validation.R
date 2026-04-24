@@ -58,22 +58,37 @@ accepted_taxonkeys <- unique(taxa_info$acceptedTaxonKey)
 
 
 #--------------------------------------------
-#------------ Load euboundary  --------------
-#--------------------------------------------
-euboundary_path<-file.path("data", "external", "GIS", "Europe", "EUboundary.shp")
-euboundary<-sf::st_read(euboundary_path)
-euboundary_wgs84<-euboundary%>%
-  sf::st_transform(crs = 4326)
-
-
-#--------------------------------------------
 #-----------------Load rasters---------------
 #--------------------------------------------
 #Load rasters 
 climate_stack <- terra::rast(climate_path)
 habitat_stack <- terra::rast(habitat_path)
-eu_climate_stack<- terra::rast(eu_climpreds_path)%>%
-  terra::project(habitat_stack[[1]])
+
+
+#--------------------------------------------
+#------------ Load euboundary  --------------
+#--------------------------------------------
+euboundary <- load_eu_boundary(
+  custom_path = custom_eu_boundary_path,
+  reference = habitat_stack[[1]]
+)
+euboundary_vect <- terra::vect(euboundary)
+
+if (is.null(custom_eu_boundary_path)) {
+  eu_climate_stack <- terra::rast(eu_climpreds_path) %>%
+    terra::project(habitat_stack[[1]])
+  
+  eu_sampling_mask <- habitat_stack[[1]]
+} else {
+  eu_climate_stack <- terra::rast(eu_climpreds_path) %>%
+    terra::project(habitat_stack[[1]]) %>%
+    terra::crop(euboundary_vect) %>%
+    terra::mask(euboundary_vect)
+  
+  eu_sampling_mask <- habitat_stack[[1]] %>%
+    terra::crop(euboundary_vect) %>%
+    terra::mask(euboundary_vect)
+}
 
 
 #-----------------------------------------------------------
@@ -82,7 +97,7 @@ eu_climate_stack<- terra::rast(eu_climpreds_path)%>%
 #Extract a subsample of European pixels for Boyce calculation 
 set.seed(728)
 eu_subsample <- terra::spatSample(
-  habitat_stack[[1]],
+  eu_sampling_mask,
   size = boyce_background_size, 
   method = "random", 
   na.rm = TRUE, #Ignore NA pixels
@@ -167,6 +182,8 @@ for (i in seq_along(accepted_taxonkeys)) {
   top5_methods  <- climatemodel$top5_models
   global_presabs <- climatemodel$global_presabs
   climate_predictors <- climatemodel$selected_predictors
+  euboundary_occurrence <- euboundary %>%
+    sf::st_transform(crs = sf::st_crs(global_presabs))
   rm(climatemodel)
   
   
@@ -175,7 +192,7 @@ for (i in seq_along(accepted_taxonkeys)) {
   #--------------------------------------------------
   eu_occ <- global_presabs%>%
     dplyr::filter(species==1)%>%
-    sf::st_filter(euboundary_wgs84) 
+    sf::st_filter(euboundary_occurrence) 
   
   #Only validate climate model in Europe if 40 or more occs 
   eu_climate_validation <- nrow(eu_occ) >= 40
@@ -444,7 +461,7 @@ for (i in seq_along(accepted_taxonkeys)) {
       #Extract data for validation in Europe
       if(eu_climate_validation){
         eu_test_data  <- test_data%>%
-          sf::st_filter(euboundary_wgs84)
+          sf::st_filter(euboundary_occurrence)
         
         eu_env<-extract_env(eu_test_data, climate_selection)
         datasets$eu_occ_env <- eu_env$presences
@@ -558,7 +575,7 @@ for (i in seq_along(accepted_taxonkeys)) {
       #Extract data for validation in Europe
       if(eu_climate_validation){
         euboundary_presabs  <- global_presabs%>%
-          sf::st_filter(euboundary_wgs84)
+          sf::st_filter(euboundary_occurrence)
         
         eu_env<-extract_env(euboundary_presabs, climate_selection)
         datasets$eu_occ_env <- eu_env$presences
