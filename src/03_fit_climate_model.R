@@ -58,6 +58,7 @@ climate_input_mode <- if (use_user_specific_climate) "user_specific" else "chels
 processed_folder <- file.path("data", "external", "climate", "chelsa_current","processed")
 
 if (use_user_specific_climate) {
+  
   climate_manifest <- load_user_specific_climate_manifest(user_specific_climate_data)
   climate_manifest_path <- climate_manifest$manifest_path
   future_paths <- climate_manifest$future_rows
@@ -66,12 +67,15 @@ if (use_user_specific_climate) {
   globalclimpreds_5k_file <- NULL
   eu_climpreds_file <- NULL
   country_climpreds_file <- NULL
+  
 } else {
+  
   climate_manifest <- NULL
   climate_manifest_path <- NULL
   globalclimpreds_file <- file.path(processed_folder, "globalclimpreds.tif")
   globalclimpreds_5k_file <- file.path(processed_folder,"globalclim_5k.tif")
   eu_climpreds_file <- file.path(processed_folder,"euclimpreds.tif")
+  
   if(tolower(country_of_interest)!="europe"||!is.null(custom_country_boundary_path)){
     country_climpreds_file <- file.path(processed_folder, "country_climpreds.tif")
   }else{
@@ -158,16 +162,16 @@ gc()
 #-------Start loop for SDM modelling --------
 #--------------------------------------------
 
-with_progress({
-  p <- progressr::progressor(along = 1:length(split_df))
-  
+# with_progress({
+#   p <- progressr::progressor(along = 1:length(split_df))
+#   
   
   for(i in 1:length(split_df)) {
     
     #--------------------------------------------
     #------------- Track progress ---------------
     #--------------------------------------------
-    p()
+    # p()
     
     #--------------------------------------------
     #----------- Load species details -----------
@@ -478,7 +482,7 @@ with_progress({
     
     #Select 10000 pseudoabsences
     if(pseudoabsence_thinning_method == "random"){
-      print("Thinning pseudoabsences randomly")
+      message("Thinning pseudoabsences randomly")
       set.seed(101) 
       global_points <- global_points[sample(nrow(global_points), 10000, replace=FALSE), ]%>%
         sf::st_as_sf()
@@ -491,7 +495,7 @@ with_progress({
         dplyr::select(decimalLongitude, decimalLatitude, geometry)
       
     }else if (pseudoabsence_thinning_method == "kmeans_clustering"){
-      print("Thinning pseudoabsences based on k-means clustering")
+      message("Thinning pseudoabsences based on k-means clustering")
       
       #Extract environmental data from filtered pseudoabsences
       pa_climate_data <- terra::extract(globalclimpreds_terra, global_points, ID = FALSE, xy = TRUE)
@@ -605,7 +609,36 @@ with_progress({
     selected_predictor_names <- names(globalclimpreds_terra_selection)
     
     if (use_user_specific_climate) {
-      current_prediction_selection <- globalclimpreds_terra_selection
+      
+      # Crop and mask scaled_stack to European extent
+      # Write to disk 
+
+      eu_climpreds_file <- file.path(processed_folder,"euclimpreds.tif")
+      
+      if(!file.exists(eu_climpreds_file)){
+        
+        message("Cropping global data to European extent for prediction")
+        
+        eu_climpreds.10 <- crop(
+          globalclimpreds_terra, 
+          euboundary, 
+          mask      = TRUE, 
+          snap      = "near", 
+          filename  = file.path(processed_folder,"euclimpreds.tif"), 
+          overwrite = TRUE
+        )
+        #Clean up
+        rm(eu_climpreds.10)
+      }else{
+        message("European extent data for prediction already exists")
+        
+      }
+    
+      #Reload
+      eu_climpreds.10 <- terra::rast(eu_climpreds_file)
+      current_prediction_selection <- eu_climpreds.10 %>%
+        subset(!names(eu_climpreds.10) %in% highlyCorrelated)
+      
     } else {
       eu_climpreds.10 <- terra::rast(eu_climpreds_file)
       current_prediction_selection <- eu_climpreds.10 %>%
@@ -655,13 +688,17 @@ with_progress({
       
       pred_raster <- try({
         
+        blk<-0
         for(rasterblock in seq_along(exts)) {
+          
+          blk<-blk+1
           block_r <- crop(current_prediction_selection, exts[[rasterblock]])
           
           # Make predictions for each block
           pred_blocks[[rasterblock]] <- predict(model,
                                                 newdata = block_r,
                                                 method = modelmethod)
+          message("Finished predicting block ", blk, " out of ", nblocks)
         }
         
         # Merge blocks only if all succeed
@@ -765,6 +802,7 @@ with_progress({
     
     #Step 9: Create country_level layers if relevant
     if(tolower(country_of_interest)!="europe"||!is.null(custom_country_boundary_path)){
+      
       ensemble_suitability<- consensus_median%>%
         terra::crop(country_boundary)%>%
         terra::mask(country_boundary)
@@ -776,19 +814,23 @@ with_progress({
       ensemble_mean<- consensus_mean%>%
         terra::crop(country_boundary)%>%
         terra::mask(country_boundary)
-    }else if (use_user_specific_climate){
-      ensemble_suitability <- consensus_median %>%
-        terra::crop(euboundary) %>%
-        terra::mask(euboundary)
       
-      ensemble_sd <- consensus_sd %>%
-        terra::crop(euboundary) %>%
-        terra::mask(euboundary)
+    # }else if (use_user_specific_climate){
+    #   
+    #   ensemble_suitability <- consensus_median %>%
+    #     terra::crop(euboundary) %>%
+    #     terra::mask(euboundary)
+    #   
+    #   ensemble_sd <- consensus_sd %>%
+    #     terra::crop(euboundary) %>%
+    #     terra::mask(euboundary)
+    #   
+    #   ensemble_mean <- consensus_mean %>%
+    #     terra::crop(euboundary) %>%
+    #     terra::mask(euboundary)
       
-      ensemble_mean <- consensus_mean %>%
-        terra::crop(euboundary) %>%
-        terra::mask(euboundary)
     }else{
+      
       ensemble_suitability<-consensus_median
       ensemble_sd <- consensus_sd
       ensemble_mean<-consensus_mean
@@ -954,8 +996,9 @@ with_progress({
           
           pred_raster_future  <- try({
             
+            blk<-0
             for(rasterblock in seq_along(exts)) {
-              
+              blk<-blk+1
               #Crop climate rasters into one of the 4 latitudinal rasterblocks
               block_r <- crop(future_selection, exts[[rasterblock]])
               
@@ -963,6 +1006,7 @@ with_progress({
               pred_blocks[[rasterblock]] <- predict(model,
                                                     newdata = block_r,
                                                     method = modelmethod)
+              message("Finished predicting block ", blk, " out of ", nblocks)
             }
             
             # Merge blocks only if all succeed
@@ -1229,7 +1273,7 @@ with_progress({
     terra::tmpFiles(remove = TRUE)
     
   }
-})
+# })
 
 
 #--------------------------------------------
