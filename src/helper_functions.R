@@ -1160,6 +1160,120 @@ load_named_raster_stack <- function(stack_rows) {
 
 
 #-----------------------------------------------------------------
+#--Build a stable cache key for current user-specific climate------
+#-----------------------------------------------------------------
+build_user_specific_climate_cache_key <- function(climate_manifest) {
+  current_rows <- climate_manifest$current_rows
+  if (is.null(current_rows) || nrow(current_rows) == 0) {
+    stop("The user-specific climate manifest does not contain current/current rows.", call. = FALSE)
+  }
+  
+  raster_info <- file.info(current_rows$file_path)
+  if (any(is.na(raster_info$size)) || any(is.na(raster_info$mtime))) {
+    stop("One or more current climate rasters could not be inspected for caching.", call. = FALSE)
+  }
+  
+  key_lines <- c(
+    "cache_scope=current_rows_v2",
+    paste("n_current_layers", nrow(current_rows), sep = "="),
+    paste(
+      current_rows$var_name,
+      current_rows$file_path,
+      raster_info$size,
+      format(raster_info$mtime, tz = "UTC", usetz = TRUE),
+      sep = "|"
+    )
+  )
+  
+  key_file <- tempfile(pattern = "user_specific_climate_key_", fileext = ".txt")
+  on.exit(unlink(key_file), add = TRUE)
+  writeLines(key_lines, key_file, useBytes = TRUE)
+  unname(tools::md5sum(key_file))
+}
+
+
+#-----------------------------------------------------------------
+#--Materialize current user-specific climate stack to disk--------
+#-----------------------------------------------------------------
+materialize_user_specific_current_stack <- function(climate_manifest,
+                                                    cache_dir = file.path("data", "external", "climate", "chelsa_current", "processed"),
+                                                    cache_prefix = "user_specific_current_stack") {
+  cache_dir <- resolve_input_path(cache_dir)
+  if (!dir.exists(cache_dir)) {
+    dir.create(cache_dir, recursive = TRUE, showWarnings = FALSE)
+  }
+  
+  cache_key <- build_user_specific_climate_cache_key(climate_manifest)
+  cache_file <- file.path(cache_dir, paste0(cache_prefix, "_", cache_key, ".tif"))
+  expected_names <- as.character(climate_manifest$current_rows$var_name)
+  
+  if (file.exists(cache_file)) {
+    cached_stack <- tryCatch(terra::rast(cache_file), error = function(e) NULL)
+    
+    if (!is.null(cached_stack) &&
+        terra::nlyr(cached_stack) == length(expected_names) &&
+        identical(names(cached_stack), expected_names)) {
+      return(cached_stack)
+    }
+  }
+  
+  stack <- load_named_raster_stack(climate_manifest$current_rows)
+  stack <- terra::mask(stack, anyNA(stack), maskvalue = 1)
+  
+  terra::writeRaster(
+    stack,
+    filename = cache_file,
+    overwrite = TRUE,
+    wopt = list(gdal = c("COMPRESS=LZW"))
+  )
+  
+  cached_stack <- terra::rast(cache_file)
+  
+  if (terra::nlyr(cached_stack) != length(expected_names) ||
+      !identical(names(cached_stack), expected_names)) {
+    stop(
+      "The cached user-specific climate stack does not match the expected predictor names.",
+      call. = FALSE
+    )
+  }
+  
+  cached_stack
+}
+
+
+#-----------------------------------------------------------------
+#--Align a continuous raster to a template raster------------------
+#-----------------------------------------------------------------
+align_continuous_raster <- function(raster, template, method = "bilinear") {
+  if (!inherits(raster, "SpatRaster")) {
+    stop("'raster' must be a terra SpatRaster.", call. = FALSE)
+  }
+  
+  if (!inherits(template, "SpatRaster")) {
+    stop("'template' must be a terra SpatRaster.", call. = FALSE)
+  }
+  
+  if (!nzchar(terra::crs(raster))) {
+    stop("The raster to align does not have a defined CRS.", call. = FALSE)
+  }
+  
+  if (!nzchar(terra::crs(template))) {
+    stop("The template raster does not have a defined CRS.", call. = FALSE)
+  }
+  
+  if (!isTRUE(terra::same.crs(raster, template))) {
+    return(terra::project(raster, template, method = method))
+  }
+  
+  if (!isTRUE(terra::compareGeom(raster, template, lyrs = FALSE, stopOnError = FALSE))) {
+    return(terra::resample(raster, template, method = method))
+  }
+  
+  raster
+}
+
+
+#-----------------------------------------------------------------
 #--Create an approximately 5 km template for pseudoabsences-------
 #-----------------------------------------------------------------
 create_pseudoabsence_template <- function(raster_layer, target_resolution_m = 5000) {
