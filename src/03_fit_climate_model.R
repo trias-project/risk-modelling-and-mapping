@@ -1,7 +1,12 @@
 #--------------------------------------------
 #-------------- Load packages ---------------
 #--------------------------------------------
-packages <- c( "dplyr", "stringr", "here", "qs","CoordinateCleaner", "raster", "rnaturalearth", "rnaturalearthdata", "ggplot2","tidyterra", "dismo", "sdm", "caret", "viridisLite", "kableExtra","future", "future.apply","randomForest","earth", "progressr", "sf", "gbm", "PresenceAbsence","geosphere","arm", "RStoolbox", "ecospat", "viridis", "patchwork", "grid", "purrr", "magick", "terra")
+packages <- c( "dplyr", "stringr", "here", "qs","CoordinateCleaner", "raster", 
+               "rnaturalearth", "rnaturalearthdata", "ggplot2","tidyterra", 
+               "dismo", "sdm", "caret", "viridisLite", "kableExtra","future", 
+               "future.apply","randomForest","earth", "progressr", "sf", "gbm", 
+               "PresenceAbsence","geosphere","arm", "RStoolbox", "ecospat", 
+               "viridis", "patchwork", "grid", "purrr", "magick", "terra")
 
 for(package in packages) {
   print(package)
@@ -56,6 +61,9 @@ rm(cleaned)
 use_user_specific_climate <- !is.null(user_specific_climate_data)
 climate_input_mode <- if (use_user_specific_climate) "user_specific" else "chelsa"
 processed_folder <- file.path("data", "external", "climate", "chelsa_current","processed")
+if (!dir.exists(processed_folder)) {
+  dir.create(processed_folder, recursive = TRUE, showWarnings = FALSE)
+}
 
 if (use_user_specific_climate) {
   
@@ -372,7 +380,9 @@ gc()
     #-Don't fit model if less than 20 global presences -----
     #-------------------------------------------------------   
     if(nrow(global.occ.sf)<20){
-      warning(paste0("Skipping species ", species, " because the number of occurrences is less than 20 (n =",nrow(global.occ.sf),")"))
+      warning(paste0("Skipping species ", species, 
+                     " because the number of occurrences is less than 20 (n =",
+                     nrow(global.occ.sf),")"))
       next  # Skip the rest of the loop and move to the next iteration
     }
     
