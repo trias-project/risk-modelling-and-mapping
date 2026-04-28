@@ -131,6 +131,43 @@ with_progress({
       
       #This was stored as part of  script 02_fit_global_model
       globalmodels <- qs::qread(global_model_file)
+      climate_input_mode_saved <- globalmodels$climate_input_mode
+      if (is.null(climate_input_mode_saved) || !nzchar(climate_input_mode_saved)) {
+        climate_input_mode_saved <- "chelsa"
+      }
+      climate_manifest_path_saved <- globalmodels$climate_manifest_path
+      predictor_crs_saved <- globalmodels$predictor_crs
+      
+      if (!climate_input_mode_saved %in% c("chelsa", "user_specific")) {
+        stop(
+          "Unsupported climate input mode stored in ",
+          basename(global_model_file),
+          ": ",
+          climate_input_mode_saved,
+          call. = FALSE
+        )
+      }
+      
+      if (climate_input_mode_saved == "user_specific") {
+        if (is.null(climate_manifest_path_saved) || !nzchar(climate_manifest_path_saved)) {
+          stop(
+            "The saved climate model metadata is missing 'climate_manifest_path'. Rerun 03_fit_climate_model.R for ",
+            speciesName,
+            ".",
+            call. = FALSE
+          )
+        }
+        
+        if (is.null(predictor_crs_saved) || !nzchar(predictor_crs_saved)) {
+          stop(
+            "The saved climate model metadata is missing 'predictor_crs'. Rerun 03_fit_climate_model.R for ",
+            speciesName,
+            ".",
+            call. = FALSE
+          )
+        }
+      }
+      use_user_specific_climate_saved <- climate_input_mode_saved == "user_specific"
       
       #Extract different data objects stored in globalmodels
       global.occ.sf <- globalmodels$occurrences1km %>% # FULL occurrence with coordinateUncertainty <= 1km
@@ -862,18 +899,31 @@ with_progress({
     #------------------------------------------------------------    
     #-- Create final predictions combining habitat and climate --
     #------------------------------------------------------------
-    if(tolower(country_of_interest)!="europe"||!is.null(custom_country_boundary_path)){
-      consensus_climate<-terra::rast(file.path( climate_raster_folder,
-                                                paste0(speciesName, "_Climate_current_ensemble_Europe.tif")))%>%
-        terra::project(consensus_habitat)
+    current_climate_file <- if(tolower(country_of_interest)!="europe"||!is.null(custom_country_boundary_path)){
+      file.path(climate_raster_folder, paste0(speciesName, "_Climate_current_ensemble_Europe.tif"))
     }else{
-      consensus_climate<-terra::rast( file.path(climate_raster_folder,
-                                                paste0(speciesName,"_Climate_current_ensemble.tif")))%>%
+      file.path(climate_raster_folder, paste0(speciesName,"_Climate_current_ensemble.tif"))
+    }
+    
+    if (use_user_specific_climate_saved) {
+      consensus_climate <- terra::rast(current_climate_file)
+      combined_habitat_suitability <- align_continuous_raster(consensus_habitat, consensus_climate)
+      combined_occ_current <- sf::st_transform(eu_occ, crs = sf::st_crs(terra::crs(consensus_climate)))
+      current_country_boundary <- if(tolower(country_of_interest)!="europe"||!is.null(custom_country_boundary_path)){
+        terra::project(country_boundary, terra::crs(consensus_climate))
+      }else{
+        country_boundary
+      }
+    } else {
+      consensus_climate <- terra::rast(current_climate_file) %>%
         terra::project(consensus_habitat)
+      combined_habitat_suitability <- consensus_habitat
+      combined_occ_current <- eu_occ
+      current_country_boundary <- country_boundary
     }
     
     #Combine suitability predictions by global model (climate) and EU habitat model
-    clim_hab <- sqrt(consensus_habitat * consensus_climate)
+    clim_hab <- sqrt(combined_habitat_suitability * consensus_climate)
     
     
     #--------------------------------------------------
@@ -882,8 +932,8 @@ with_progress({
     # Crop to extent of country if relevant
     if(tolower(country_of_interest)!="europe"||!is.null(custom_country_boundary_path)){
       ensemble_combined_suitability<- clim_hab%>%
-        terra::crop(country_boundary)%>%
-        terra::mask(country_boundary)
+        terra::crop(current_country_boundary)%>%
+        terra::mask(current_country_boundary)
     }else{
       ensemble_combined_suitability<-clim_hab
     }
@@ -898,7 +948,7 @@ with_progress({
     terra::writeRaster(ensemble_combined_suitability, filename = clim_hab_file, overwrite = T)
     
     #Export PDFs with and without occurrences plotted
-    for (occs in list(NULL, eu_occ)){
+    for (occs in list(NULL, combined_occ_current)){
       filename <- ifelse(is.null(occs), base_file, paste0(base_file, "_occ"))
       
       exportPDF(predictions = ensemble_combined_suitability,
@@ -926,23 +976,30 @@ with_progress({
     consensus_climate_mean <- terra::rast(mean_climate_path)
     consensus_climate_sd <- terra::rast(sd_climate_path)
     
-    #reproject mean climate to mean habitat crs
-    consensus_climate_mean <- terra::project(consensus_climate_mean,
+    if (use_user_specific_climate_saved) {
+      combined_habitat_mean <- align_continuous_raster(ensemble_habitat_mean, consensus_climate_mean)
+      combined_habitat_sd <- align_continuous_raster(ensemble_habitat_sd, consensus_climate_mean)
+    } else {
+      #reproject mean climate to mean habitat crs
+      consensus_climate_mean <- terra::project(consensus_climate_mean,
+                                               ensemble_habitat_mean,
+                                               method = "bilinear")
+      consensus_climate_sd <- terra::project(consensus_climate_sd,
                                              ensemble_habitat_mean,
                                              method = "bilinear")
-    consensus_climate_sd <- terra::project(consensus_climate_sd,
-                                           ensemble_habitat_mean,
-                                           method = "bilinear")
+      combined_habitat_mean <- ensemble_habitat_mean
+      combined_habitat_sd <- ensemble_habitat_sd
+    }
     
     # small floor to avoid division by zero
     eps <- 1e-6    
     
     # compute geometric mean
-    S <- sqrt(consensus_climate_mean * ensemble_habitat_mean)
+    S <- sqrt(consensus_climate_mean * combined_habitat_mean)
     
     # compute relative SDs 
     sd_climate <- consensus_climate_sd / (consensus_climate_mean + eps)
-    sd_habitat <- ensemble_habitat_sd / (ensemble_habitat_mean + eps)
+    sd_habitat <- combined_habitat_sd / (combined_habitat_mean + eps)
     
     # combined relative uncertainty 
     sd_comb <- sqrt(sd_climate^2 + sd_habitat^2)
@@ -978,7 +1035,7 @@ with_progress({
     #------------ Create binary map -----------
     #------------------------------------------
     # Get predicted values at occurrence points
-    vals_occ <- terra::extract(clim_hab, terra::vect(eu_occ), ID=FALSE)
+    vals_occ <- terra::extract(clim_hab, terra::vect(combined_occ_current), ID=FALSE)
     
     # Create binary maps
     for (probs in mtp_probabilities){
@@ -1005,7 +1062,7 @@ with_progress({
       
       # export as PDF and PNG with and without occurrences plotted 
       base_file<- paste0(combined_basefile, "current_binary",mtp_value,"pct")
-      for (occs in list(NULL, eu_occ)){
+      for (occs in list(NULL, combined_occ_current)){
         filename <- ifelse(is.null(occs), base_file, paste0(base_file, "_occ"))
         exportPDF(predictions = binary_map_pct,
                   dataType = "Binary",
@@ -1041,11 +1098,20 @@ with_progress({
         #Get climate data for specific period and scenario
         future_folder <- file.path(base_dir, "Climate", period, scenario, "Predictions", "Rasters")
         ensemble_file <- file.path(future_folder, paste0(global_basefile, period,"_",scenario,"_ensemble.tif"))
-        future_climate <- terra::rast(ensemble_file)%>%
-          terra::project(ensemble_habitat_suitability)
+        future_climate <- terra::rast(ensemble_file)
+        
+        if (use_user_specific_climate_saved) {
+          future_habitat_suitability <- align_continuous_raster(ensemble_habitat_suitability, future_climate)
+          future_occ <- sf::st_transform(eu_occ, crs = sf::st_crs(terra::crs(future_climate)))
+        } else {
+          future_climate <- future_climate %>%
+            terra::project(ensemble_habitat_suitability)
+          future_habitat_suitability <- ensemble_habitat_suitability
+          future_occ <- eu_occ
+        }
         
         #Final ensemble predictions
-        final_ensemble<-sqrt(ensemble_habitat_suitability * future_climate)
+        final_ensemble<-sqrt(future_habitat_suitability * future_climate)
         
         # Export future ensemble raster (favorability) 
         future_folder <- file.path(base_dir, "Combined", period, scenario, "Predictions", "Rasters")
@@ -1055,7 +1121,7 @@ with_progress({
         # Export ensemble predictions as PDF and PNG with and without occurrences
         base_file <- paste0(combined_basefile, scenario,"_", period,"_ensemble")
         
-        for (occs in list(NULL, eu_occ)){
+        for (occs in list(NULL, future_occ)){
           filename <- ifelse(is.null(occs), base_file, paste0(base_file, "_occ"))
           
           exportPDF(predictions = final_ensemble,
@@ -1096,7 +1162,7 @@ with_progress({
           # Export binarized ensemble predictions as PDF and PNG with and without occurrences 
           base_file <- paste0(combined_basefile, period,"_", scenario, "_binary",mtp_thr)
           
-          for (occs in list(NULL, eu_occ)){
+          for (occs in list(NULL, future_occ)){
             
             filename <- ifelse(is.null(occs), base_file, paste0(base_file, "_occ"))
             exportPDF(predictions = binary_map_future,
@@ -1129,23 +1195,30 @@ with_progress({
         consensus_future_climate_mean <- terra::rast(mean_future_climate_path)
         consensus_future_climate_sd <- terra::rast(sd_future_climate_path)
         
-        #reproject mean future_climate to mean habitat crs
-        consensus_future_climate_mean <- terra::project(consensus_future_climate_mean,
+        if (use_user_specific_climate_saved) {
+          future_habitat_mean <- align_continuous_raster(ensemble_habitat_mean, consensus_future_climate_mean)
+          future_habitat_sd <- align_continuous_raster(ensemble_habitat_sd, consensus_future_climate_mean)
+        } else {
+          #reproject mean future_climate to mean habitat crs
+          consensus_future_climate_mean <- terra::project(consensus_future_climate_mean,
+                                                          ensemble_habitat_mean,
+                                                          method = "bilinear")
+          consensus_future_climate_sd <- terra::project(consensus_future_climate_sd,
                                                         ensemble_habitat_mean,
                                                         method = "bilinear")
-        consensus_future_climate_sd <- terra::project(consensus_future_climate_sd,
-                                                      ensemble_habitat_mean,
-                                                      method = "bilinear")
+          future_habitat_mean <- ensemble_habitat_mean
+          future_habitat_sd <- ensemble_habitat_sd
+        }
         
         # small floor to avoid division by zero; adjust if needed
         eps <- 1e-6    
         
         # compute geometric mean
-        S <- sqrt(consensus_future_climate_mean * ensemble_habitat_mean)
+        S <- sqrt(consensus_future_climate_mean * future_habitat_mean)
         
         # compute relative SDs safely
         sd_future_climate <- consensus_future_climate_sd / (consensus_future_climate_mean + eps)
-        sd_habitat <- ensemble_habitat_sd / (ensemble_habitat_mean + eps)
+        sd_habitat <- future_habitat_sd / (future_habitat_mean + eps)
         
         # combined relative uncertainty (root-sum-of-squares)
         sd_comb <- sqrt(sd_future_climate^2 + sd_habitat^2)
@@ -1212,7 +1285,14 @@ with_progress({
     elapsed<-difftime(end_time, start_time, units="mins")
     cat("Habitat and ensemble model have been created for", species_title, "in", round(elapsed, 2), "minutes\n\n")
     
-    rm(list = setdiff(ls(), c("p", "project",  "habitatstack_file","create_folder", "custom_country_boundary_path","country_boundary", "split_df","euboundary", "habitat_stack",  "accepted_taxonkeys", "taxa_info", "key", "exportPDF", "remove_duplicates", "remove_nodata_occurrences", "favourability_from_prob", "mtp_probabilities", "occurrence_thinning_method", "mtp_probabilities", "pseudoabsence_thinning_method", "country_of_interest")))
+    rm(list = setdiff(ls(), c("p", "project",  "habitatstack_file","create_folder", 
+                              "custom_country_boundary_path","country_boundary", 
+                              "split_df","euboundary", "habitat_stack",  "accepted_taxonkeys", 
+                              "taxa_info", "key", "exportPDF", "remove_duplicates", 
+                              "remove_nodata_occurrences", "favourability_from_prob", 
+                              "mtp_probabilities", "occurrence_thinning_method", 
+                              "mtp_probabilities", "pseudoabsence_thinning_method", 
+                              "country_of_interest")))
     
     #Clean terra tempfiles
     terra::tmpFiles(remove = TRUE)
