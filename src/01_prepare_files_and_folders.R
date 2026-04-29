@@ -28,6 +28,7 @@ source(here::here("src","helper_functions.R"))
 source(here::here("src", "00_configurations.R"))
 
 use_user_specific_climate <- !is.null(user_specific_climate_data)
+use_user_specific_landcover <- !is.null(user_specific_landcover_data)
 
 
 #-------------------------------------------------
@@ -227,41 +228,42 @@ if (!use_user_specific_climate) {
 # #-------------------------------------------------
 # #-- Store habitat layers for the European model --
 # #-------------------------------------------------
-
-dest_files <- data.frame(
-  file = c("Agriculture.tif",
-           "Artificial.tif",
-           "Coastal_wetland.tif",
-           "Coniferous_forest.tif",
-           "Deciduous_forest.tif",
-           "Inland_wetland.tif",
-           "Mixed_forest.tif",
-           "Shrub_and_herbaceous.tif",
-           "log_distance_to_water.tif",
-           "log_total_water_length.tif",
-           "proportion_total_water_polygon_cover.tif"),
-  update_file = NA,
-  stringsAsFactors = FALSE
-)
-
-dest_files <- update_files_logic(dest_file = dest_files,
-                                 dest_folder = habitat_folder,
-                                 update_files = update_files) %>% 
-  dplyr::pull(file)
-
-if(length(dest_files)>0){
-  zen4R::download_zenodo(doi = "10.5281/zenodo.17724735", 
-                         path = habitat_folder, 
-                         files = dest_files,
-                         timeout = 600,
-                         quiet=FALSE)
-}
-
-#Check if file is not corrupt, if so, redownload
-for(file in dest_files){
-  read_or_redownload(file = file, 
-                     folder = habitat_folder,
-                     doi =  "10.5281/zenodo.17724735")
+if (!use_user_specific_landcover) {
+  dest_files <- data.frame(
+    file = c("Agriculture.tif",
+             "Artificial.tif",
+             "Coastal_wetland.tif",
+             "Coniferous_forest.tif",
+             "Deciduous_forest.tif",
+             "Inland_wetland.tif",
+             "Mixed_forest.tif",
+             "Shrub_and_herbaceous.tif",
+             "log_distance_to_water.tif",
+             "log_total_water_length.tif",
+             "proportion_total_water_polygon_cover.tif"),
+    update_file = NA,
+    stringsAsFactors = FALSE
+  )
+  
+  dest_files <- update_files_logic(dest_file = dest_files,
+                                   dest_folder = habitat_folder,
+                                   update_files = update_files) %>% 
+    dplyr::pull(file)
+  
+  if(length(dest_files)>0){
+    zen4R::download_zenodo(doi = "10.5281/zenodo.17724735", 
+                           path = habitat_folder, 
+                           files = dest_files,
+                           timeout = 600,
+                           quiet=FALSE)
+  }
+  
+  #Check if file is not corrupt, if so, redownload
+  for(file in dest_files){
+    read_or_redownload(file = file, 
+                       folder = habitat_folder,
+                       doi =  "10.5281/zenodo.17724735")
+  }
 }
 
 
@@ -318,6 +320,51 @@ if(tolower(country_of_interest)!="europe"||!is.null(custom_country_boundary_path
   country_vector <- terra::vect(country) #Convert to a SpatVector, used for masking
   country_ext <- terra::ext(country_vector) 
   sf::write_sf(country, here::here(country_folder,"country.shp"))
+}
+
+
+#-------------------------------------------------
+#----- Materialize user-specific land cover ------
+#-------------------------------------------------
+habitat_processed_folder <- file.path("data", "external", "habitat", "processed")
+if(!dir.exists(habitat_processed_folder)) dir.create(habitat_processed_folder, recursive = TRUE)
+habitatstack_file <- file.path(habitat_processed_folder, "habitat_stack.tif")
+default_eu_boundary_source_file <- file.path("data", "external", "habitat", "Agriculture.tif")
+
+if (use_user_specific_landcover) {
+  landcover_manifest <- load_user_specific_landcover_manifest(user_specific_landcover_data)
+  
+  if (use_user_specific_climate) {
+    climate_manifest_for_crs <- load_user_specific_climate_manifest(user_specific_climate_data)
+    if (!isTRUE(sf::st_crs(landcover_manifest$predictor_crs) == sf::st_crs(climate_manifest_for_crs$predictor_crs))) {
+      stop(
+        "The user-specific climate and land-cover manifests must use the same CRS.",
+        call. = FALSE
+      )
+    }
+    rm(climate_manifest_for_crs)
+  }
+  
+  materialize_user_specific_landcover_stack(
+    stack_rows = landcover_manifest$current_rows,
+    period = "current",
+    scenario = "current",
+    processed_dir = habitat_processed_folder
+  )
+  
+  if (isTRUE(landcover_manifest$has_future)) {
+    for (future_key in names(landcover_manifest$future_rows)) {
+      combo_parts <- strsplit(future_key, "__", fixed = TRUE)[[1]]
+      materialize_user_specific_landcover_stack(
+        stack_rows = landcover_manifest$future_rows[[future_key]],
+        period = combo_parts[1],
+        scenario = combo_parts[2],
+        processed_dir = habitat_processed_folder
+      )
+    }
+  }
+  
+  default_eu_boundary_source_file <- habitatstack_file
 }
 
 
@@ -380,7 +427,8 @@ if (!use_user_specific_climate) {
   #--------------------------------------------
   euboundary <- load_climate_eu_boundary(
     custom_path = custom_eu_boundary_path,
-    reference = globalclimpreds_terra[[1]]
+    reference = globalclimpreds_terra[[1]],
+    habitat_boundary_raster = default_eu_boundary_source_file
   )
   
   if(tolower(country_of_interest)!="europe"||!is.null(custom_country_boundary_path)){
@@ -477,49 +525,51 @@ if (!use_user_specific_climate) {
 #--------------------------------------------
 #-------- Load European habitat rasters -----
 #--------------------------------------------
-# Load all habitat rasters
-habitat_files <- list.files(file.path("./data/external/habitat"), pattern = 'tif$', full.names = TRUE)
-habitat_rasters <- lapply(habitat_files, terra::rast)
-
-# compute common intersection extent across all rasters
-common_ext <- Reduce(intersect, lapply(habitat_rasters, ext))
-
-# Crop all rasters to the common (smallest) extent
-habitat_rasters <- lapply(habitat_rasters, terra::crop, common_ext)
-
-# Combine into raster stack 
-habitat_stack <- terra::rast(habitat_rasters)
-rm(habitat_rasters)
-
-#Scale habitat rasters
-habitat_stack <- terra::scale(habitat_stack, center = TRUE, scale = TRUE)
-
-
-#---------------------------------------------
-#----- Remove NA pixels from predictors ------
-#---------------------------------------------
-#This is to avoid that some layers have NA while others have values in certain pixels
-na_mask_habitat_stack <- anyNA(habitat_stack)
-habitat_stack <- terra::mask(habitat_stack, na_mask_habitat_stack, maskvalue=1)
-
-
-#---------------------------------------------
-#----------- Store habitat layers ------------
-#---------------------------------------------
-processed_folder<-file.path("data", "external", "habitat", "processed")
-if(!dir.exists(processed_folder)) dir.create(processed_folder)
-habitatstack_file <- file.path(processed_folder, "habitat_stack.tif")
-
-terra::writeRaster(habitat_stack,
-                   filename = habitatstack_file,
-                   overwrite = TRUE,
-                   wopt = list(gdal = c("COMPRESS=LZW")))
+if (!use_user_specific_landcover) {
+  # Load all habitat rasters
+  habitat_files <- list.files(file.path("./data/external/habitat"), pattern = 'tif$', full.names = TRUE)
+  habitat_rasters <- lapply(habitat_files, terra::rast)
+  
+  # compute common intersection extent across all rasters
+  common_ext <- Reduce(intersect, lapply(habitat_rasters, ext))
+  
+  # Crop all rasters to the common (smallest) extent
+  habitat_rasters <- lapply(habitat_rasters, terra::crop, common_ext)
+  
+  # Combine into raster stack 
+  habitat_stack <- terra::rast(habitat_rasters)
+  rm(habitat_rasters)
+  
+  #Scale habitat rasters
+  habitat_stack <- terra::scale(habitat_stack, center = TRUE, scale = TRUE)
+  
+  
+  #---------------------------------------------
+  #----- Remove NA pixels from predictors ------
+  #---------------------------------------------
+  #This is to avoid that some layers have NA while others have values in certain pixels
+  na_mask_habitat_stack <- anyNA(habitat_stack)
+  habitat_stack <- terra::mask(habitat_stack, na_mask_habitat_stack, maskvalue=1)
+  
+  
+  #---------------------------------------------
+  #----------- Store habitat layers ------------
+  #---------------------------------------------
+  terra::writeRaster(habitat_stack,
+                     filename = habitatstack_file,
+                     overwrite = TRUE,
+                     wopt = list(gdal = c("COMPRESS=LZW")))
+}
 
 
 #---------------------------------------------
 #----- Create an EU boundary shapefile -------
 #---------------------------------------------
-euboundary <- create_default_eu_boundary()
+if (use_user_specific_landcover) {
+  euboundary <- create_default_eu_boundary(habitat_boundary_raster = habitatstack_file)
+} else {
+  euboundary <- create_default_eu_boundary()
+}
 euboundary_path<-file.path("data", "external", "GIS", "Europe")
 if(!dir.exists(euboundary_path)) dir.create(euboundary_path)
 sf::write_sf(euboundary, file.path(euboundary_path, "EUboundary.shp"))
