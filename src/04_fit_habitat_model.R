@@ -21,12 +21,40 @@ sdm::installAll()
 source(file.path("src", "helper_functions.R"))
 source(file.path("src", "00_configurations.R"))
 
+use_user_specific_landcover <- !is.null(user_specific_landcover_data)
+landcover_input_mode <- if (use_user_specific_landcover) "user_specific" else "default"
+
 
 #--------------------------------------------
 #---- Define habitat raster file paths ------
 #--------------------------------------------
 processed_folder<-file.path("data", "external", "habitat", "processed")
 habitatstack_file <- file.path(processed_folder, "habitat_stack.tif")
+
+if (use_user_specific_landcover) {
+  landcover_manifest <- load_user_specific_landcover_manifest(user_specific_landcover_data)
+  landcover_manifest_path <- landcover_manifest$manifest_path
+  materialize_user_specific_landcover_stack(
+    stack_rows = landcover_manifest$current_rows,
+    period = "current",
+    scenario = "current",
+    processed_dir = processed_folder
+  )
+  
+  if (!is.null(user_specific_climate_data)) {
+    climate_manifest_config <- load_user_specific_climate_manifest(user_specific_climate_data)
+    if (!isTRUE(sf::st_crs(landcover_manifest$predictor_crs) == sf::st_crs(climate_manifest_config$predictor_crs))) {
+      stop(
+        "The user-specific climate and land-cover manifests must use the same CRS.",
+        call. = FALSE
+      )
+    }
+    rm(climate_manifest_config)
+  }
+} else {
+  landcover_manifest <- NULL
+  landcover_manifest_path <- NULL
+}
 
 
 #--------------------------------------------
