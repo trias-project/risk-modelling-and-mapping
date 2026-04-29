@@ -96,6 +96,59 @@ rm(habitat_stack)
 gc()
 
 
+#-------------------------------------------------------------
+#---- Predict future habitat ensembles for dynamic mode ------
+#-------------------------------------------------------------
+predict_future_habitat_ensemble <- function(model,
+                                            predictor_stack,
+                                            methods,
+                                            prev_ratio,
+                                            nblocks = 4) {
+  e <- terra::ext(predictor_stack)
+  ybreaks <- seq(e$ymin, e$ymax, length.out = nblocks + 1)
+  exts <- lapply(1:nblocks, function(i) terra::ext(e$xmin, e$xmax, ybreaks[i], ybreaks[i + 1]))
+  pred_blocks <- vector("list", nblocks)
+  future_modeloutput <- list()
+  
+  for (modelmethod in methods) {
+    pred_raster_future <- try({
+      blk <- 0
+      for (rasterblock in seq_along(exts)) {
+        blk <- blk + 1
+        block_r <- terra::crop(predictor_stack, exts[[rasterblock]])
+        pred_blocks[[rasterblock]] <- predict(
+          model,
+          newdata = block_r,
+          method = modelmethod
+        )
+        message("Finished habitat block ", blk, " out of ", nblocks)
+      }
+      
+      do.call(terra::merge, pred_blocks)
+    }, silent = TRUE)
+    
+    if (inherits(pred_raster_future, "try-error")) {
+      message("Skipping habitat method ", modelmethod, " due to prediction failure.")
+      next
+    }
+    
+    future_modeloutput[[modelmethod]] <- favourability_from_prob(pred_raster_future, prev_ratio)
+    rm(pred_raster_future)
+  }
+  
+  if (length(future_modeloutput) == 0) {
+    stop("No habitat prediction algorithms produced a valid future projection.", call. = FALSE)
+  }
+  
+  future_fav_stack <- terra::rast(future_modeloutput)
+  list(
+    ensemble = terra::app(future_fav_stack, median),
+    mean = terra::mean(future_fav_stack, na.rm = TRUE),
+    sd = terra::stdev(future_fav_stack, pop = TRUE)
+  )
+}
+
+
 #--------------------------------------------
 #----------- Start modelling loop  ----------
 #--------------------------------------------
