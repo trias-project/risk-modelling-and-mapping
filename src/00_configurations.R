@@ -25,7 +25,7 @@ boyce_background_size <- 50000 #Number of non NA pixels in Europe to be selected
 
 user_specific_climate_data <- "./data/external/file_paths_custom_data.csv" #either NULL or a path to a CSV manifest with user-supplied climate rasters
 
-user_specific_landcover_data <- NULL #either NULL or a path to a CSV manifest with user-supplied land-cover rasters
+user_specific_landcover_data <- "./data/external/file_paths_custom_landcover_data.csv" #either NULL or a path to a CSV manifest with user-supplied land-cover rasters
 
 
 

@@ -186,6 +186,71 @@ for (i in seq_along(accepted_taxonkeys)) {
     )
   }
   
+  ensemble_validation <- file.exists(habitat_qs_file)
+  habitatmodel <- NULL
+  habitat_stack_active <- habitat_stack
+  landcover_input_mode_saved <- "default"
+  landcover_manifest_path_saved <- NULL
+  landcover_predictor_crs_saved <- NULL
+  
+  if (ensemble_validation) {
+    habitatmodel <- qs::qread(habitat_qs_file)
+    landcover_input_mode_saved <- habitatmodel$landcover_input_mode
+    
+    if (is.null(landcover_input_mode_saved) || !nzchar(landcover_input_mode_saved)) {
+      landcover_input_mode_saved <- "default"
+    }
+    
+    landcover_manifest_path_saved <- habitatmodel$landcover_manifest_path
+    landcover_predictor_crs_saved <- habitatmodel$landcover_predictor_crs
+    
+    if (!landcover_input_mode_saved %in% c("default", "user_specific")) {
+      stop(
+        "Unsupported land-cover input mode stored in ",
+        basename(habitat_qs_file),
+        ": ",
+        landcover_input_mode_saved,
+        call. = FALSE
+      )
+    }
+    
+    if (landcover_input_mode_saved == "user_specific") {
+      if (is.null(landcover_manifest_path_saved) || !nzchar(landcover_manifest_path_saved)) {
+        stop(
+          "The saved habitat model metadata is missing 'landcover_manifest_path'. Rerun 04_fit_habitat_model.R for ",
+          speciesName,
+          ".",
+          call. = FALSE
+        )
+      }
+      
+      if (is.null(landcover_predictor_crs_saved) || !nzchar(landcover_predictor_crs_saved)) {
+        stop(
+          "The saved habitat model metadata is missing 'landcover_predictor_crs'. Rerun 04_fit_habitat_model.R for ",
+          speciesName,
+          ".",
+          call. = FALSE
+        )
+      }
+      
+      landcover_manifest_saved <- load_user_specific_landcover_manifest(landcover_manifest_path_saved)
+      habitat_stack_active <- materialize_user_specific_landcover_stack(
+        stack_rows = landcover_manifest_saved$current_rows,
+        period = "current",
+        scenario = "current"
+      )
+      
+      saved_landcover_crs <- sf::st_crs(landcover_predictor_crs_saved)
+      active_landcover_crs <- sf::st_crs(terra::crs(habitat_stack_active))
+      if (!isTRUE(saved_landcover_crs == active_landcover_crs)) {
+        stop(
+          "The current habitat stack loaded from the saved manifest does not match the CRS stored in the habitat model metadata.",
+          call. = FALSE
+        )
+      }
+    }
+  }
+  
   if (climate_input_mode_saved == "user_specific") {
     if (is.null(climate_manifest_path_saved) || !nzchar(climate_manifest_path_saved)) {
       stop(
@@ -215,6 +280,17 @@ for (i in seq_along(accepted_taxonkeys)) {
       )
     }
     
+    if (landcover_input_mode_saved == "user_specific") {
+      if (!isTRUE(active_predictor_crs == sf::st_crs(terra::crs(habitat_stack_active)))) {
+        stop(
+          "The saved user-specific climate and land-cover predictors do not share the same CRS for ",
+          speciesName,
+          ".",
+          call. = FALSE
+        )
+      }
+    }
+    
     euboundary_active <- load_eu_boundary(
       custom_path = custom_eu_boundary_path,
       reference = climate_stack_active[[1]]
@@ -225,7 +301,7 @@ for (i in seq_along(accepted_taxonkeys)) {
       terra::crop(euboundary_active_vect) %>%
       terra::mask(euboundary_active_vect)
     
-    habitat_stack_on_climate <- align_continuous_raster(habitat_stack, 
+    habitat_stack_on_climate <- align_continuous_raster(habitat_stack_active, 
                                                         eu_climate_stack_active[[1]])
     
     eu_sampling_mask_active <- terra::mask(habitat_stack_on_climate[[1]], 
@@ -266,39 +342,84 @@ for (i in seq_along(accepted_taxonkeys)) {
       default_climate_stack <- terra::rast(climate_path)
     }
     
-    if (is.null(default_eu_climate_stack)) {
+    climate_stack_active <- default_climate_stack
+    
+    if (landcover_input_mode_saved == "user_specific") {
+      euboundary_active <- load_eu_boundary(
+        custom_path = custom_eu_boundary_path,
+        reference = habitat_stack_active[[1]]
+      )
+      euboundary_active_vect <- terra::vect(euboundary_active)
+      
       if (is.null(custom_eu_boundary_path)) {
-        default_eu_climate_stack <- terra::rast(eu_climpreds_path) %>%
-          terra::project(habitat_stack[[1]])
+        eu_sampling_mask_active <- habitat_stack_active[[1]]
+        eu_climate_stack_active <- terra::rast(eu_climpreds_path) %>%
+          terra::project(habitat_stack_active[[1]])
       } else {
-        default_eu_climate_stack <- terra::rast(eu_climpreds_path) %>%
-          terra::project(habitat_stack[[1]]) %>%
-          terra::crop(default_euboundary_vect) %>%
-          terra::mask(default_euboundary_vect)
+        eu_sampling_mask_active <- habitat_stack_active[[1]] %>%
+          terra::crop(euboundary_active_vect) %>%
+          terra::mask(euboundary_active_vect)
+        eu_climate_stack_active <- terra::rast(eu_climpreds_path) %>%
+          terra::project(habitat_stack_active[[1]]) %>%
+          terra::crop(euboundary_active_vect) %>%
+          terra::mask(euboundary_active_vect)
+      }
+      
+      eu_sampling_cells_active <- terra::global(!is.na(eu_sampling_mask_active),
+                                                "sum", na.rm = TRUE)[[1]]
+      if (is.na(eu_sampling_cells_active) || eu_sampling_cells_active == 0) {
+        stop("No non-NA European habitat cells are available for validation sampling.", call. = FALSE)
       }
       
       set.seed(728)
-      default_eu_subsample <- terra::spatSample(
-        default_eu_sampling_mask,
+      eu_subsample_active <- terra::spatSample(
+        eu_sampling_mask_active,
         size = boyce_background_size,
         method = "random",
         na.rm = TRUE,
         as.points = TRUE
       )
       
-      default_eu_climate_sub <- terra::extract(default_eu_climate_stack, 
-                                               default_eu_subsample, 
-                                               ID = FALSE, xy = FALSE)
-      default_eu_habitat_sub <- terra::extract(habitat_stack, 
-                                               default_eu_subsample, 
-                                               ID = FALSE, xy = FALSE)
+      eu_climate_sub_active <- terra::extract(eu_climate_stack_active,
+                                              eu_subsample_active,
+                                              ID = FALSE, xy = FALSE)
+      eu_habitat_sub_active <- terra::extract(habitat_stack_active,
+                                              eu_subsample_active,
+                                              ID = FALSE, xy = FALSE)
+    } else {
+      if (is.null(default_eu_climate_stack)) {
+        if (is.null(custom_eu_boundary_path)) {
+          default_eu_climate_stack <- terra::rast(eu_climpreds_path) %>%
+            terra::project(habitat_stack[[1]])
+        } else {
+          default_eu_climate_stack <- terra::rast(eu_climpreds_path) %>%
+            terra::project(habitat_stack[[1]]) %>%
+            terra::crop(default_euboundary_vect) %>%
+            terra::mask(default_euboundary_vect)
+        }
+        
+        set.seed(728)
+        default_eu_subsample <- terra::spatSample(
+          default_eu_sampling_mask,
+          size = boyce_background_size,
+          method = "random",
+          na.rm = TRUE,
+          as.points = TRUE
+        )
+        
+        default_eu_climate_sub <- terra::extract(default_eu_climate_stack, 
+                                                 default_eu_subsample, 
+                                                 ID = FALSE, xy = FALSE)
+        default_eu_habitat_sub <- terra::extract(habitat_stack, 
+                                                 default_eu_subsample, 
+                                                 ID = FALSE, xy = FALSE)
+      }
+      
+      euboundary_active <- default_euboundary
+      eu_climate_stack_active <- default_eu_climate_stack
+      eu_climate_sub_active <- default_eu_climate_sub
+      eu_habitat_sub_active <- default_eu_habitat_sub
     }
-    
-    climate_stack_active <- default_climate_stack
-    euboundary_active <- default_euboundary
-    eu_climate_stack_active <- default_eu_climate_stack
-    eu_climate_sub_active <- default_eu_climate_sub
-    eu_habitat_sub_active <- default_eu_habitat_sub
   }
   
   missing_climate_predictors <- setdiff(climate_predictors, 
@@ -326,10 +447,6 @@ for (i in seq_along(accepted_taxonkeys)) {
   
   #Only validate climate model in Europe if 40 or more occs 
   eu_climate_validation <- nrow(eu_occ) >= 40
-  
-  #Only validate ensemble model if habitat model could be fitted
-  ensemble_validation <- file.exists(habitat_qs_file)
-  
   
   #---------------------------------------------------------
   #- Select climate rasters used in 03_fit_climate_model.R -
@@ -400,10 +517,11 @@ for (i in seq_along(accepted_taxonkeys)) {
   if(ensemble_validation){
     
     #Load presabs data of habitat model
-    habitatmodel   <- qs::qread(habitat_qs_file)
+    if (is.null(habitatmodel)) {
+      stop("Habitat model object was not loaded for ensemble validation.", call. = FALSE)
+    }
     eu_presabs <- habitatmodel$eu_presabs
     n_pres_ensemble <- sum(eu_presabs$species == 1)
-    rm(habitatmodel)
     
     if (n_pres_ensemble>= 40L) {
       use_cv <- TRUE
@@ -868,9 +986,8 @@ for (i in seq_along(accepted_taxonkeys)) {
   
   
   #--------------------------------------------
-  #--- Load  data stored in climate model qs --
+  #--- Load data stored in habitat model qs ---
   #--------------------------------------------
-  habitatmodel   <- qs::qread(habitat_qs_file)
   eu_presabs <- habitatmodel$eu_presabs
   top5_habitat_methods  <- habitatmodel$top5_models
   habitat_predictors <- habitatmodel$selected_predictors
@@ -881,9 +998,9 @@ for (i in seq_along(accepted_taxonkeys)) {
   #---------------------------------------------------------
   #- Select landcover rasters used in 04_fit_climate_model.R -
   #---------------------------------------------------------
-  habitat_selection <- terra::subset(habitat_stack,
+  habitat_selection <- terra::subset(habitat_stack_active,
                                      habitat_predictors[habitat_predictors %in%
-                                                          names(habitat_stack)])
+                                                          names(habitat_stack_active)])
   
   
   #-----------------------------------------------------------

@@ -76,6 +76,57 @@ remove_nodata_occurrences <- function(occurrences, rast_template, crs){
 
 
 #-----------------------------------------------------------------------------------
+# Run k-means with fallback to fewer cluster centers
+#-----------------------------------------------------------------------------------
+kmeans_with_center_fallback <- function(data, center_number, step = 500,
+                                        iter.max = 10, nstart = 1) {
+  current_centers <- center_number
+  last_error <- NULL
+  
+  if (length(current_centers) != 1 || is.na(current_centers) || current_centers <= 0) {
+    stop("K-means clustering failed: center_number must be greater than 0.")
+  }
+  
+  if (length(step) != 1 || is.na(step) || step <= 0) {
+    stop("K-means clustering failed: step must be greater than 0.")
+  }
+  
+  while (current_centers > 0) {
+    result <- tryCatch(
+      kmeans(data, centers = current_centers, iter.max = iter.max, nstart = nstart),
+      error = function(e) {
+        last_error <<- e
+        NULL
+      }
+    )
+    
+    if (!is.null(result)) {
+      if (current_centers < center_number) {
+        message(
+          "K-means clustering succeeded after reducing centers from ",
+          center_number, " to ", current_centers, "."
+        )
+      }
+      return(list(cluster = result$cluster, centers = current_centers))
+    }
+    
+    next_centers <- current_centers - step
+    current_centers <- if (next_centers <= 0) {
+      if (current_centers > 1) 1 else 0
+    } else {
+      next_centers
+    }
+  }
+  
+  last_error_message <- if (!is.null(last_error)) conditionMessage(last_error) else "No k-means attempts were made."
+  stop(
+    "K-means clustering failed after reducing centers from ", center_number,
+    " to 0. Last error: ", last_error_message
+  )
+}
+
+
+#-----------------------------------------------------------------------------------
 #Divide occurrence column with either y=0 (absences) or y=1 (presences)
 #-----------------------------------------------------------------------------------
 add.occ<-function(x,y){

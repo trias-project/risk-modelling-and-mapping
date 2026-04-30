@@ -339,7 +339,14 @@ gc()
         
         # K-means clustering
         set.seed(101)
-        clust <- kmeans(env_data, centers = center_number,iter.max = 10, nstart = 1)$cluster
+        kmeans_result <- kmeans_with_center_fallback(
+          env_data,
+          center_number = center_number,
+          iter.max = 10,
+          nstart = 1
+        )
+        clust <- kmeans_result$cluster
+        center_number <- kmeans_result$centers
         occ_env<- cbind(global.occ.sf, env_data, clust)%>%
           dplyr::mutate(rID =row_number())
         
@@ -370,7 +377,8 @@ gc()
         global.occ.sf <- global.occ.sf %>%
           dplyr::select(decimalLongitude, decimalLatitude, geometry, species)
         
-        rm(env_data, occ_env, sampled, remaining, unique_centers, center_number, clust)
+        rm(env_data, occ_env, sampled, remaining, unique_centers,
+           center_number, clust, kmeans_result)
         
       }
     }
@@ -512,14 +520,22 @@ gc()
       
       #Remove rows with any NA values (could happen as they are extracted from 5k aggregated pixels)
       pa_climate_data<-na.omit(pa_climate_data)
+      pa_kmeans_data <- pa_climate_data[, !names(pa_climate_data) %in% c("x", "y"), drop = FALSE]
       
       #Check how many unique rows there are and set centers to lowest of either 10000 or #unique rows
-      unique_centers<-nrow(unique(pa_climate_data))
+      unique_centers<-nrow(unique(pa_kmeans_data))
       center_number<-min(unique_centers, 10000)
       
       # K-means clustering
       set.seed(101)
-      clust <- kmeans(pa_climate_data[, !names(pa_climate_data) %in% c("x", "y")], centers = center_number,iter.max = 10, nstart = 1)$cluster
+      kmeans_result <- kmeans_with_center_fallback(
+        pa_kmeans_data,
+        center_number = center_number,
+        iter.max = 10,
+        nstart = 1
+      )
+      clust <- kmeans_result$cluster
+      center_number <- kmeans_result$centers
       pa_climate <- cbind(pa_climate_data, clust)%>%
         dplyr::mutate(rID =row_number())
       
@@ -553,7 +569,8 @@ gc()
         dplyr::select(decimalLongitude, decimalLatitude)%>%
         sf::st_as_sf(coords=c("decimalLongitude", "decimalLatitude"), crs=predictor_sf_crs, remove=FALSE)
       
-      rm(pa_climate_data, pa_climate, sampled, remaining, unique_centers, center_number, clust)
+      rm(pa_climate_data, pa_kmeans_data, pa_climate, sampled, remaining,
+         unique_centers, center_number, clust, kmeans_result)
     }
     
     #--------------------------------------------
@@ -693,14 +710,10 @@ gc()
     modeloutput<-list()
     
     for(modelmethod in methods){
-      
       print(modelmethod)
-      
       pred_raster <- try({
-        
         blk<-0
         for(rasterblock in seq_along(exts)) {
-          
           blk<-blk+1
           block_r <- crop(current_prediction_selection, exts[[rasterblock]])
           
@@ -708,7 +721,7 @@ gc()
           pred_blocks[[rasterblock]] <- predict(model,
                                                 newdata = block_r,
                                                 method = modelmethod)
-          message("Finished predicting block ", blk, " out of ", nblocks)
+          message("Finished block ", blk, " out of ", nblocks)
         }
         
         # Merge blocks only if all succeed
@@ -1003,7 +1016,7 @@ gc()
         future_modeloutput <- list()
         
         for(modelmethod in top5_models){
-          
+          print(modelmethod)
           pred_raster_future  <- try({
             
             blk<-0
@@ -1016,7 +1029,7 @@ gc()
               pred_blocks[[rasterblock]] <- predict(model,
                                                     newdata = block_r,
                                                     method = modelmethod)
-              message("Finished predicting block ", blk, " out of ", nblocks)
+              message("Finished block ", blk, " out of ", nblocks)
             }
             
             # Merge blocks only if all succeed
@@ -1277,7 +1290,8 @@ gc()
                               "country_of_interest", "country_boundary", "euboundary", "use_user_specific_climate",
                               "climate_input_mode", "climate_manifest", "climate_manifest_path", "predictor_crs",
                               "predictor_sf_crs", "load_named_raster_stack", "create_pseudoabsence_template",
-                              "load_user_specific_climate_manifest", "resolve_input_path")))
+                              "load_user_specific_climate_manifest", "resolve_input_path",
+                              "kmeans_with_center_fallback")))
     
     #Clean terra tempfiles
     terra::tmpFiles(remove = TRUE)
