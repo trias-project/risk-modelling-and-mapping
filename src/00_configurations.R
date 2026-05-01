@@ -1,15 +1,15 @@
 #--------------------------------------------
 #-------  Define wiSDM configurations -------
 #--------------------------------------------
-project <- "Test_custom_user_data"  #TIP: don't use a long project name to avoid Windows errors
+project <- "test_ias_02"  #TIP: don't use a long project name to avoid Windows errors
 
-species_to_model <- c("Amorpha fruticosa")
+species_to_model <- c("Arthurdendyus triangulatus")
 
 occurrence_thinning_method <- "kmeans_clustering" #either "random" or "kmeans_clustering"
 
 pseudoabsence_thinning_method <- "kmeans_clustering" #either "random" or "kmeans_clustering"
 
-mtp_probabilities <- c(0.01, 0.05) #Define MTP thresholds (0.01 = 1%; 0.05 = 5%,...)
+mtp_probabilities <- c(0.01, 0.05, 0.1) #Define MTP thresholds (0.01 = 1%; 0.05 = 5%,...)
 
 custom_eu_boundary_path <- "./data/external/gadm/europe_selected_countries_wgs84cea_v3-1.gpkg"  #either NULL or a path to a custom Europe boundary vector layer
 
@@ -17,7 +17,7 @@ custom_country_boundary_path <- NULL  #either NULL or a path to a shapefile, if 
 
 country_of_interest <- "Europe"
 
-update_files <- "ask" #either "ask", "yes", "no"
+update_files <- "no" #either "ask", "yes", "no"
 
 workflow <-"single_step" #either single_step or two_step
 
