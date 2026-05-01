@@ -688,7 +688,9 @@ predict_future_habitat_ensemble <- function(model,
     for(modelmethod in methods){
       print(modelmethod)
       pred_raster <- try({
+        blk <- 0
         for(rasterblock in seq_along(exts)) {
+          blk <- blk + 1
           block_r <- crop(fullstack, exts[[rasterblock]])
           
           # Make predictions for each block
