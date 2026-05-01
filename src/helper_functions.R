@@ -1781,6 +1781,108 @@ compute_median_favourability <- function(model,
 }
 
 
+#----------------------------------------------------------------------
+#- Make predictions per model algorithm and dataset and obtain median -
+#- while tolerating individual method prediction failures             -
+#----------------------------------------------------------------------
+compute_median_favourability_safe <- function(model,
+                                              datasets,
+                                              top5_methods,
+                                              prev_ratio,
+                                              min_successful_methods = 3L) {
+  
+  env_favourability <- list()
+  successful_methods <- character(0)
+  failed_methods <- character(0)
+  failed_reasons <- list()
+  
+  for (modelmethod in top5_methods) {
+    
+    message("Predicting for method: ", modelmethod, ".")
+    
+    method_predictions <- list()
+    method_failed <- FALSE
+    method_error <- NULL
+    
+    for (dataset_name in names(datasets)) {
+      
+      dataset <- datasets[[dataset_name]]
+      IDs <- dataset$ID
+      dataset <- dplyr::select(dataset, -ID)
+      
+      prediction_result <- tryCatch({
+        dataset_suit <- predict(model,
+                                newdata = dataset,
+                                method = modelmethod)
+        dataset_prob <- as.data.frame(dataset_suit)[[1]]
+        dataset_fav <- favourability_from_prob(dataset_prob, prev_ratio)
+        
+        data.frame(ID = IDs, fav = dataset_fav)
+      }, error = function(e) {
+        e
+      })
+      
+      if (inherits(prediction_result, "error")) {
+        method_failed <- TRUE
+        method_error <- conditionMessage(prediction_result)
+        break
+      }
+      
+      method_predictions[[dataset_name]] <- prediction_result
+      rm(dataset, IDs)
+    }
+    
+    if (method_failed) {
+      failed_methods <- c(failed_methods, modelmethod)
+      failed_reasons[[modelmethod]] <- method_error
+      next
+    }
+    
+    env_favourability[[modelmethod]] <- method_predictions
+    successful_methods <- c(successful_methods, modelmethod)
+  }
+  
+  if (length(successful_methods) < min_successful_methods) {
+    return(list(
+      valid = FALSE,
+      median_favourability = NULL,
+      successful_methods = successful_methods,
+      failed_methods = failed_methods,
+      failed_reasons = failed_reasons,
+      success_count = length(successful_methods)
+    ))
+  }
+  
+  median_favourability <- lapply(
+    names(datasets),
+    function(dataset_name) {
+      fav_matrix <- do.call(
+        cbind,
+        lapply(successful_methods, function(method_name) {
+          env_favourability[[method_name]][[dataset_name]]$fav
+        })
+      )
+      
+      data.frame(
+        ID = env_favourability[[successful_methods[[1]]]][[dataset_name]]$ID,
+        median_favourability = matrixStats::rowMedians(fav_matrix, na.rm = TRUE)
+      )
+    }
+  )
+  
+  names(median_favourability) <- names(datasets)
+  
+  list(
+    valid = TRUE,
+    median_favourability = median_favourability,
+    successful_methods = successful_methods,
+    failed_methods = failed_methods,
+    failed_reasons = failed_reasons,
+    success_count = length(successful_methods)
+  )
+}
+
+
 #------------------------------------------
 #----- Define Boyce helper functions -----
 #------------------------------------------
