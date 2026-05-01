@@ -27,6 +27,8 @@ user_specific_climate_data <- "./data/external/file_paths_custom_data.csv" #eith
 
 user_specific_landcover_data <- "./data/external/file_paths_custom_landcover_data.csv" #either NULL or a path to a CSV manifest with user-supplied land-cover rasters
 
+habitat_filter_near_zero_variance_predictors <- FALSE #either TRUE or FALSE; if TRUE, near-zero-variance habitat predictors are removed before model fitting
+
 
 
 #------------------------------------------------------------
