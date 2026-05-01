@@ -1001,6 +1001,7 @@ for (i in seq_along(accepted_taxonkeys)) {
   habitat_selection <- terra::subset(habitat_stack_active,
                                      habitat_predictors[habitat_predictors %in%
                                                           names(habitat_stack_active)])
+  minimum_habitat_methods <- 3L
   
   
   #-----------------------------------------------------------
@@ -1014,6 +1015,7 @@ for (i in seq_along(accepted_taxonkeys)) {
   #-----------------------------------------------------------------
   #            OPTION 1: SPATIAL CROSS VALIDATION
   #-----------------------------------------------------------------
+  valid_habitat_folds <- integer(0)
   if (use_cv) {
     
     #--------------------------------------------
@@ -1080,10 +1082,48 @@ for (i in seq_along(accepted_taxonkeys)) {
       #---------------------------------------------------------------------
       #---- Make predictions per model algorithm and dataset and get median 
       #----------------------------------------------------------------------
-      median_favourability_habitat_perfold[[fold]]<- compute_median_favourability(habitat_model,
-                                                                                  habitat_datasets,
-                                                                                  top5_habitat_methods,
-                                                                                  prev_ratio)
+      habitat_prediction <- compute_median_favourability_safe(
+        habitat_model,
+        habitat_datasets,
+        top5_habitat_methods,
+        prev_ratio,
+        min_successful_methods = minimum_habitat_methods
+      )
+      
+      if (length(habitat_prediction$failed_methods) > 0) {
+        warning(
+          "Habitat validation for species '",
+          speciesName,
+          "', fold ",
+          fold,
+          " dropped method(s): ",
+          paste(habitat_prediction$failed_methods, collapse = ", "),
+          ". Continuing with: ",
+          paste(habitat_prediction$successful_methods, collapse = ", "),
+          ".",
+          call. = FALSE
+        )
+      }
+      
+      if (!isTRUE(habitat_prediction$valid)) {
+        warning(
+          "Skipping habitat validation for species '",
+          speciesName,
+          "', fold ",
+          fold,
+          ": only ",
+          habitat_prediction$success_count,
+          " of ",
+          length(top5_habitat_methods),
+          " habitat methods predicted successfully.",
+          call. = FALSE
+        )
+        terra::tmpFiles(remove = TRUE)
+        next
+      }
+      
+      median_favourability_habitat_perfold[[fold]] <- habitat_prediction$median_favourability
+      valid_habitat_folds <- c(valid_habitat_folds, fold)
       
       
       #-----------------------------------------
@@ -1103,6 +1143,19 @@ for (i in seq_along(accepted_taxonkeys)) {
       
       #Clean
       terra::tmpFiles(remove = TRUE)
+    }
+    
+    if (length(valid_habitat_folds) == 0L) {
+      warning(
+        "Skipping habitat and ensemble validation for species '",
+        speciesName,
+        "': no habitat cross-validation folds retained at least ",
+        minimum_habitat_methods,
+        " successful methods.",
+        call. = FALSE
+      )
+      validation_summary[[speciesName]] <- species_validation_summary
+      next
     }
     
     
@@ -1153,10 +1206,43 @@ for (i in seq_along(accepted_taxonkeys)) {
     #---------------------------------------------------------------------
     #---- Make predictions per model algorithm and dataset and get median 
     #----------------------------------------------------------------------
-    median_fav_habitat<- compute_median_favourability(habitat_model,
-                                                      habitat_datasets,
-                                                      top5_habitat_methods,
-                                                      prev_ratio)
+    habitat_prediction <- compute_median_favourability_safe(
+      habitat_model,
+      habitat_datasets,
+      top5_habitat_methods,
+      prev_ratio,
+      min_successful_methods = minimum_habitat_methods
+    )
+    
+    if (length(habitat_prediction$failed_methods) > 0) {
+      warning(
+        "Habitat validation for species '",
+        speciesName,
+        "' dropped method(s): ",
+        paste(habitat_prediction$failed_methods, collapse = ", "),
+        ". Continuing with: ",
+        paste(habitat_prediction$successful_methods, collapse = ", "),
+        ".",
+        call. = FALSE
+      )
+    }
+    
+    if (!isTRUE(habitat_prediction$valid)) {
+      warning(
+        "Skipping habitat and ensemble validation for species '",
+        speciesName,
+        "': only ",
+        habitat_prediction$success_count,
+        " of ",
+        length(top5_habitat_methods),
+        " habitat methods predicted successfully.",
+        call. = FALSE
+      )
+      validation_summary[[speciesName]] <- species_validation_summary
+      next
+    }
+    
+    median_fav_habitat <- habitat_prediction$median_favourability
     
     
     #-----------------------------------------
@@ -1226,7 +1312,7 @@ for (i in seq_along(accepted_taxonkeys)) {
     validation_ensemble<- list()
     
     #Start loop per fold
-    for (fold in seq_len(cv_folds)) {
+    for (fold in valid_habitat_folds) {
       
       message(sprintf("Calculating ensemble validation metrics for test fold %d/%d", fold,cv_folds))
       
