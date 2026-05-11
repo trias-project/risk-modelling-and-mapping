@@ -76,6 +76,57 @@ remove_nodata_occurrences <- function(occurrences, rast_template, crs){
 
 
 #-----------------------------------------------------------------------------------
+# Run k-means with fallback to fewer cluster centers
+#-----------------------------------------------------------------------------------
+kmeans_with_center_fallback <- function(data, center_number, step = 500,
+                                        iter.max = 10, nstart = 1) {
+  current_centers <- center_number
+  last_error <- NULL
+  
+  if (length(current_centers) != 1 || is.na(current_centers) || current_centers <= 0) {
+    stop("K-means clustering failed: center_number must be greater than 0.")
+  }
+  
+  if (length(step) != 1 || is.na(step) || step <= 0) {
+    stop("K-means clustering failed: step must be greater than 0.")
+  }
+  
+  while (current_centers > 0) {
+    result <- tryCatch(
+      kmeans(data, centers = current_centers, iter.max = iter.max, nstart = nstart),
+      error = function(e) {
+        last_error <<- e
+        NULL
+      }
+    )
+    
+    if (!is.null(result)) {
+      if (current_centers < center_number) {
+        message(
+          "K-means clustering succeeded after reducing centers from ",
+          center_number, " to ", current_centers, "."
+        )
+      }
+      return(list(cluster = result$cluster, centers = current_centers))
+    }
+    
+    next_centers <- current_centers - step
+    current_centers <- if (next_centers <= 0) {
+      if (current_centers > 1) 1 else 0
+    } else {
+      next_centers
+    }
+  }
+  
+  last_error_message <- if (!is.null(last_error)) conditionMessage(last_error) else "No k-means attempts were made."
+  stop(
+    "K-means clustering failed after reducing centers from ", center_number,
+    " to 0. Last error: ", last_error_message
+  )
+}
+
+
+#-----------------------------------------------------------------------------------
 #Divide occurrence column with either y=0 (absences) or y=1 (presences)
 #-----------------------------------------------------------------------------------
 add.occ<-function(x,y){
@@ -1152,10 +1203,99 @@ load_named_raster_stack <- function(stack_rows) {
   names(stack) <- expected_names
   
   if (!identical(names(stack), expected_names)) {
-    stop("The climate raster stack could not be named exactly as specified in 'var_name'.", call. = FALSE)
+    stop("The raster stack could not be named exactly as specified in 'var_name'.", call. = FALSE)
   }
   
   stack
+}
+
+
+#-----------------------------------------------------------------
+#--Build a signature for a normalized raster stack----------------
+#-----------------------------------------------------------------
+build_manifest_stack_signature <- function(stack_rows,
+                                           signature_scope = "manifest_stack_v1") {
+  if (nrow(stack_rows) == 0) {
+    stop("No raster rows were supplied to build a stack signature.", call. = FALSE)
+  }
+  
+  raster_info <- file.info(stack_rows$file_path)
+  if (any(is.na(raster_info$size)) || any(is.na(raster_info$mtime))) {
+    stop("One or more raster files could not be inspected for signature generation.", call. = FALSE)
+  }
+  
+  key_lines <- c(
+    paste("signature_scope", signature_scope, sep = "="),
+    paste("n_layers", nrow(stack_rows), sep = "="),
+    paste(
+      stack_rows$var_name,
+      stack_rows$file_path,
+      raster_info$size,
+      format(raster_info$mtime, tz = "UTC", usetz = TRUE),
+      sep = "|"
+    )
+  )
+  
+  key_file <- tempfile(pattern = "manifest_stack_signature_", fileext = ".txt")
+  on.exit(unlink(key_file), add = TRUE)
+  writeLines(key_lines, key_file, useBytes = TRUE)
+  unname(tools::md5sum(key_file))
+}
+
+
+#-----------------------------------------------------------------
+#--Write a deterministic processed raster stack when needed-------
+#-----------------------------------------------------------------
+materialize_processed_manifest_stack <- function(stack_rows,
+                                                 output_file,
+                                                 signature_scope = "manifest_stack_v1",
+                                                 signature_file = paste0(output_file, ".signature.txt"),
+                                                 apply_common_na_mask = TRUE) {
+  output_file <- resolve_input_path(output_file)
+  signature_file <- resolve_input_path(signature_file)
+  
+  if (!dir.exists(dirname(output_file))) {
+    dir.create(dirname(output_file), recursive = TRUE, showWarnings = FALSE)
+  }
+  
+  expected_names <- as.character(stack_rows$var_name)
+  expected_signature <- build_manifest_stack_signature(stack_rows, signature_scope = signature_scope)
+  
+  if (file.exists(output_file) && file.exists(signature_file)) {
+    current_signature <- paste(readLines(signature_file, warn = FALSE), collapse = "\n")
+    cached_stack <- tryCatch(terra::rast(output_file), error = function(e) NULL)
+    
+    if (!is.null(cached_stack) &&
+        identical(trimws(current_signature), expected_signature) &&
+        terra::nlyr(cached_stack) == length(expected_names) &&
+        identical(names(cached_stack), expected_names)) {
+      return(cached_stack)
+    }
+  }
+  
+  stack <- load_named_raster_stack(stack_rows)
+  if (apply_common_na_mask) {
+    stack <- terra::mask(stack, anyNA(stack), maskvalue = 1)
+  }
+  
+  terra::writeRaster(
+    stack,
+    filename = output_file,
+    overwrite = TRUE,
+    wopt = list(gdal = c("COMPRESS=LZW"))
+  )
+  writeLines(expected_signature, signature_file, useBytes = TRUE)
+  
+  cached_stack <- terra::rast(output_file)
+  if (terra::nlyr(cached_stack) != length(expected_names) ||
+      !identical(names(cached_stack), expected_names)) {
+    stop(
+      "The processed raster stack does not match the expected predictor names.",
+      call. = FALSE
+    )
+  }
+  
+  cached_stack
 }
 
 
@@ -1300,35 +1440,10 @@ create_pseudoabsence_template <- function(raster_layer, target_resolution_m = 50
 
 
 #-----------------------------------------------------------------
-#--Validate and normalize a user climate manifest------------------
+#--Supported current/future combinations for user raster manifests-
 #-----------------------------------------------------------------
-load_user_specific_climate_manifest <- function(manifest_path) {
-  manifest_path <- resolve_input_path(manifest_path)
-  
-  if (!file.exists(manifest_path)) {
-    stop("The file provided in 'user_specific_climate_data' does not exist: ", manifest_path, call. = FALSE)
-  }
-  
-  manifest <- utils::read.csv(manifest_path, stringsAsFactors = FALSE, check.names = FALSE)
-  required_cols <- c("period", "scenario", "var_name", "file_path")
-  missing_cols <- setdiff(required_cols, names(manifest))
-  
-  if (length(missing_cols) > 0) {
-    stop("The climate manifest is missing required columns: ", paste(missing_cols, collapse = ", "), call. = FALSE)
-  }
-  
-  manifest <- manifest[, required_cols]
-  manifest[] <- lapply(manifest, trimws)
-  
-  if (nrow(manifest) == 0) {
-    stop("The climate manifest is empty.", call. = FALSE)
-  }
-  
-  manifest$period <- tolower(manifest$period)
-  manifest$scenario <- tolower(manifest$scenario)
-  manifest$combo_id <- paste(manifest$period, manifest$scenario, sep = "__")
-  
-  valid_combos <- c(
+get_supported_user_raster_combos <- function() {
+  c(
     "current__current",
     "2041-2070__ssp126",
     "2041-2070__ssp370",
@@ -1337,26 +1452,67 @@ load_user_specific_climate_manifest <- function(manifest_path) {
     "2071-2100__ssp370",
     "2071-2100__ssp585"
   )
+}
+
+
+#-----------------------------------------------------------------
+#--Validate and normalize a user raster manifest-------------------
+#-----------------------------------------------------------------
+load_user_specific_raster_manifest <- function(manifest_path,
+                                               config_name,
+                                               data_label,
+                                               require_all_future = TRUE) {
+  manifest_path <- resolve_input_path(manifest_path)
+  
+  if (!file.exists(manifest_path)) {
+    stop("The file provided in '", config_name, "' does not exist: ", manifest_path, call. = FALSE)
+  }
+  
+  manifest <- utils::read.csv(manifest_path, stringsAsFactors = FALSE, check.names = FALSE)
+  required_cols <- c("period", "scenario", "var_name", "file_path")
+  missing_cols <- setdiff(required_cols, names(manifest))
+  
+  if (length(missing_cols) > 0) {
+    stop(
+      "The ", data_label, " manifest is missing required columns: ",
+      paste(missing_cols, collapse = ", "),
+      call. = FALSE
+    )
+  }
+  
+  manifest <- manifest[, required_cols]
+  manifest[] <- lapply(manifest, trimws)
+  
+  if (nrow(manifest) == 0) {
+    stop("The ", data_label, " manifest is empty.", call. = FALSE)
+  }
+  
+  manifest$period <- tolower(manifest$period)
+  manifest$scenario <- tolower(manifest$scenario)
+  manifest$combo_id <- paste(manifest$period, manifest$scenario, sep = "__")
+  
+  valid_combos <- get_supported_user_raster_combos()
+  required_future_ids <- setdiff(valid_combos, "current__current")
   
   invalid_combo_ids <- setdiff(unique(manifest$combo_id), valid_combos)
   if (length(invalid_combo_ids) > 0) {
     stop(
-      "The climate manifest contains unsupported period/scenario combinations: ",
+      "The ", data_label, " manifest contains unsupported period/scenario combinations: ",
       paste(invalid_combo_ids, collapse = ", "),
       call. = FALSE
     )
   }
   
   if (any(is.na(manifest$period)) || any(is.na(manifest$scenario))) {
-    stop("The climate manifest contains missing 'period' or 'scenario' values.", call. = FALSE)
+    stop("The ", data_label, " manifest contains missing 'period' or 'scenario' values.", call. = FALSE)
   }
   
   if (any(is.na(manifest$var_name)) || any(!nzchar(manifest$var_name))) {
-    stop("The climate manifest contains empty 'var_name' values.", call. = FALSE)
+    stop("The ", data_label, " manifest contains empty 'var_name' values.", call. = FALSE)
   }
   
   if (any(is.na(manifest$file_path)) || any(!nzchar(manifest$file_path))) {
-    stop("The climate manifest contains empty 'file_path' values.", call. = FALSE)
+    stop("The ", data_label, " manifest contains empty 'file_path' values.", call. = FALSE)
   }
   
   manifest_dir <- dirname(manifest_path)
@@ -1370,36 +1526,45 @@ load_user_specific_climate_manifest <- function(manifest_path) {
   missing_files <- unique(manifest$file_path[!file.exists(manifest$file_path)])
   if (length(missing_files) > 0) {
     stop(
-      "The climate manifest references files that do not exist: ",
+      "The ", data_label, " manifest references files that do not exist: ",
       paste(missing_files, collapse = ", "),
       call. = FALSE
     )
   }
   
   if (!"current__current" %in% manifest$combo_id) {
-    stop("The climate manifest must contain rows with period='current' and scenario='current'.", call. = FALSE)
-  }
-  
-  required_future_ids <- setdiff(valid_combos, "current__current")
-  missing_future_ids <- setdiff(required_future_ids, unique(manifest$combo_id))
-  if (length(missing_future_ids) > 0) {
-    stop(
-      "The climate manifest is missing required future period/scenario combinations: ",
-      paste(missing_future_ids, collapse = ", "),
-      call. = FALSE
-    )
+    stop("The ", data_label, " manifest must contain rows with period='current' and scenario='current'.", call. = FALSE)
   }
   
   stack_rows <- split(manifest, manifest$combo_id)
   master_rows <- stack_rows[["current__current"]]
   
   if (anyDuplicated(master_rows$var_name)) {
-    stop("The current/current climate rows contain duplicated 'var_name' values.", call. = FALSE)
+    stop("The current/current ", data_label, " rows contain duplicated 'var_name' values.", call. = FALSE)
   }
   
   master_var_names <- master_rows$var_name
   master_reference <- NULL
   normalized_rows <- list()
+  future_combo_ids_present <- intersect(required_future_ids, unique(manifest$combo_id))
+  
+  if (require_all_future) {
+    missing_future_ids <- setdiff(required_future_ids, future_combo_ids_present)
+    if (length(missing_future_ids) > 0) {
+      stop(
+        "The ", data_label, " manifest is missing required future period/scenario combinations: ",
+        paste(missing_future_ids, collapse = ", "),
+        call. = FALSE
+      )
+    }
+  } else if (length(future_combo_ids_present) > 0 && !setequal(future_combo_ids_present, required_future_ids)) {
+    missing_future_ids <- setdiff(required_future_ids, future_combo_ids_present)
+    stop(
+      "The ", data_label, " manifest must either omit all future period/scenario combinations or provide all of them. Missing: ",
+      paste(missing_future_ids, collapse = ", "),
+      call. = FALSE
+    )
+  }
   
   for (combo_id in valid_combos) {
     rows <- stack_rows[[combo_id]]
@@ -1409,7 +1574,7 @@ load_user_specific_climate_manifest <- function(manifest_path) {
     }
     
     if (anyDuplicated(rows$var_name)) {
-      stop("The climate manifest contains duplicated 'var_name' values for ", combo_id, ".", call. = FALSE)
+      stop("The ", data_label, " manifest contains duplicated 'var_name' values for ", combo_id, ".", call. = FALSE)
     }
     
     if (!setequal(rows$var_name, master_var_names)) {
@@ -1425,12 +1590,12 @@ load_user_specific_climate_manifest <- function(manifest_path) {
     rasters <- lapply(rows$file_path, terra::rast)
     
     if (any(vapply(rasters, terra::nlyr, numeric(1)) != 1)) {
-      stop("Each file in 'user_specific_climate_data' must contain exactly one raster layer.", call. = FALSE)
+      stop("Each file in '", config_name, "' must contain exactly one raster layer.", call. = FALSE)
     }
     
     reference_raster <- rasters[[1]]
     if (!nzchar(terra::crs(reference_raster))) {
-      stop("The climate raster CRS is missing for ", rows$file_path[1], ".", call. = FALSE)
+      stop("The ", data_label, " raster CRS is missing for ", rows$file_path[1], ".", call. = FALSE)
     }
     
     alignment_ok <- vapply(
@@ -1452,7 +1617,7 @@ load_user_specific_climate_manifest <- function(manifest_path) {
       master_reference <- reference_raster
     } else if (!isTRUE(terra::same.crs(reference_raster, master_reference))) {
       stop(
-        "All user-specific climate rasters must share the same CRS in this workflow.",
+        "All user-specific ", data_label, " rasters must share the same CRS in this workflow.",
         call. = FALSE
       )
     }
@@ -1460,13 +1625,91 @@ load_user_specific_climate_manifest <- function(manifest_path) {
     normalized_rows[[combo_id]] <- rows
   }
   
-  future_rows <- normalized_rows[required_future_ids]
+  future_rows <- normalized_rows[required_future_ids[required_future_ids %in% names(normalized_rows)]]
   
   list(
     manifest_path = manifest_path,
     current_rows = normalized_rows[["current__current"]],
     future_rows = future_rows,
-    master_var_names = master_var_names
+    master_var_names = master_var_names,
+    has_future = length(future_rows) > 0,
+    predictor_crs = terra::crs(master_reference)
+  )
+}
+
+
+#-----------------------------------------------------------------
+#--Validate and normalize a user climate manifest------------------
+#-----------------------------------------------------------------
+load_user_specific_climate_manifest <- function(manifest_path) {
+  load_user_specific_raster_manifest(
+    manifest_path = manifest_path,
+    config_name = "user_specific_climate_data",
+    data_label = "climate",
+    require_all_future = TRUE
+  )
+}
+
+
+#-----------------------------------------------------------------
+#--Validate and normalize a user land-cover manifest--------------
+#-----------------------------------------------------------------
+load_user_specific_landcover_manifest <- function(manifest_path) {
+  load_user_specific_raster_manifest(
+    manifest_path = manifest_path,
+    config_name = "user_specific_landcover_data",
+    data_label = "land-cover",
+    require_all_future = FALSE
+  )
+}
+
+
+#-----------------------------------------------------------------
+#--Get deterministic processed paths for user land-cover stacks---
+#-----------------------------------------------------------------
+get_user_specific_landcover_processed_target <- function(period = "current",
+                                                         scenario = "current",
+                                                         processed_dir = file.path("data", "external", "habitat", "processed")) {
+  processed_dir <- resolve_input_path(processed_dir)
+  
+  if (identical(period, "current") && identical(scenario, "current")) {
+    raster_file <- file.path(processed_dir, "habitat_stack.tif")
+  } else {
+    raster_file <- file.path(
+      processed_dir,
+      "future",
+      period,
+      scenario,
+      paste0("habitat_stack_", period, "_", scenario, ".tif")
+    )
+  }
+  
+  list(
+    raster_file = raster_file,
+    signature_file = paste0(raster_file, ".signature.txt")
+  )
+}
+
+
+#-----------------------------------------------------------------
+#--Materialize deterministic user land-cover stacks---------------
+#-----------------------------------------------------------------
+materialize_user_specific_landcover_stack <- function(stack_rows,
+                                                      period = "current",
+                                                      scenario = "current",
+                                                      processed_dir = file.path("data", "external", "habitat", "processed")) {
+  target <- get_user_specific_landcover_processed_target(
+    period = period,
+    scenario = scenario,
+    processed_dir = processed_dir
+  )
+  
+  materialize_processed_manifest_stack(
+    stack_rows = stack_rows,
+    output_file = target$raster_file,
+    signature_file = target$signature_file,
+    signature_scope = paste0("user_specific_landcover__", period, "__", scenario, "__v1"),
+    apply_common_na_mask = TRUE
   )
 }
 

@@ -1,9 +1,9 @@
 #--------------------------------------------
 #-------  Define wiSDM configurations -------
 #--------------------------------------------
-project <- "Test_final_flow"  #TIP: don't use a long project name to avoid Windows errors
+project <- "Test_custom_user_data"  #TIP: don't use a long project name to avoid Windows errors
 
-species_to_model <- c("Asclepias syriaca L.", "Amorpha fruticosa")
+species_to_model <- c("Amorpha fruticosa")
 
 occurrence_thinning_method <- "kmeans_clustering" #either "random" or "kmeans_clustering"
 
@@ -11,7 +11,7 @@ pseudoabsence_thinning_method <- "kmeans_clustering" #either "random" or "kmeans
 
 mtp_probabilities <- c(0.01, 0.05) #Define MTP thresholds (0.01 = 1%; 0.05 = 5%,...)
 
-custom_eu_boundary_path <- NULL  #either NULL or a path to a custom Europe boundary vector layer
+custom_eu_boundary_path <- "./data/external/gadm/europe_selected_countries_wgs84cea_v3-1.gpkg"  #either NULL or a path to a custom Europe boundary vector layer
 
 custom_country_boundary_path <- NULL  #either NULL or a path to a shapefile, if not NULL this overwrites country_of_interest
 
@@ -23,7 +23,9 @@ workflow <-"single_step" #either single_step or two_step
 
 boyce_background_size <- 50000 #Number of non NA pixels in Europe to be selected for Boyce index calculation
 
-user_specific_climate_data <- NULL #either NULL or a path to a CSV manifest with user-supplied climate rasters
+user_specific_climate_data <- "./data/external/file_paths_custom_data.csv" #either NULL or a path to a CSV manifest with user-supplied climate rasters
+
+user_specific_landcover_data <- "./data/external/file_paths_custom_landcover_data.csv" #either NULL or a path to a CSV manifest with user-supplied land-cover rasters
 
 
 

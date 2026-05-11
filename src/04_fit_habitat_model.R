@@ -4,7 +4,11 @@
 options("rgdal_show_exportToProj4_warnings"="none")
 terra::setGDALconfig("GDAL_PAM_ENABLED", "FALSE")#Prevent terra from writing aux.xml files
 
-packages <- c( "viridis","dplyr", "here", "qs", "tidyterra","sf", "ggplot2","RColorBrewer","magick","patchwork","grid", "randomForest", "progressr", "raster", "dismo", "caret", "caretEnsemble", "kableExtra","gbm", "PresenceAbsence", "RStoolbox", "sdm", "purrr", "terra")
+packages <- c( "viridis","dplyr", "here", "qs", "tidyterra","sf", "ggplot2",
+               "RColorBrewer","magick","patchwork","grid", "randomForest", 
+               "progressr", "raster", "dismo", "caret", "caretEnsemble", 
+               "kableExtra","gbm", "PresenceAbsence", "RStoolbox", "sdm", 
+               "purrr", "terra")
 
 for(package in packages) {
   print(package)
@@ -21,12 +25,40 @@ sdm::installAll()
 source(file.path("src", "helper_functions.R"))
 source(file.path("src", "00_configurations.R"))
 
+use_user_specific_landcover <- !is.null(user_specific_landcover_data)
+landcover_input_mode <- if (use_user_specific_landcover) "user_specific" else "default"
+
 
 #--------------------------------------------
 #---- Define habitat raster file paths ------
 #--------------------------------------------
 processed_folder<-file.path("data", "external", "habitat", "processed")
 habitatstack_file <- file.path(processed_folder, "habitat_stack.tif")
+
+if (use_user_specific_landcover) {
+  landcover_manifest <- load_user_specific_landcover_manifest(user_specific_landcover_data)
+  landcover_manifest_path <- landcover_manifest$manifest_path
+  materialize_user_specific_landcover_stack(
+    stack_rows = landcover_manifest$current_rows,
+    period = "current",
+    scenario = "current",
+    processed_dir = processed_folder
+  )
+  
+  if (!is.null(user_specific_climate_data)) {
+    climate_manifest_config <- load_user_specific_climate_manifest(user_specific_climate_data)
+    if (!isTRUE(sf::st_crs(landcover_manifest$predictor_crs) == sf::st_crs(climate_manifest_config$predictor_crs))) {
+      stop(
+        "The user-specific climate and land-cover manifests must use the same CRS.",
+        call. = FALSE
+      )
+    }
+    rm(climate_manifest_config)
+  }
+} else {
+  landcover_manifest <- NULL
+  landcover_manifest_path <- NULL
+}
 
 
 #--------------------------------------------
@@ -68,18 +100,72 @@ rm(habitat_stack)
 gc()
 
 
+#-------------------------------------------------------------
+#---- Predict future habitat ensembles for dynamic mode ------
+#-------------------------------------------------------------
+predict_future_habitat_ensemble <- function(model,
+                                            predictor_stack,
+                                            methods,
+                                            prev_ratio,
+                                            nblocks = 4) {
+  e <- terra::ext(predictor_stack)
+  ybreaks <- seq(e$ymin, e$ymax, length.out = nblocks + 1)
+  exts <- lapply(1:nblocks, function(i) terra::ext(e$xmin, e$xmax, ybreaks[i], ybreaks[i + 1]))
+  pred_blocks <- vector("list", nblocks)
+  future_modeloutput <- list()
+  
+  for (modelmethod in methods) {
+    print(modelmethod)
+    pred_raster_future <- try({
+      blk <- 0
+      for (rasterblock in seq_along(exts)) {
+        blk <- blk + 1
+        block_r <- terra::crop(predictor_stack, exts[[rasterblock]])
+        pred_blocks[[rasterblock]] <- predict(
+          model,
+          newdata = block_r,
+          method = modelmethod
+        )
+        message("Finished block ", blk, " out of ", nblocks)
+      }
+      
+      do.call(terra::merge, pred_blocks)
+    }, silent = TRUE)
+    
+    if (inherits(pred_raster_future, "try-error")) {
+      message("Skipping habitat method ", modelmethod, " due to prediction failure.")
+      next
+    }
+    
+    future_modeloutput[[modelmethod]] <- favourability_from_prob(pred_raster_future, prev_ratio)
+    rm(pred_raster_future)
+  }
+  
+  if (length(future_modeloutput) == 0) {
+    stop("No habitat prediction algorithms produced a valid future projection.", call. = FALSE)
+  }
+  
+  future_fav_stack <- terra::rast(future_modeloutput)
+  list(
+    ensemble = terra::app(future_fav_stack, median),
+    mean = terra::mean(future_fav_stack, na.rm = TRUE),
+    sd = terra::stdev(future_fav_stack, pop = TRUE)
+  )
+}
+
+
 #--------------------------------------------
 #----------- Start modelling loop  ----------
 #--------------------------------------------
 
-with_progress({
-  p <- progressr::progressor(along = 1:length(accepted_taxonkeys)) 
-  
+# with_progress({
+#   p <- progressr::progressor(along = 1:length(accepted_taxonkeys)) 
+#   
   for(key in accepted_taxonkeys){ 
     #--------------------------------------------
     #---------------Map progress  ---------------
     #--------------------------------------------
-    p()
+    #p()
     start_time <- Sys.time()
     
     #--------------------------------------------
@@ -141,10 +227,7 @@ with_progress({
       if (!climate_input_mode_saved %in% c("chelsa", "user_specific")) {
         stop(
           "Unsupported climate input mode stored in ",
-          basename(global_model_file),
-          ": ",
-          climate_input_mode_saved,
-          call. = FALSE
+          basename(global_model_file), ": ", climate_input_mode_saved, call. = FALSE
         )
       }
       
@@ -152,22 +235,29 @@ with_progress({
         if (is.null(climate_manifest_path_saved) || !nzchar(climate_manifest_path_saved)) {
           stop(
             "The saved climate model metadata is missing 'climate_manifest_path'. Rerun 03_fit_climate_model.R for ",
-            speciesName,
-            ".",
-            call. = FALSE
+            speciesName, ".", call. = FALSE
           )
         }
         
         if (is.null(predictor_crs_saved) || !nzchar(predictor_crs_saved)) {
           stop(
             "The saved climate model metadata is missing 'predictor_crs'. Rerun 03_fit_climate_model.R for ",
-            speciesName,
-            ".",
-            call. = FALSE
+            speciesName, ".", call. = FALSE
           )
         }
       }
       use_user_specific_climate_saved <- climate_input_mode_saved == "user_specific"
+      landcover_future_mode <- if (use_user_specific_landcover && isTRUE(landcover_manifest$has_future)) "dynamic" else "static"
+      landcover_future_combos <- if (identical(landcover_future_mode, "dynamic")) names(landcover_manifest$future_rows) else character(0)
+      
+      if (use_user_specific_landcover && use_user_specific_climate_saved) {
+        if (!isTRUE(sf::st_crs(landcover_manifest$predictor_crs) == sf::st_crs(predictor_crs_saved))) {
+          stop(
+            "The saved climate model CRS does not match the user-specific land-cover CRS for ",
+            speciesName, ".", call. = FALSE
+          )
+        }
+      }
       
       #Extract different data objects stored in globalmodels
       global.occ.sf <- globalmodels$occurrences1km %>% # FULL occurrence with coordinateUncertainty <= 1km
@@ -206,9 +296,13 @@ with_progress({
     
     #Create folders for each combination
     scenario_folders <- list()
+    
     for(period in periods){
+      
       for(output in outputs){
-        if(period=="Current"){
+        
+          if(period=="Current"){
+          
           loop_list <- list(list(path = file.path(base_dir, "Habitat", period,"Predictions",output),
                                  name = paste("Habitat", period, "Predictions", output,  sep = "/")),
                             list(path = file.path(base_dir, "Combined", period,"Predictions",output),
@@ -221,14 +315,22 @@ with_progress({
                                  name = paste("Habitat", period, "Diagnostics", "Confidence_maps", output,  sep = "/")),
                             list(path = file.path(base_dir, "Combined", period,"Diagnostics", "Confidence_maps",output),
                                  name = paste("Combined", period, "Diagnostics", "Confidence_maps", output,  sep = "/")))
+          
           scenario_folders <- c(scenario_folders, loop_list)  
           
         }else{
+          
           for(scenario in scenarios){
-            loop_list <- list(list(path = file.path(base_dir, "Combined", period, scenario, "Predictions", output),
+            
+            loop_list <- list(list(path = file.path(base_dir, "Habitat", period, scenario, "Predictions", output),
+                                   name = paste("Habitat", period, scenario, output, sep = "/")),
+                              list(path = file.path(base_dir, "Habitat", period, scenario, "Diagnostics", "Confidence_maps", output),
+                                   name = paste("Habitat", period, scenario, "Diagnostics", "Confidence_maps", output, sep = "/")),
+                              list(path = file.path(base_dir, "Combined", period, scenario, "Predictions", output),
                                    name = paste("Combined", period, scenario, output, sep = "/")),
                               list(path = file.path(base_dir, "Combined", period, scenario, "Diagnostics", "Confidence_maps", output),
                                    name = paste("Combined", period, scenario,"Diagnostics", "Confidence_maps",  output, sep = "/")))
+            
             scenario_folders <- c(scenario_folders, loop_list)
           }
         }
@@ -271,10 +373,13 @@ with_progress({
     #-----------------------------------------------
     if(nrow(eu_occ) > 10000){
       if(occurrence_thinning_method == "random"){
+        
         print("Thinning occurrences randomly")
         set.seed(101) 
         eu_occ <- eu_occ[sample(nrow(eu_occ), 10000, replace=FALSE), ]
+        
       }else if (occurrence_thinning_method == "kmeans_clustering"){
+        
         print("Thinning occurrences based on k-means clustering")
         #Extract environmental data in each occurrence grid cell
         habitat_data <- terra::extract(habitat_stack, eu_occ, ID = FALSE)
@@ -285,7 +390,14 @@ with_progress({
         
         # K-means clustering
         set.seed(101)
-        clust <- kmeans(habitat_data, centers = center_number,iter.max = 10, nstart = 1)$cluster
+        kmeans_result <- kmeans_with_center_fallback(
+          habitat_data,
+          center_number = center_number,
+          iter.max = 10,
+          nstart = 1
+        )
+        clust <- kmeans_result$cluster
+        center_number <- kmeans_result$centers
         occ_habitat <- cbind(eu_occ, habitat_data, clust)%>%
           dplyr::mutate(rID =row_number())
         
@@ -316,7 +428,8 @@ with_progress({
         eu_occ <- eu_occ %>%
           dplyr::select(decimalLongitude, decimalLatitude, geometry)
         
-        rm(habitat_data, occ_habitat, sampled, remaining, unique_centers, center_number, clust)
+        rm(habitat_data, occ_habitat, sampled, remaining, unique_centers,
+           center_number, clust, kmeans_result)
         
       }
     }
@@ -431,14 +544,22 @@ with_progress({
         
         #Extract environmental data from pseudoabsences
         pa_habitat_data <- terra::extract(habitat_stack, global_points, ID = FALSE, xy = TRUE)
+        pa_kmeans_data <- pa_habitat_data[, !names(pa_habitat_data) %in% c("x", "y"), drop = FALSE]
         
         #Check how many unique rows there are and set centers to lowest of either 10000 or #unique rows
-        unique_centers<-nrow(unique(pa_habitat_data))
+        unique_centers<-nrow(unique(pa_kmeans_data))
         center_number<-min(unique_centers, 10000)
         
         # K-means clustering
         set.seed(101)
-        clust <- kmeans(pa_habitat_data[, !names(pa_habitat_data) %in% c("x", "y")], centers = center_number,iter.max = 10, nstart = 1)$cluster
+        kmeans_result <- kmeans_with_center_fallback(
+          pa_kmeans_data,
+          center_number = center_number,
+          iter.max = 10,
+          nstart = 1
+        )
+        clust <- kmeans_result$cluster
+        center_number <- kmeans_result$centers
         pa_habitat <- cbind(pa_habitat_data, clust)%>%
           mutate(rID =row_number())
         
@@ -469,9 +590,11 @@ with_progress({
           dplyr::rename("decimalLongitude" = x,
                         "decimalLatitude" = y)%>%
           dplyr::select(decimalLongitude, decimalLatitude)%>%
-          sf::st_as_sf(coords=c("decimalLongitude", "decimalLatitude"), crs=crs(biasgrid_eu), remove=FALSE)
+          sf::st_as_sf(coords=c("decimalLongitude", "decimalLatitude"), 
+                       crs=crs(biasgrid_eu), remove=FALSE)
         
-        rm(pa_habitat_data, pa_habitat, sampled, remaining, unique_centers, center_number, clust)
+        rm(pa_habitat_data, pa_kmeans_data, pa_habitat, sampled, remaining,
+           unique_centers, center_number, clust, kmeans_result)
         
       }
     }
@@ -529,7 +652,8 @@ with_progress({
     
     #Define SDM data and methods
     sdm_data <- sdm::sdmData(species~.,train=vect(eu_presabs), predictors= fullstack ) 
-    methods <- c("glm", "gam", "bioclim", "brt", "rf", "glmpoly", "mars", "maxent", "fda","cart")
+    methods <- c("glm", "gam", "bioclim", "brt", "rf", "glmpoly", "mars", 
+                 "maxent", "fda","cart")
     
     #run model
     set.seed(2025)
@@ -562,11 +686,8 @@ with_progress({
     modeloutput<-list()
     
     for(modelmethod in methods){
-      
       print(modelmethod)
-      
       pred_raster <- try({
-        
         for(rasterblock in seq_along(exts)) {
           block_r <- crop(fullstack, exts[[rasterblock]])
           
@@ -574,6 +695,8 @@ with_progress({
           pred_blocks[[rasterblock]] <- predict(model,
                                                 newdata = block_r,
                                                 method = modelmethod)
+          
+          message("Finished block ", blk, " out of ", nblocks)
         }
         
         # Merge blocks only if all succeed
@@ -685,6 +808,7 @@ with_progress({
     
     # Step 9: Crop to extent of country if relevant
     if(tolower(country_of_interest)!="europe"||!is.null(custom_country_boundary_path)){
+      
       ensemble_habitat_suitability<- consensus_habitat%>%
         terra::crop(country_boundary)%>%
         terra::mask(country_boundary)
@@ -696,7 +820,9 @@ with_progress({
       ensemble_habitat_mean <- consensus_habitat_mean%>%
         terra::crop(country_boundary)%>%
         terra::mask(country_boundary)
+      
     }else{
+      
       ensemble_habitat_suitability<-consensus_habitat
       ensemble_habitat_sd <- consensus_habitat_sd
       ensemble_habitat_mean<- consensus_habitat_mean 
@@ -1088,12 +1214,148 @@ with_progress({
     #--- Create maps with future projections ----
     #--------------------------------------------
     for (period in c("2041-2070","2071-2100")){
+      
       for(scenario in c("ssp126", "ssp370", "ssp585")){
         
         #--------------------------------
         #--- Create suitability maps ----
         #--------------------------------
         print(paste("[FUTURE] Projecting:", period,scenario))
+        future_key <- paste0(period, "__", scenario)
+        
+        if (identical(landcover_future_mode, "dynamic")) {
+          
+          future_landcover_stack <- materialize_user_specific_landcover_stack(
+            stack_rows = landcover_manifest$future_rows[[future_key]],
+            period = period,
+            scenario = scenario,
+            processed_dir = processed_folder
+          )
+          
+          missing_future_habitat_predictors <- setdiff(names(fullstack), names(future_landcover_stack))
+          
+          if (length(missing_future_habitat_predictors) > 0) {
+            stop(
+              "The future land-cover stack for ",
+              future_key,
+              " is missing predictor(s): ",
+              paste(missing_future_habitat_predictors, collapse = ", "),
+              call. = FALSE
+            )
+          }
+          
+          future_habitat_selection <- terra::subset(future_landcover_stack, names(fullstack))
+          future_habitat_prediction <- predict_future_habitat_ensemble(
+            model = model,
+            predictor_stack = future_habitat_selection,
+            methods = top5_models,
+            prev_ratio = prev_ratio
+          )
+          
+          future_habitat_suitability <- future_habitat_prediction$ensemble
+          future_habitat_mean <- future_habitat_prediction$mean
+          future_habitat_sd <- future_habitat_prediction$sd
+          
+          if(tolower(country_of_interest)!="europe"||!is.null(custom_country_boundary_path)){
+            
+            future_habitat_country_boundary <- terra::project(country_boundary, terra::crs(future_habitat_suitability))
+            
+            future_habitat_suitability <- future_habitat_suitability %>%
+              terra::crop(future_habitat_country_boundary) %>%
+              terra::mask(future_habitat_country_boundary)
+            
+            future_habitat_mean <- future_habitat_mean %>%
+              terra::crop(future_habitat_country_boundary) %>%
+              terra::mask(future_habitat_country_boundary)
+            
+            future_habitat_sd <- future_habitat_sd %>%
+              terra::crop(future_habitat_country_boundary) %>%
+              terra::mask(future_habitat_country_boundary)
+          }
+          
+          future_habitat_occ <- sf::st_transform(eu_occ, crs = sf::st_crs(terra::crs(future_habitat_suitability)))
+          
+          future_habitat_folder <- file.path(base_dir, "Habitat", period, scenario, "Predictions", "Rasters")
+          future_habitat_file <- file.path(future_habitat_folder, paste0(basefile, period, "_", scenario, "_ensemble.tif"))
+          terra::writeRaster(future_habitat_suitability, filename = future_habitat_file, overwrite = TRUE)
+          
+          base_file <- paste0(basefile, scenario, "_", period, "_ensemble")
+          for (occs in list(NULL, future_habitat_occ)){
+            filename <- ifelse(is.null(occs), base_file, paste0(base_file, "_occ"))
+            exportPDF(predictions = future_habitat_suitability,
+                      dataType = "Suit",
+                      period = period,
+                      scenario = scenario,
+                      returnPredictions = FALSE,
+                      returnPNG = TRUE,
+                      occ_data=occs,
+                      exportPNG=TRUE,
+                      PDF_title=PDF_title,
+                      PNG_folder=file.path(base_dir, "Habitat", period, scenario, "Predictions", "PNGs"),
+                      PDF_folder=file.path(base_dir, "Habitat", period, scenario, "Predictions", "PDFs"),
+                      filename = filename)
+          }
+          
+          future_habitat_conf_folder <- file.path(base_dir, "Habitat", period, scenario, "Diagnostics", "Confidence_maps", "Rasters")
+          future_habitat_mean_file <- file.path(future_habitat_conf_folder, paste0(basefile, period, "_", scenario, "_ensemble_mean.tif"))
+          future_habitat_sd_file <- file.path(future_habitat_conf_folder, paste0(basefile, period, "_", scenario, "_ensemble_SD.tif"))
+          terra::writeRaster(future_habitat_mean, filename = future_habitat_mean_file, overwrite = TRUE)
+          terra::writeRaster(future_habitat_sd, filename = future_habitat_sd_file, overwrite = TRUE)
+          
+          filename <- paste0(basefile, period, "_", scenario, "_ensemble_SD")
+          exportPDF(predictions = future_habitat_sd,
+                    dataType = "Stdev",
+                    period = period,
+                    scenario = scenario,
+                    returnPredictions = FALSE,
+                    returnPNG = FALSE,
+                    occ_data=NULL,
+                    exportPNG=TRUE,
+                    PDF_title = PDF_title,
+                    PNG_folder=file.path(base_dir, "Habitat", period, scenario, "Diagnostics", "Confidence_maps", "PNGs"),
+                    PDF_folder=file.path(base_dir, "Habitat", period, scenario, "Diagnostics", "Confidence_maps", "PDFs"),
+                    filename = filename)
+          
+          for(probs in mtp_probabilities){
+            mtp_value <- probs * 100
+            mtp_pct <- paste0(mtp_value, "%")
+            mtp_thr <- paste0(mtp_value, "pct")
+            threshold <- habitat_thresholds[[mtp_pct]]
+            future_habitat_binary <- future_habitat_suitability >= threshold
+            future_habitat_binary <- as.factor(future_habitat_binary * 1)
+            levels(future_habitat_binary) <- data.frame(ID = c(0, 1),
+                                                        class = c("Absent", "Present"))
+            
+            future_habitat_binary_file <- file.path(
+              future_habitat_folder,
+              paste0(basefile, period, "_", scenario, "_binary", mtp_thr, ".tif")
+            )
+            terra::writeRaster(future_habitat_binary, filename = future_habitat_binary_file, overwrite = TRUE)
+            
+            base_file <- paste0(basefile, period, "_", scenario, "_binary", mtp_thr)
+            for (occs in list(NULL, future_habitat_occ)){
+              filename <- ifelse(is.null(occs), base_file, paste0(base_file, "_occ"))
+              exportPDF(predictions = future_habitat_binary,
+                        dataType = "Binary",
+                        period = period,
+                        scenario = scenario,
+                        occ_data = occs,
+                        returnPredictions = FALSE,
+                        returnPNG = FALSE,
+                        exportPNG = TRUE,
+                        LabelValue= round(threshold, 2),
+                        LabelName=paste0(mtp_pct, " MTP threshold"),
+                        PDF_title=PDF_title,
+                        PNG_folder=file.path(base_dir, "Habitat", period, scenario, "Predictions", "PNGs"),
+                        PDF_folder=file.path(base_dir, "Habitat", period, scenario, "Predictions", "PDFs"),
+                        filename=filename)
+            }
+          }
+        } else {
+          future_habitat_suitability <- ensemble_habitat_suitability
+          future_habitat_mean <- ensemble_habitat_mean
+          future_habitat_sd <- ensemble_habitat_sd
+        }
         
         #Get climate data for specific period and scenario
         future_folder <- file.path(base_dir, "Climate", period, scenario, "Predictions", "Rasters")
@@ -1101,12 +1363,11 @@ with_progress({
         future_climate <- terra::rast(ensemble_file)
         
         if (use_user_specific_climate_saved) {
-          future_habitat_suitability <- align_continuous_raster(ensemble_habitat_suitability, future_climate)
+          future_habitat_suitability <- align_continuous_raster(future_habitat_suitability, future_climate)
           future_occ <- sf::st_transform(eu_occ, crs = sf::st_crs(terra::crs(future_climate)))
         } else {
           future_climate <- future_climate %>%
-            terra::project(ensemble_habitat_suitability)
-          future_habitat_suitability <- ensemble_habitat_suitability
+            terra::project(future_habitat_suitability)
           future_occ <- eu_occ
         }
         
@@ -1196,18 +1457,16 @@ with_progress({
         consensus_future_climate_sd <- terra::rast(sd_future_climate_path)
         
         if (use_user_specific_climate_saved) {
-          future_habitat_mean <- align_continuous_raster(ensemble_habitat_mean, consensus_future_climate_mean)
-          future_habitat_sd <- align_continuous_raster(ensemble_habitat_sd, consensus_future_climate_mean)
+          future_habitat_mean <- align_continuous_raster(future_habitat_mean, consensus_future_climate_mean)
+          future_habitat_sd <- align_continuous_raster(future_habitat_sd, consensus_future_climate_mean)
         } else {
           #reproject mean future_climate to mean habitat crs
           consensus_future_climate_mean <- terra::project(consensus_future_climate_mean,
-                                                          ensemble_habitat_mean,
+                                                          future_habitat_mean,
                                                           method = "bilinear")
           consensus_future_climate_sd <- terra::project(consensus_future_climate_sd,
-                                                        ensemble_habitat_mean,
+                                                        future_habitat_mean,
                                                         method = "bilinear")
-          future_habitat_mean <- ensemble_habitat_mean
-          future_habitat_sd <- ensemble_habitat_sd
         }
         
         # small floor to avoid division by zero; adjust if needed
@@ -1270,7 +1529,12 @@ with_progress({
                          varimp_df = varimp_df,
                          selected_predictors = names(fullstack),
                          top5models = top5models, #model object holding selected models
-                         top5_models = top5_models
+                         top5_models = top5_models,
+                         landcover_input_mode = landcover_input_mode,
+                         landcover_manifest_path = landcover_manifest_path,
+                         landcover_predictor_crs = terra::crs(habitat_stack),
+                         landcover_future_mode = landcover_future_mode,
+                         landcover_future_combos = landcover_future_combos
     )
     
     #Save eumodel as .qs file
@@ -1292,13 +1556,13 @@ with_progress({
                               "remove_nodata_occurrences", "favourability_from_prob", 
                               "mtp_probabilities", "occurrence_thinning_method", 
                               "mtp_probabilities", "pseudoabsence_thinning_method", 
-                              "country_of_interest")))
+                              "country_of_interest", "kmeans_with_center_fallback")))
     
     #Clean terra tempfiles
     terra::tmpFiles(remove = TRUE)
     
   }
-})
+#})
 
 
 #--------------------------------------------
