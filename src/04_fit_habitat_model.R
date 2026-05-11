@@ -622,15 +622,56 @@ predict_future_habitat_ensemble <- function(model,
     #-----------------------------------------------------------
     # Extract raster values at eu_presabs points
     presabs_df <- terra::extract(habitat_stack, terra::vect(eu_presabs), ID = FALSE)
+    habitat_nzv_filter_applied <- isTRUE(habitat_filter_near_zero_variance_predictors)
+    habitat_nzv_dropped_predictors <- character(0)
+    habitat_stack_for_screening <- habitat_stack
+    
+    if (habitat_nzv_filter_applied) {
+      nzv_metrics <- caret::nearZeroVar(presabs_df, saveMetrics = TRUE)
+      habitat_nzv_dropped_predictors <- rownames(nzv_metrics)[nzv_metrics$nzv]
+      
+      if (length(habitat_nzv_dropped_predictors) > 0) {
+        message(
+          "Dropping near-zero-variance habitat predictors: ",
+          paste(habitat_nzv_dropped_predictors, collapse = ", ")
+        )
+        
+        presabs_df <- presabs_df[, !(names(presabs_df) %in% habitat_nzv_dropped_predictors), drop = FALSE]
+        habitat_stack_for_screening <- subset(
+          habitat_stack,
+          !(names(habitat_stack) %in% habitat_nzv_dropped_predictors)
+        )
+      }
+    }
+    
+    if (ncol(presabs_df) < 2L) {
+      warning(
+        "Habitat model skipped for species '", speciesName,
+        "': fewer than 2 habitat predictors remain after near-zero-variance screening."
+      )
+      next
+    }
     
     # Compute correlation matrix
     cor_matrix <- cor(presabs_df, use = "complete.obs")
     
     # Identify highly correlated variables
-    drop_vars <- caret::findCorrelation(cor_matrix, cutoff = 0.7, exact = TRUE, names = TRUE)
+    drop_vars <- if (ncol(presabs_df) > 1L) {
+      caret::findCorrelation(cor_matrix, cutoff = 0.7, exact = TRUE, names = TRUE)
+    } else {
+      character(0)
+    }
     
     # Subset fullstack to keep only uncorrelated predictors
-    fullstack <- subset(habitat_stack, !(names(habitat_stack) %in% drop_vars))
+    fullstack <- subset(habitat_stack_for_screening, !(names(habitat_stack_for_screening) %in% drop_vars))
+    
+    if (terra::nlyr(fullstack) < 2L) {
+      warning(
+        "Habitat model skipped for species '", speciesName,
+        "': fewer than 2 habitat predictors remain after predictor screening."
+      )
+      next
+    }
     
     
     #-----------------------------------------------------------
@@ -688,7 +729,9 @@ predict_future_habitat_ensemble <- function(model,
     for(modelmethod in methods){
       print(modelmethod)
       pred_raster <- try({
+        blk <- 0
         for(rasterblock in seq_along(exts)) {
+          blk <- blk + 1
           block_r <- crop(fullstack, exts[[rasterblock]])
           
           # Make predictions for each block
@@ -709,10 +752,33 @@ predict_future_habitat_ensemble <- function(model,
       if(inherits(pred_raster, "try-error")) {
         message("Skipping method ", modelmethod, " due to prediction failure.")
         next
-      } else{
-        message("Predictions successfully completed for method '", modelmethod, "'.")
       }
       
+      pred_summary <- try(
+        terra::global(pred_raster, fun = c("min", "max"), na.rm = TRUE),
+        silent = TRUE
+      )
+
+      if (inherits(pred_summary, "try-error")) {
+        message("Skipping method ", modelmethod, " because prediction raster values could not be checked.")
+        next
+      }
+
+      finite_pred_summary <- unlist(pred_summary, use.names = FALSE)
+      finite_pred_summary <- finite_pred_summary[is.finite(finite_pred_summary)]
+
+      if (length(finite_pred_summary) == 0L || all(finite_pred_summary == 0)) {
+        message(
+          "Skipping method ", modelmethod,
+          " because prediction raster contains no valid non-zero values ",
+          "(all values are NA/NaN and/or zero)."
+        )
+        next
+      }
+
+      message("Predictions successfully completed and validated for method '", 
+              modelmethod, "'.")
+
       # Get model IDs
       model_ids <- info$modelID[info$method == modelmethod]
       
@@ -1533,6 +1599,8 @@ predict_future_habitat_ensemble <- function(model,
                          landcover_input_mode = landcover_input_mode,
                          landcover_manifest_path = landcover_manifest_path,
                          landcover_predictor_crs = terra::crs(habitat_stack),
+                         habitat_nzv_filter_applied = habitat_nzv_filter_applied,
+                         habitat_nzv_dropped_predictors = habitat_nzv_dropped_predictors,
                          landcover_future_mode = landcover_future_mode,
                          landcover_future_combos = landcover_future_combos
     )
