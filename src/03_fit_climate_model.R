@@ -103,8 +103,10 @@ predictor_sf_crs <- sf::st_crs(predictor_crs)
 #--------------------------------------------
 #----------- Load boundary layers -----------
 #--------------------------------------------
-euboundary <- sf::st_read(file.path("data", "external", "GIS", "Europe", "EUboundary.shp"), quiet = TRUE) %>%
-  sf::st_transform(predictor_sf_crs) %>%
+euboundary <- load_eu_boundary(
+  custom_path = custom_eu_boundary_path,
+  reference = current_climate_reference
+) %>%
   terra::vect()
 
 if(tolower(country_of_interest)!="europe"||!is.null(custom_country_boundary_path)){

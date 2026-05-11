@@ -958,6 +958,165 @@ resolve_input_path <- function(path, base_dir = getwd()) {
 
 
 #-----------------------------------------------------------------
+#--Return an sf CRS from a supported reference object-------------
+#-----------------------------------------------------------------
+get_reference_crs <- function(reference) {
+  if (inherits(reference, "SpatRaster") || inherits(reference, "SpatVector")) {
+    reference_crs <- terra::crs(reference)
+    if (!nzchar(reference_crs)) {
+      stop("The reference raster/vector does not have a defined CRS.", call. = FALSE)
+    }
+    return(sf::st_crs(reference_crs))
+  }
+  
+  if (inherits(reference, "sf") || inherits(reference, "sfc")) {
+    reference_crs <- sf::st_crs(reference)
+    if (is.na(reference_crs)) {
+      stop("The reference vector does not have a defined CRS.", call. = FALSE)
+    }
+    return(reference_crs)
+  }
+  
+  if (inherits(reference, "crs")) {
+    if (is.na(reference)) {
+      stop("The reference CRS is not defined.", call. = FALSE)
+    }
+    return(reference)
+  }
+  
+  if ((is.character(reference) || is.numeric(reference)) && length(reference) == 1) {
+    reference_crs <- sf::st_crs(reference)
+    if (is.na(reference_crs)) {
+      stop("The reference CRS could not be parsed.", call. = FALSE)
+    }
+    return(reference_crs)
+  }
+  
+  stop("Unsupported reference object supplied for CRS matching.", call. = FALSE)
+}
+
+
+#-----------------------------------------------------------------
+#--Create the default EU boundary from the habitat raster---------
+#-----------------------------------------------------------------
+create_default_eu_boundary <- function(habitat_boundary_raster = file.path("data", "external", "habitat", "Agriculture.tif")) {
+  habitat_boundary_raster <- resolve_input_path(habitat_boundary_raster)
+  
+  if (!file.exists(habitat_boundary_raster)) {
+    stop("The habitat raster used to derive the default EU boundary does not exist: ", habitat_boundary_raster, call. = FALSE)
+  }
+  
+  euboundary <- terra::rast(habitat_boundary_raster)
+  euboundary <- (euboundary * 0) + 1
+  euboundary <- terra::as.polygons(euboundary, dissolve = TRUE)
+  euboundary <- sf::st_as_sf(euboundary)
+  
+  if (!all(sf::st_is_valid(euboundary))) {
+    euboundary <- suppressWarnings(sf::st_make_valid(euboundary))
+  }
+  
+  euboundary
+}
+
+
+#-----------------------------------------------------------------
+#--Load the climate masking layer while preserving legacy default--
+#-----------------------------------------------------------------
+load_climate_eu_boundary <- function(custom_path = NULL,
+                                     reference,
+                                     habitat_boundary_raster = file.path("data", "external", "habitat", "Agriculture.tif"),
+                                     legacy_extent = c(-38, 50, 24.29152732065, 72.66652712715)) {
+  if (missing(reference) || is.null(reference)) {
+    stop("A reference raster must be supplied to derive the climate EU boundary.", call. = FALSE)
+  }
+  
+  if (is.null(custom_path)) {
+    habitat_boundary_raster <- resolve_input_path(habitat_boundary_raster)
+    
+    if (!file.exists(habitat_boundary_raster)) {
+      stop("The habitat raster used to derive the default climate EU boundary does not exist: ", habitat_boundary_raster, call. = FALSE)
+    }
+    
+    return(
+      terra::rast(habitat_boundary_raster) %>%
+        terra::project(reference) %>%
+        terra::crop(terra::ext(legacy_extent[1], legacy_extent[2], legacy_extent[3], legacy_extent[4]))
+    )
+  }
+  
+  load_eu_boundary(
+    custom_path = custom_path,
+    reference = reference,
+    habitat_boundary_raster = habitat_boundary_raster
+  ) %>%
+    terra::vect()
+}
+
+
+#-----------------------------------------------------------------
+#--Load the active EU boundary and align it to a reference CRS----
+#-----------------------------------------------------------------
+load_eu_boundary <- function(custom_path = NULL,
+                             reference = NULL,
+                             default_path = file.path("data", "external", "GIS", "Europe", "EUboundary.shp"),
+                             habitat_boundary_raster = file.path("data", "external", "habitat", "Agriculture.tif")) {
+  if (is.null(custom_path)) {
+    default_path <- resolve_input_path(default_path)
+    
+    if (file.exists(default_path)) {
+      euboundary <- sf::st_read(default_path, quiet = TRUE)
+    } else {
+      euboundary <- create_default_eu_boundary(habitat_boundary_raster)
+    }
+  } else {
+    custom_path <- resolve_input_path(custom_path)
+    
+    if (!file.exists(custom_path)) {
+      stop("The file provided in 'custom_eu_boundary_path' does not exist: ", custom_path, call. = FALSE)
+    }
+    
+    euboundary <- sf::st_read(custom_path, quiet = TRUE)
+  }
+  
+  if (nrow(euboundary) == 0) {
+    stop("The EU boundary layer does not contain any features.", call. = FALSE)
+  }
+  
+  empty_features <- sf::st_is_empty(euboundary)
+  if (any(empty_features)) {
+    euboundary <- euboundary[!empty_features, , drop = FALSE]
+  }
+  
+  if (nrow(euboundary) == 0) {
+    stop("The EU boundary layer only contains empty geometries.", call. = FALSE)
+  }
+  
+  if (!all(sf::st_is_valid(euboundary))) {
+    euboundary <- suppressWarnings(sf::st_make_valid(euboundary))
+  }
+  
+  boundary_crs <- sf::st_crs(euboundary)
+  if (is.na(boundary_crs)) {
+    stop("The EU boundary layer must have a defined CRS.", call. = FALSE)
+  }
+  
+  if (!is.null(reference)) {
+    reference_crs <- get_reference_crs(reference)
+    
+    if (!isTRUE(boundary_crs == reference_crs)) {
+      euboundary <- sf::st_transform(euboundary, reference_crs)
+    }
+    
+    if (!isTRUE(sf::st_crs(euboundary) == reference_crs)) {
+      stop("The EU boundary layer CRS could not be aligned to the reference raster/vector CRS.", call. = FALSE)
+    }
+  }
+  
+  euboundary
+}
+
+
+#-----------------------------------------------------------------
 #--Load a named raster stack from manifest rows--------------------
 #-----------------------------------------------------------------
 load_named_raster_stack <- function(stack_rows) {
