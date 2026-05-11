@@ -435,6 +435,7 @@ gc()
     #------ Import right bias grid --------------
     #--------------------------------------------
     if (speciesgroup %in% names(bias_grid_paths)) {
+      found_bias_grid <- TRUE
       biasgrid <- terra::rast(bias_grid_paths[[speciesgroup]])
       if(speciesgroup %in% c("Amphibians", "Molluscs", "Mammals", "Reptiles","Birds","Plants","Fish","Malacostraca","Insects")){
         # Align biasgrid to the pseudoabsence template in the active climate CRS
@@ -445,28 +446,39 @@ gc()
         }
       }
     } else {
-      message("No bias grid available for this species. Species has to be one of the following: Amphibians, Molluscs, Mammals, Reptiles, Birds, Plants, Fish, Malacostraca, or Insects.")
-      next
+      found_bias_grid <- FALSE
+      biasgrid <- terra::rast(bias_grid_paths[["Plants"]])
+      values(biasgrid) <- 1
+      # Align biasgrid to the pseudoabsence template in the active climate CRS
+      if (!isTRUE(terra::same.crs(biasgrid, globalclimpreds_terra_5k))) {
+        biasgrid <- terra::project(biasgrid, globalclimpreds_terra_5k, method="bilinear")
+      } else {
+        biasgrid <- terra::resample(biasgrid, globalclimpreds_terra_5k, method="bilinear")
+      }
+      warning("No bias grid available for this species. Species has to be one of the following: 
+              Amphibians, Molluscs, Mammals, Reptiles, Birds, Plants, Fish, Malacostraca, or Insects.")
+      warning("Selection will only consider ecoregions")
+      #next
     }
-    
     
     #--------------------------------------------
     #------------ Process  bias grid ------------
     #--------------------------------------------
-    #Mask biasgrid with climate layers (no PA can be selected in NA climate pixels)
-    biasgrid_log <- terra::mask(biasgrid, globalclimpreds_terra_5k)
-    
-    # Rescale raster values to range from 1 to 20
-    min_val <- global(biasgrid_log, fun = "min", na.rm = TRUE)[[1]]
-    max_val <- global(biasgrid_log, fun = "max", na.rm = TRUE)[[1]]
-    biasgrid <- ((biasgrid_log - min_val) / (max_val - min_val)) * 19 + 1
-    
+    if(found_bias_grid){
+      #Mask biasgrid with climate layers (no PA can be selected in NA climate pixels)
+      biasgrid_log <- terra::mask(biasgrid, globalclimpreds_terra_5k)
+      
+      # Rescale raster values to range from 1 to 20
+      min_val <- global(biasgrid_log, fun = "min", na.rm = TRUE)[[1]]
+      max_val <- global(biasgrid_log, fun = "max", na.rm = TRUE)[[1]]
+      biasgrid <- ((biasgrid_log - min_val) / (max_val - min_val)) * 19 + 1
+    }
+
     #Mask biasgrid with biomes with occurrences
     wwf_ecoSub1_ext<-terra::ext(wwf_ecoSub1) 
     wwf_ecoSub1_vector <- terra::vect(wwf_ecoSub1) 
     biasgrid_crop <- terra::crop(biasgrid, wwf_ecoSub1_ext) 
     biasgrid_sub <- terra::mask(biasgrid_crop, wwf_ecoSub1_vector)
-    
     
     #--------------------------------------------
     #---------------Visualize biasgrid-----------
@@ -497,6 +509,7 @@ gc()
       as.points = TRUE,       # return SpatVector of points
       na.rm = TRUE            # ignore NA pixels
     )
+
     
     #Select 10000 pseudoabsences
     if(pseudoabsence_thinning_method == "random"){
