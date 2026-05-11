@@ -1,7 +1,8 @@
 #--------------------------------------------
 #-----------------Load packages--------------
 #--------------------------------------------
-packages <- c("rgbif", "dplyr", "purrr", "assertthat", "readr", "here", "retry", "CoordinateCleaner", "remotes", "stringr")
+packages <- c("rgbif", "dplyr", "purrr", "assertthat", "readr", "here", "retry", 
+              "CoordinateCleaner", "remotes", "stringr")
 
 installed_packages <- installed.packages() |>
   as.data.frame()

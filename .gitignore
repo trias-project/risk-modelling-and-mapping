@@ -48,3 +48,8 @@ data/external/GIS/Belgium_ecoregions/
 data/external/habitat/
 data/projects/
 .renviron
+
+.positai
+
+data/external/gadm/
+data/external/file_paths_custom_data.csv

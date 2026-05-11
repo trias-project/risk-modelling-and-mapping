@@ -35,23 +35,26 @@ source(here::here("src", "00_configurations.R"))
 #-------------------------- Define file paths ----------------------------------
 #-------------------------------------------------------------------------------
 #climate stack
-climate_path <- file.path("data", "external", "climate", "chelsa_current","processed", "globalclimpreds.tif")
+climate_path <- file.path("data", "external", "climate", "chelsa_current",
+                          "processed", "globalclimpreds.tif")
 
 #EU climate stack
-eu_climpreds_path <- file.path("data", "external", "climate", "chelsa_current","processed","euclimpreds.tif")
+eu_climpreds_path <- file.path("data", "external", "climate", "chelsa_current",
+                               "processed","euclimpreds.tif")
 
 #habitat stack
-habitat_path <- file.path("data", "external", "habitat", "processed", "habitat_stack.tif")
+habitat_path <- file.path("data", "external", "habitat", "processed", 
+                          "habitat_stack.tif")
 
 #Biome file path
 biome_path<-file.path("data", "external", "GIS", "official", "newRealms.shp")
-
 
 #--------------------------------------------
 #------------- Load species data ------------
 #--------------------------------------------
 #Get taxa info
-taxa_info <- read.csv2(file.path("data", "projects", project, paste0(project, "_taxa_info.csv")))
+taxa_info <- read.csv2(file.path("data", "projects", project, 
+                                 paste0(project, "_taxa_info.csv")))
 
 #Select unique taxonkeys
 accepted_taxonkeys <- unique(taxa_info$acceptedTaxonKey)
@@ -60,54 +63,39 @@ accepted_taxonkeys <- unique(taxa_info$acceptedTaxonKey)
 #--------------------------------------------
 #-----------------Load rasters---------------
 #--------------------------------------------
-#Load rasters 
-climate_stack <- terra::rast(climate_path)
+#Load rasters
 habitat_stack <- terra::rast(habitat_path)
 
 
 #--------------------------------------------
-#------------ Load euboundary  --------------
+#------ Build default validation context ----
 #--------------------------------------------
-euboundary <- load_eu_boundary(
+default_euboundary <- load_eu_boundary(
   custom_path = custom_eu_boundary_path,
   reference = habitat_stack[[1]]
 )
-euboundary_vect <- terra::vect(euboundary)
+default_euboundary_vect <- terra::vect(default_euboundary)
 
 if (is.null(custom_eu_boundary_path)) {
-  eu_climate_stack <- terra::rast(eu_climpreds_path) %>%
-    terra::project(habitat_stack[[1]])
-  
-  eu_sampling_mask <- habitat_stack[[1]]
+  default_eu_sampling_mask <- habitat_stack[[1]]
 } else {
-  eu_climate_stack <- terra::rast(eu_climpreds_path) %>%
-    terra::project(habitat_stack[[1]]) %>%
-    terra::crop(euboundary_vect) %>%
-    terra::mask(euboundary_vect)
-  
-  eu_sampling_mask <- habitat_stack[[1]] %>%
-    terra::crop(euboundary_vect) %>%
-    terra::mask(euboundary_vect)
+  default_eu_sampling_mask <- habitat_stack[[1]] %>%
+    terra::crop(default_euboundary_vect) %>%
+    terra::mask(default_euboundary_vect)
 }
 
+default_eu_sampling_cells <- terra::global(!is.na(default_eu_sampling_mask), 
+                                           "sum", na.rm = TRUE)[[1]]
 
-#-----------------------------------------------------------
-#- Sample background data once
-#-----------------------------------------------------------
-#Extract a subsample of European pixels for Boyce calculation 
-set.seed(728)
-eu_subsample <- terra::spatSample(
-  eu_sampling_mask,
-  size = boyce_background_size, 
-  method = "random", 
-  na.rm = TRUE, #Ignore NA pixels
-  as.points = TRUE)
-
-# Extract climate data at eu subsample points
-eu_climate_sub <- terra::extract(eu_climate_stack, eu_subsample, ID = FALSE, xy = FALSE)
-
-# Extract habitat data at eu subsample points
-eu_habitat_sub <- terra::extract(habitat_stack, eu_subsample, ID = FALSE, xy = FALSE)
+if (is.na(default_eu_sampling_cells) || default_eu_sampling_cells == 0) {
+  stop("No non-NA European habitat cells are available 
+       for default validation sampling.", call. = FALSE)
+}
+default_climate_stack <- NULL
+default_eu_climate_stack <- NULL
+default_eu_subsample <- NULL
+default_eu_climate_sub <- NULL
+default_eu_habitat_sub <- NULL
 
 
 #----------------------------------------------
@@ -182,7 +170,149 @@ for (i in seq_along(accepted_taxonkeys)) {
   top5_methods  <- climatemodel$top5_models
   global_presabs <- climatemodel$global_presabs
   climate_predictors <- climatemodel$selected_predictors
-  euboundary_occurrence <- euboundary %>%
+  climate_input_mode_saved <- climatemodel$climate_input_mode
+  
+  if (is.null(climate_input_mode_saved) || !nzchar(climate_input_mode_saved)) {
+    climate_input_mode_saved <- "chelsa"
+  }
+  
+  climate_manifest_path_saved <- climatemodel$climate_manifest_path
+  predictor_crs_saved <- climatemodel$predictor_crs
+  
+  if (!climate_input_mode_saved %in% c("chelsa", "user_specific")) {
+    stop(
+      "Unsupported climate input mode stored in ", basename(climate_qs_file),
+      ": ", climate_input_mode_saved, call. = FALSE
+    )
+  }
+  
+  if (climate_input_mode_saved == "user_specific") {
+    if (is.null(climate_manifest_path_saved) || !nzchar(climate_manifest_path_saved)) {
+      stop(
+        "The saved climate model metadata is missing 'climate_manifest_path'. 
+        Rerun 03_fit_climate_model.R for ", speciesName,".", call. = FALSE
+      )
+    }
+    
+    if (is.null(predictor_crs_saved) || !nzchar(predictor_crs_saved)) {
+      stop(
+        "The saved climate model metadata is missing 'predictor_crs'. 
+        Rerun 03_fit_climate_model.R for ", speciesName, ".", call. = FALSE
+      )
+    }
+    
+    climate_manifest_saved <- load_user_specific_climate_manifest(climate_manifest_path_saved)
+    climate_stack_active <- materialize_user_specific_current_stack(climate_manifest_saved)
+    
+    saved_predictor_crs <- sf::st_crs(predictor_crs_saved)
+    active_predictor_crs <- sf::st_crs(terra::crs(climate_stack_active))
+    
+    if (!isTRUE(saved_predictor_crs == active_predictor_crs)) {
+      stop(
+        "The current climate stack loaded from the saved manifest does not match 
+        the CRS stored in the climate model metadata.",
+        call. = FALSE
+      )
+    }
+    
+    euboundary_active <- load_eu_boundary(
+      custom_path = custom_eu_boundary_path,
+      reference = climate_stack_active[[1]]
+    )
+    euboundary_active_vect <- terra::vect(euboundary_active)
+    
+    eu_climate_stack_active <- climate_stack_active %>%
+      terra::crop(euboundary_active_vect) %>%
+      terra::mask(euboundary_active_vect)
+    
+    habitat_stack_on_climate <- align_continuous_raster(habitat_stack, 
+                                                        eu_climate_stack_active[[1]])
+    
+    eu_sampling_mask_active <- terra::mask(habitat_stack_on_climate[[1]], 
+                                           eu_climate_stack_active[[1]])
+    
+    eu_sampling_cells_active <- terra::global(!is.na(eu_sampling_mask_active), 
+                                              "sum", na.rm = TRUE)[[1]]
+    
+    if (is.na(eu_sampling_cells_active) || eu_sampling_cells_active == 0) {
+      
+      stop("No overlapping non-NA European cells remain after aligning habitat 
+           coverage to the user-specific climate template.",
+        call. = FALSE
+      )
+    }
+    
+    set.seed(728)
+    eu_subsample_active <- terra::spatSample(
+      eu_sampling_mask_active,
+      size = boyce_background_size,
+      method = "random",
+      na.rm = TRUE,
+      as.points = TRUE
+    )
+    
+    eu_climate_sub_active <- terra::extract(eu_climate_stack_active, 
+                                            eu_subsample_active, 
+                                            ID = FALSE, xy = FALSE)
+    eu_habitat_sub_active <- terra::extract(habitat_stack_on_climate, 
+                                            eu_subsample_active, 
+                                            ID = FALSE, xy = FALSE)
+    
+  } else {
+    
+    climate_manifest_saved <- NULL
+    
+    if (is.null(default_climate_stack)) {
+      default_climate_stack <- terra::rast(climate_path)
+    }
+    
+    if (is.null(default_eu_climate_stack)) {
+      if (is.null(custom_eu_boundary_path)) {
+        default_eu_climate_stack <- terra::rast(eu_climpreds_path) %>%
+          terra::project(habitat_stack[[1]])
+      } else {
+        default_eu_climate_stack <- terra::rast(eu_climpreds_path) %>%
+          terra::project(habitat_stack[[1]]) %>%
+          terra::crop(default_euboundary_vect) %>%
+          terra::mask(default_euboundary_vect)
+      }
+      
+      set.seed(728)
+      default_eu_subsample <- terra::spatSample(
+        default_eu_sampling_mask,
+        size = boyce_background_size,
+        method = "random",
+        na.rm = TRUE,
+        as.points = TRUE
+      )
+      
+      default_eu_climate_sub <- terra::extract(default_eu_climate_stack, 
+                                               default_eu_subsample, 
+                                               ID = FALSE, xy = FALSE)
+      default_eu_habitat_sub <- terra::extract(habitat_stack, 
+                                               default_eu_subsample, 
+                                               ID = FALSE, xy = FALSE)
+    }
+    
+    climate_stack_active <- default_climate_stack
+    euboundary_active <- default_euboundary
+    eu_climate_stack_active <- default_eu_climate_stack
+    eu_climate_sub_active <- default_eu_climate_sub
+    eu_habitat_sub_active <- default_eu_habitat_sub
+  }
+  
+  missing_climate_predictors <- setdiff(climate_predictors, 
+                                        names(climate_stack_active))
+  
+  if (length(missing_climate_predictors) > 0) {
+    stop("The current climate stack is missing predictor(s) stored in ",
+      basename(climate_qs_file), ": ",paste(missing_climate_predictors, 
+                                            collapse = ", "),
+      call. = FALSE
+    )
+  }
+  
+  euboundary_occurrence <- euboundary_active %>%
     sf::st_transform(crs = sf::st_crs(global_presabs))
   rm(climatemodel)
   
@@ -204,19 +334,19 @@ for (i in seq_along(accepted_taxonkeys)) {
   #---------------------------------------------------------
   #- Select climate rasters used in 03_fit_climate_model.R -
   #---------------------------------------------------------
-  climate_selection <- terra::subset(climate_stack,
-                                     climate_predictors[climate_predictors %in%
-                                                          names(climate_stack)])
+  climate_selection <- terra::subset(climate_stack_active, climate_predictors)
   
   
   #-----------------------------------------------------------
   #- Obtain global climate subsample values for selected predictors
   #-----------------------------------------------------------
   #Load biomes
-  wwf_eco_biome<-sf::st_read(biome_path) 
+  wwf_eco_biome <- sf::st_read(biome_path, quiet = TRUE) %>%
+    sf::st_transform(crs = get_reference_crs(climate_selection))
   
   # Keep only biome polygons that intersect at least one occurrence point
-  global_presences<-dplyr::filter(global_presabs, species==1)
+  global_presences <- dplyr::filter(global_presabs, species==1) %>%
+    sf::st_transform(crs = sf::st_crs(wwf_eco_biome))
   sf::sf_use_s2(FALSE)
   has_occurrence <- lengths(sf::st_intersects(wwf_eco_biome, global_presences)) > 0
   wwf_ecoSub1 <- wwf_eco_biome[has_occurrence, ]
@@ -251,7 +381,7 @@ for (i in seq_along(accepted_taxonkeys)) {
   #- Obtain European climate subsample values for selected predictors
   #-----------------------------------------------------------
   if(eu_climate_validation || ensemble_validation){
-    eu_points <- eu_climate_sub %>%
+    eu_points <- eu_climate_sub_active %>%
       dplyr::select(any_of(climate_predictors))%>%
       dplyr::mutate(ID = dplyr::row_number())
   }
@@ -323,7 +453,7 @@ for (i in seq_along(accepted_taxonkeys)) {
         dplyr::bind_rows(global_presabs)
       
       #Remove duplicates
-      all_presabs$cell <- terra::cellFromXY( climate_stack[[1]], 
+      all_presabs$cell <- terra::cellFromXY( climate_stack_active[[1]], 
                                              all_presabs%>%
                                                st_coordinates%>%
                                                as.data.frame()) 
@@ -397,7 +527,8 @@ for (i in seq_along(accepted_taxonkeys)) {
       dplyr::mutate(ID = dplyr::row_number())
     
     if(nrow(global_presabs_perfold)!=nrow(global_presabs)){
-      warning(nrow(global_presabs)- nrow(global_presabs_perfold)," global point(s) not assigned to a fold and removed from dataset.")
+      warning(nrow(global_presabs)- nrow(global_presabs_perfold),
+              " global point(s) not assigned to a fold and removed from dataset.")
     }
     
     
@@ -479,7 +610,9 @@ for (i in seq_along(accepted_taxonkeys)) {
       }
       
       #Add EU background data for validation of ensemble and Europe
-      if (eu_climate_validation || ensemble_validation) {datasets$eu_points  <- eu_points}
+      if (eu_climate_validation || ensemble_validation) {
+        datasets$eu_points  <- eu_points
+        }
       
       
       #---------------------------------------------------------------------
@@ -644,8 +777,11 @@ for (i in seq_along(accepted_taxonkeys)) {
   #-------------- Export results --------------
   #--------------------------------------------
   # Define directories
-  climate_validation_dir<-file.path(base_dir, "Climate", "Current", "Diagnostics", "Model_validation")
-  if(!dir.exists(climate_validation_dir)) dir.create(climate_validation_dir, recursive = TRUE, showWarnings = FALSE)
+  climate_validation_dir<-file.path(base_dir, "Climate", "Current", 
+                                    "Diagnostics", "Model_validation")
+  if(!dir.exists(climate_validation_dir)) dir.create(climate_validation_dir, 
+                                                     recursive = TRUE, 
+                                                     showWarnings = FALSE)
   
   
   # Export validation summary (mean across folds) when relevant
@@ -653,7 +789,8 @@ for (i in seq_along(accepted_taxonkeys)) {
     
     #Export per fold validation
     readr::write_csv(global_validation_climate,
-                     file.path(climate_validation_dir, paste0(speciesName, "_global_climate_validation_per_fold.csv"))) 
+                     file.path(climate_validation_dir, 
+                               paste0(speciesName, "_global_climate_validation_per_fold.csv"))) 
     
     #Export summary
     global_validation_clim_mean <- summarise_validation(df = global_validation_climate, 
@@ -752,7 +889,7 @@ for (i in seq_along(accepted_taxonkeys)) {
   #-----------------------------------------------------------
   #- Obtain habitat subsample values for selected predictors
   #-----------------------------------------------------------
-  eu_habitat_points<-eu_habitat_sub %>%
+  eu_habitat_points<-eu_habitat_sub_active %>%
     dplyr::select(any_of(habitat_predictors))%>%
     dplyr::mutate(ID = dplyr::row_number())
   
