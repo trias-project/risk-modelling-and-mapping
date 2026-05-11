@@ -3,3 +3,7 @@ source("./src/01_prepare_files_and_folders.R")
 source("./src/02_global_occurrence_download.R")
 source("./src/03_fit_climate_model.R")
 source("./src/04_fit_habitat_model.R")
+source("./src/05_cross_validation.R")
+if(export_cubes){
+  source("./src/06_export_cubes.R")
+}

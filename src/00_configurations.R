@@ -21,6 +21,7 @@ workflow <-"single_step" #either single_step or two_step
 
 boyce_background_size <- 50000 #Number of non NA pixels in Europe to be selected for Boyce index calculation
 
+export_cubes <- TRUE #either TRUE or FALSE
 
 
 #------------------------------------------------------------
