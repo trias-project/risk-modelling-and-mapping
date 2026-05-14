@@ -374,3 +374,130 @@ if (export_cubes) {
     write.csv(habitat_cube, file.path(base_dir, "Habitat", "Habitat_cube.csv"))
     
     
+    #--------------------------------------------
+    #-----PART 3: Create ensemble cubes ---------
+    #--------------------------------------------
+    
+    for(period in periods){
+      if(period=="Current"){
+        
+        #---------------------------
+        #--- Load combined raster ---
+        #---------------------------
+        combinedpath <- file.path(base_dir, "Combined", period, "Predictions", "Rasters", 
+                                  paste0(speciesName, "_Combined_current_ensemble.tif"))
+        
+        if(!file.exists(combinedpath)){
+          message("No combined predictions available for period: ", period ,".\nSkipping this period.")
+          next
+        }
+        message("Processing combined predictions for period: ", period)
+        
+        #---------------------------
+        #- project to eea template -
+        #---------------------------
+        combinedraster<-terra::rast(combinedpath)
+        
+        combinedraster<- terra::resample(combinedraster,
+                                         eea_template,
+                                         method = "bilinear")
+        
+        #Get values of combined raster and CELLIDs of cells that are not NA
+        vals <- values(combinedraster)
+        idx <- which(is.finite(vals))
+        
+        #Generate combined cube
+        combined_cube <- data.frame(TaxonKey = taxonkey,
+                                    Species = species,
+                                    CELLID = idx,
+                                    Combined_favourability = vals[idx],
+                                    Time = period,
+                                    Scenario = "Baseline")%>%
+          dplyr::left_join(eea_link,
+                           by = "CELLID" )%>%
+          dplyr::select(Species, TaxonKey, CELLCODE,Time,Scenario,Combined_favourability)
+        
+        
+        #Store in list
+        EEA_combined_cubes[[period]]<-combined_cube
+        
+        #Clean up
+        rm(combined_cube,combinedraster, combinedpath) 
+        
+      }else{
+        for(scenario in scenarios){
+          
+          
+          #---------------------------
+          #--- Define scenario name ---
+          #---------------------------
+          scenarioTitle<- switch(scenario,
+                                 "ssp126" = "SSP1-2.6",
+                                 "ssp370" = "SSP3-7.0",
+                                 "ssp585" = "SSP5-8.5")
+          
+          
+          #---------------------------
+          #--- Load combined raster ---
+          #---------------------------
+          combinedpath <- file.path(base_dir, "Combined", period, scenario,"Predictions", "Rasters", 
+                                    paste0(speciesName, "_Combined_",period,"_",scenario,"_ensemble.tif") )
+          
+          if(!file.exists(combinedpath)){
+            message("No combined predictions available for period: ", period ," scenario ",scenario,". Skipping this.")
+            next
+          }else{
+            message("Processing combined predictions for period: ", period," and scenario: ", scenario)
+          }
+          
+          
+          #---------------------------
+          #- project to eea template -
+          #---------------------------
+          combinedraster<-terra::rast(combinedpath)
+          
+          combinedraster<- terra::resample(combinedraster,
+                                           eea_template,
+                                           method = "bilinear")
+          
+          #Get values of combined raster and CELLIDs of cells that are not NA
+          vals <- values(combinedraster)
+          idx <- which(is.finite(vals))
+          
+          #Generate combined cube
+          combined_cube <- data.frame(TaxonKey = taxonkey,
+                                      Species = species,
+                                      CELLID = idx,
+                                      Combined_favourability = vals[idx],
+                                      Time = period,
+                                      Scenario = scenarioTitle)%>%
+            dplyr::left_join(eea_link,
+                             by = "CELLID" )%>%
+            dplyr::select(Species, TaxonKey, CELLCODE,Time,Scenario,Combined_favourability)
+          
+          
+          #Store in list
+          EEA_combined_cubes[[paste0(period,"_",scenario)]]<-combined_cube
+          
+          #Clean up
+          rm(combined_cube,combinedraster, combinedpath) 
+        }
+      }
+    }
+    
+    #Combine into one cube
+    combined_cube<-dplyr::bind_rows(EEA_combined_cubes)
+    
+    #Plot cube 
+    plot_cube(cube= combined_cube,
+              type= "Combined",
+              path = file.path(base_dir, "Combined"))
+    
+    
+    #Store and export cube
+    EEA_combined_cube_all[[speciesName]]<-combined_cube
+    write.csv(combined_cube, file.path(base_dir, "Combined", "Combined_cube.csv"))
+    
+    
+  }
+  
