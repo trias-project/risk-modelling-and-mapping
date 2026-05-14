@@ -1241,3 +1241,90 @@ summarise_validation<- function(df, validation){
   }
   return(df)
 }
+
+
+#-----------------------------------------------------------------
+#---------  Plot a single-species cube and store plot ------------
+#-----------------------------------------------------------------
+plot_cube <- function(cube, type, path){
+  
+  #Define favourability type
+  favourability <- switch(type,
+                          "Climate" = "Climate_favourability",
+                          "Habitat" = "Habitat_favourability",
+                          "Combined" = "Combined_favourability")
+  
+  plotTitle<- switch(type,
+                     "Climate" = "Climate_cube_plot.png",
+                     "Habitat" = "Habitat_cube_plot.png",
+                     "Combined" = "Combined_cube_plot.png")
+  
+  #Calculate number of unique combinations of Time and Scenario
+  n_groups <- cube%>%
+    dplyr::distinct(Scenario, Time) %>%
+    nrow()
+  
+  #Only keep cells for which we have predictions across all Times and Scenarios
+  cube <- cube %>%
+    dplyr::group_by(CELLCODE) %>%
+    dplyr::filter(dplyr::n_distinct(paste(Scenario, Time)) == n_groups) %>%
+    ungroup()
+  
+  se <- function(x) sqrt(var(x, na.rm = TRUE) / sum(!is.na(x)))
+  meancube<-cube %>%
+    dplyr::group_by(Time, Scenario) %>%
+    dplyr::summarise(
+      n = dplyr::n(),
+      sd = round(sd(.data[[favourability]], na.rm = TRUE), 4),
+      se = round(se(.data[[favourability]]), 4),
+      Favourability = round(mean(.data[[favourability]], na.rm = TRUE), 4),
+      .groups = "drop"
+    )
+  
+  # Base data
+  baseline <- meancube %>%
+    dplyr::filter(Time == "Current")
+  
+  future <- meancube %>%
+    dplyr::filter(Time != "Current")
+  
+  
+  # Duplicate baseline for each scenario
+  baseline_expanded <- baseline %>%
+    dplyr::slice(rep(1, n_distinct(future$Scenario))) %>%
+    dplyr::mutate(Scenario = unique(future$Scenario))
+  
+  # Combine data
+  plotdf <- dplyr::bind_rows(baseline_expanded, future) %>%
+    dplyr::mutate(Time = factor(Time, levels = c("Current", "2041-2070", "2071-2100")),
+                  Scenario = factor(Scenario,levels = c("SSP1-2.6", "SSP3-7.0", "SSP5-8.5")))
+  
+  # Plot
+  cube_plot<- ggplot(plotdf, aes(x = Time,
+                                 y = Favourability,
+                                 color = Scenario,
+                                 group = Scenario)) +
+    geom_line(linewidth = 1) +
+    geom_point(size = 3) +
+    geom_errorbar(aes(ymin = Favourability - sd,
+                      ymax = Favourability + sd),
+                  width = 0.08) +
+    scale_color_manual(values = c("SSP1-2.6" = "#163f6bff",
+                                  "SSP3-7.0" =  "#48a8b3ff",
+                                  "SSP5-8.5" = "#f0a144ff")) +
+    labs(x = "Time period",
+         y = "Mean favourability", 
+         color = "Scenario") +
+    theme_bw(base_size = 14)+
+    theme(panel.background = element_blank(),
+          panel.grid = element_blank()
+    )
+  
+  #Export plot
+  ggplot2::ggsave(filename = plotTitle, plot = cube_plot, 
+                  device = "png", width =10 , height = 6.94, units = "in", dpi= 300, path= path)
+  
+  #Return plot
+  return(cube_plot)
+  
+}
