@@ -1244,6 +1244,106 @@ summarise_validation<- function(df, validation){
 
 
 #-----------------------------------------------------------------
+#--------- Build a cube with favourability values  ------------
+#-----------------------------------------------------------------
+build_cube <- function(base_dir,
+                       speciesName,
+                       taxonkey,
+                       period,
+                       scenario,
+                       eea_template,
+                       eea_link,
+                       type = c("Climate", "Habitat", "Combined"),
+                       scenario_map) {
+  
+  # ----------------------------
+  # Define dynamic names
+  # ----------------------------
+  scenarioTitle <-scenario_map[[scenario]]
+  file_prefix <- paste0(speciesName, "_", type, "_")
+  value_col <- paste0(type, "_favourability")
+  
+  
+  # ----------------------------
+  # Define file paths 
+  # ----------------------------
+  if (period == "Current") {
+    
+    #Define path to raster predictions
+    raster_path <- file.path(base_dir, type, period, "Predictions", "Rasters",
+                             paste0(file_prefix, "current_ensemble.tif"))
+    
+    #Check if predictions exist, if not: skip
+    if(!file.exists(raster_path)){
+      message("No ", type," predictions available for period: ", period ,
+              ".\n Skipping this period.")
+      return(NULL)
+    }
+    
+    message("Processing ", type," predictions for period: ", period)
+    
+    
+  } else {
+    
+    #Define path to raster predictions
+    raster_path <- file.path(base_dir, type, period, scenario, "Predictions", "Rasters",
+                             paste0(file_prefix, period, "_", scenario, "_ensemble.tif"))
+    
+    
+    #Check if predictions exist, if not: skip
+    if(!file.exists(raster_path)){
+      message("No ", type," predictions available for period: ", period ,", scenario: ",scenarioTitle,
+              ".\n Skipping this.")
+      return(NULL)
+    }
+    
+    message("Processing ", type," predictions for period: ", period,", scenario: ", scenarioTitle)
+    
+    
+  }
+  
+  
+  # -----------------------------------------
+  # Load predictions for region of interest
+  # -----------------------------------------
+  r <- terra::rast(raster_path)
+  
+  if(type =="Climate"){
+    r <- r %>%
+      terra::project("EPSG:3035",
+                     method = "bilinear",
+                     res = terra::res(eea_template))
+  }
+  
+  r <- terra::resample(r,
+                       eea_template,
+                       method = "bilinear")
+  
+  #Get values of climate raster and CELLIDs of cells that are not NA
+  vals <- values(r)
+  idx <- which(is.finite(vals))
+  
+  
+  # ----------------------------
+  #          Build cube
+  # ----------------------------
+  cube <- data.frame(TaxonKey = taxonkey,
+                     Species = speciesName,
+                     CELLID = idx,
+                     Value = vals[idx],
+                     Time = period,
+                     Scenario = scenarioTitle)
+  
+  cube <- dplyr::left_join(cube, eea_link, by = "CELLID") %>%
+    dplyr::select(Species, TaxonKey, CELLCODE, Time, Scenario, Value)
+  names(cube)[names(cube) == "Value"] <- value_col
+  
+  
+  return(cube)
+}
+
+
+#-----------------------------------------------------------------
 #---------  Plot a single-species cube and store plot ------------
 #-----------------------------------------------------------------
 plot_cube <- function(cube, type, path){
