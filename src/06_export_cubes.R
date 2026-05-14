@@ -234,3 +234,143 @@ if (export_cubes) {
     write.csv(climate_cube, file.path(base_dir, "Climate", "Climate_cube.csv"))
     
     
+    #--------------------------------------------
+    #-----PART 2: Create habitat cubes ----------
+    #--------------------------------------------
+    
+    #----------------------------------
+    #-Only run when habitat model ran -
+    #----------------------------------
+    #Check if habitat model was created, otherwise skip to next species
+    habitat_qs_file <- file.path(base_dir, "Habitat",
+                                 paste0("Habitat_model_", speciesName, "_", taxonkey, ".qs"))
+    
+    if (!file.exists(habitat_qs_file)) {
+      warning("No habitat predictions available for ",species,
+              ".\nSkipping species.")
+      next
+    }
+    
+    for(period in periods){
+      if(period=="Current"){
+        
+        
+        #---------------------------
+        #--- Load habitat raster ---
+        #---------------------------
+        habitatpath <- file.path(base_dir, "Habitat", period, "Predictions", "Rasters", 
+                                 paste0(speciesName, "_Habitat_current_ensemble.tif"))
+        
+        if(!file.exists(habitatpath)){
+          message("No habitat predictions available for period: ", period ,".\nSkipping this period.")
+          next
+        }else{
+          message("Processing habitat predictions for period: ", period)
+        }
+        
+        #---------------------------
+        #- project to eea template -
+        #---------------------------
+        habitatraster<-terra::rast(habitatpath)
+        
+        habitatraster<- terra::resample(habitatraster,
+                                        eea_template,
+                                        method = "bilinear")
+        
+        #Get values of habitat raster and CELLIDs of cells that are not NA
+        vals <- values(habitatraster)
+        idx <- which(is.finite(vals))
+        
+        #Generate habitat cube
+        habitat_cube <- data.frame(TaxonKey = taxonkey,
+                                   Species = species,
+                                   CELLID = idx,
+                                   Habitat_favourability = vals[idx],
+                                   Time = period,
+                                   Scenario = "Baseline")%>%
+          dplyr::left_join(eea_link,
+                           by = "CELLID" )%>%
+          dplyr::select(Species, TaxonKey, CELLCODE,Time,Scenario,Habitat_favourability)
+        
+        
+        #Store in list
+        EEA_habitat_cubes[[period]]<-habitat_cube
+        
+        #Clean up
+        rm(habitat_cube,habitatraster, habitatpath) 
+        
+      }else{
+        for(scenario in scenarios){
+          
+          
+          #---------------------------
+          #--- Define scenario name ---
+          #---------------------------
+          scenarioTitle<- switch(scenario,
+                                 "ssp126" = "SSP1-2.6",
+                                 "ssp370" = "SSP3-7.0",
+                                 "ssp585" = "SSP5-8.5")
+          
+          
+          #---------------------------
+          #--- Load habitat raster ---
+          #---------------------------
+          habitatpath <- file.path(base_dir, "Habitat", period, scenario,"Predictions", "Rasters", 
+                                   paste0(speciesName, "_Habitat_",period,"_",scenario,"_ensemble.tif") )
+          
+          if(!file.exists(habitatpath)){
+            message("No habitat predictions available for period: ", period ," scenario ",scenario,". Skipping this.")
+            next
+          }else{
+            message("Processing habitat predictions for period: ", period," and scenario: ", scenario)
+          }
+          
+          
+          #---------------------------
+          #- project to eea template -
+          #---------------------------
+          habitatraster<-terra::rast(habitatpath)
+          
+          habitatraster<- terra::resample(habitatraster,
+                                          eea_template,
+                                          method = "bilinear")
+          
+          #Get values of habitat raster and CELLIDs of cells that are not NA
+          vals <- values(habitatraster)
+          idx <- which(is.finite(vals))
+          
+          #Generate habitat cube
+          habitat_cube <- data.frame(TaxonKey = taxonkey,
+                                     Species = species,
+                                     CELLID = idx,
+                                     Habitat_favourability = vals[idx],
+                                     Time = period,
+                                     Scenario = scenarioTitle)%>%
+            dplyr::left_join(eea_link,
+                             by = "CELLID" )%>%
+            dplyr::select(Species, TaxonKey, CELLCODE,Time,Scenario,Habitat_favourability)
+          
+          
+          #Store in list
+          EEA_habitat_cubes[[paste0(period,"_",scenario)]]<-habitat_cube
+          
+          #Clean up
+          rm(habitat_cube,habitatraster, habitatpath) 
+        }
+      }
+    }
+    
+    #Combine into one cube 
+    habitat_cube<-dplyr::bind_rows(EEA_habitat_cubes)
+    
+    #Plot cube 
+    plot_cube(cube= habitat_cube,
+              type= "Habitat",
+              path = file.path(base_dir, "Habitat"))
+    
+    
+    #Store and export cube
+    EEA_habitat_cube_all[[speciesName]]<-habitat_cube
+    write.csv(habitat_cube, file.path(base_dir, "Habitat", "Habitat_cube.csv"))
+    
+    
