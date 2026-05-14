@@ -501,3 +501,18 @@ if (export_cubes) {
     
   }
   
+  #--------------------------------------------
+  #----------- Export final cubes--------------
+  #--------------------------------------------
+  #Combine into one cube
+  climate_cube<-dplyr::bind_rows(EEA_climate_cube_all)
+  habitat_cube<-dplyr::bind_rows(EEA_habitat_cube_all)
+  combined_cube<-dplyr::bind_rows(EEA_combined_cube_all)
+  
+  #Store and export cube
+  arrow::write_parquet(climate_cube, file.path("data", "projects", project, "Climate_cube.parquet"))
+  arrow::write_parquet(habitat_cube, file.path("data", "projects", project, "Habitat_cube.parquet"))
+  arrow::write_parquet(combined_cube, file.path("data", "projects", project, "Combined_cube.parquet"))
+  
+}
+
