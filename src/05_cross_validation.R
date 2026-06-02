@@ -1,7 +1,7 @@
 #-------------------------------------------------------------------------------
 #--------------------------    Load packages      ------------------------------
 #-------------------------------------------------------------------------------
-packages <- c( "dplyr", "qs", "terra", "tidyterra", "sf", "here", "matrixStats",
+packages <- c( "dplyr", "qs2", "terra", "tidyterra", "sf", "here", "matrixStats",
                "ggplot2", "dismo",  "sdm", "purrr", "ecospat", "blockCV")
 
 installed <- rownames(installed.packages())
@@ -163,7 +163,7 @@ for (i in seq_along(accepted_taxonkeys)) {
   #--------------------------------------------
   #--- Load  data stored in climate model qs --
   #--------------------------------------------
-  climatemodel   <- qs::qread(climate_qs_file)
+  climatemodel   <- qs2::qs_read(climate_qs_file)
   top5_methods  <- climatemodel$top5_models
   global_presabs <- climatemodel$global_presabs
   climate_predictors <- climatemodel$selected_predictors
@@ -253,7 +253,7 @@ for (i in seq_along(accepted_taxonkeys)) {
   if(ensemble_validation){
     
     #Load presabs data of habitat model
-    habitatmodel   <- qs::qread(habitat_qs_file)
+    habitatmodel   <- qs2::qs_read(habitat_qs_file)
     eu_presabs <- habitatmodel$eu_presabs
     n_pres_ensemble <- sum(eu_presabs$species == 1)
     rm(habitatmodel)
@@ -716,7 +716,7 @@ for (i in seq_along(accepted_taxonkeys)) {
   #--------------------------------------------
   #--- Load  data stored in climate model qs --
   #--------------------------------------------
-  habitatmodel   <- qs::qread(habitat_qs_file)
+  habitatmodel   <- qs2::qs_read(habitat_qs_file)
   eu_presabs <- habitatmodel$eu_presabs
   top5_habitat_methods  <- habitatmodel$top5_models
   habitat_predictors <- habitatmodel$selected_predictors

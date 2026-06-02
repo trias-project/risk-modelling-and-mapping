@@ -1,7 +1,7 @@
 #--------------------------------------------
 #-------------- Load packages ---------------
 #--------------------------------------------
-packages <- c( "dplyr", "stringr", "here", "qs","CoordinateCleaner", "raster", "rnaturalearth", "rnaturalearthdata", "ggplot2","tidyterra", "dismo", "sdm", "caret", "viridisLite", "kableExtra","future", "future.apply","randomForest","earth", "progressr", "sf", "gbm", "PresenceAbsence","geosphere","arm", "RStoolbox", "ecospat", "viridis", "patchwork", "grid", "purrr", "magick", "terra")
+packages <- c( "dplyr", "stringr", "here", "qs2","CoordinateCleaner", "raster", "rnaturalearth", "rnaturalearthdata", "ggplot2","tidyterra", "dismo", "sdm", "caret", "viridisLite", "kableExtra","future", "future.apply","randomForest","earth", "progressr", "sf", "gbm", "PresenceAbsence","geosphere","arm", "RStoolbox", "ecospat", "viridis", "patchwork", "grid", "purrr", "magick", "terra")
 
 for(package in packages) {
   print(package)
@@ -30,7 +30,7 @@ source(file.path("src", "00_configurations.R"))
 #--------------------------------------------
 #--- Load global occurrences and taxa info---
 #--------------------------------------------
-global<-qs::qread(file.path("data", "projects",project,paste0(project,"_processed_occurrences.qs")))
+global<-qs2::qs_read(file.path("data", "projects",project,paste0(project,"_processed_occurrences.qs")))
 cleaned<-global$cleaned
 cleaned_1km<-global$cleaned_1km
 taxa_info<-read.csv2(paste0("./data/projects/",project,"/",project,"_taxa_info.csv"))
@@ -1108,7 +1108,7 @@ with_progress({
                         selected_predictors = names(globalclimpreds_terra_selection),
                         future_consensus_median = future_consensus_median)
     
-    qs::qsave(climatemodel, file.path(base_dir, "Climate", paste0("Climate_model_",speciesName,"_",taxonkey,".qs")))
+    qs2::qs_save(climatemodel, file.path(base_dir, "Climate", paste0("Climate_model_",speciesName,"_",taxonkey,".qs")))
     
     
     #--------------------------------------------
