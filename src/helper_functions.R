@@ -1241,3 +1241,190 @@ summarise_validation<- function(df, validation){
   }
   return(df)
 }
+
+
+#-----------------------------------------------------------------
+#--------- Build a cube with favourability values  ------------
+#-----------------------------------------------------------------
+build_cube <- function(base_dir,
+                       speciesName,
+                       taxonkey,
+                       period,
+                       scenario,
+                       eea_template,
+                       eea_link,
+                       type = c("Climate", "Habitat", "Combined"),
+                       scenario_map) {
+  
+  # ----------------------------
+  # Define dynamic names
+  # ----------------------------
+  scenarioTitle <-scenario_map[[scenario]]
+  file_prefix <- paste0(speciesName, "_", type, "_")
+  value_col <- paste0(type, "_favourability")
+  
+  
+  # ----------------------------
+  # Define file paths 
+  # ----------------------------
+  if (period == "Current") {
+    
+    #Define path to raster predictions
+    raster_path <- file.path(base_dir, type, period, "Predictions", "Rasters",
+                             paste0(file_prefix, "current_ensemble.tif"))
+    
+    #Check if predictions exist, if not: skip
+    if(!file.exists(raster_path)){
+      message("No ", type," predictions available for period: ", period ,
+              ".\n Skipping this period.")
+      return(NULL)
+    }
+    
+    message("Processing ", type," predictions for period: ", period)
+    
+    
+  } else {
+    
+    #Define path to raster predictions
+    raster_path <- file.path(base_dir, type, period, scenario, "Predictions", "Rasters",
+                             paste0(file_prefix, period, "_", scenario, "_ensemble.tif"))
+    
+    
+    #Check if predictions exist, if not: skip
+    if(!file.exists(raster_path)){
+      message("No ", type," predictions available for period: ", period ,", scenario: ",scenarioTitle,
+              ".\n Skipping this.")
+      return(NULL)
+    }
+    
+    message("Processing ", type," predictions for period: ", period,", scenario: ", scenarioTitle)
+    
+    
+  }
+  
+  
+  # -----------------------------------------
+  # Load predictions for region of interest
+  # -----------------------------------------
+  r <- terra::rast(raster_path)
+  
+  if(type =="Climate"){
+    r <- r %>%
+      terra::project("EPSG:3035",
+                     method = "bilinear",
+                     res = terra::res(eea_template))
+  }
+  
+  r <- terra::resample(r,
+                       eea_template,
+                       method = "bilinear")
+  
+  #Get values of climate raster and CELLIDs of cells that are not NA
+  vals <- values(r)
+  idx <- which(is.finite(vals))
+  
+  
+  # ----------------------------
+  #          Build cube
+  # ----------------------------
+  cube <- data.frame(TaxonKey = taxonkey,
+                     Species = speciesName,
+                     CELLID = idx,
+                     Value = vals[idx],
+                     Time = period,
+                     Scenario = scenarioTitle)
+  
+  cube <- dplyr::left_join(cube, eea_link, by = "CELLID") %>%
+    dplyr::select(Species, TaxonKey, CELLCODE, Time, Scenario, Value)
+  names(cube)[names(cube) == "Value"] <- value_col
+  
+  
+  return(cube)
+}
+
+
+#-----------------------------------------------------------------
+#---------  Plot a single-species cube and store plot ------------
+#-----------------------------------------------------------------
+plot_cube <- function(cube, type, path){
+  
+  #Define favourability type
+  favourability <- switch(type,
+                          "Climate" = "Climate_favourability",
+                          "Habitat" = "Habitat_favourability",
+                          "Combined" = "Combined_favourability")
+  
+  plotTitle<- switch(type,
+                     "Climate" = "Climate_cube_plot.png",
+                     "Habitat" = "Habitat_cube_plot.png",
+                     "Combined" = "Combined_cube_plot.png")
+  
+  #Calculate number of unique combinations of Time and Scenario
+  n_groups <- cube%>%
+    dplyr::distinct(Scenario, Time) %>%
+    nrow()
+  
+  #Only keep cells for which we have predictions across all Times and Scenarios
+  cube <- cube %>%
+    dplyr::group_by(CELLCODE) %>%
+    dplyr::filter(dplyr::n_distinct(paste(Scenario, Time)) == n_groups) %>%
+    ungroup()
+  
+  se <- function(x) sqrt(var(x, na.rm = TRUE) / sum(!is.na(x)))
+  meancube<-cube %>%
+    dplyr::group_by(Time, Scenario) %>%
+    dplyr::summarise(
+      n = dplyr::n(),
+      sd = round(sd(.data[[favourability]], na.rm = TRUE), 4),
+      se = round(se(.data[[favourability]]), 4),
+      Favourability = round(mean(.data[[favourability]], na.rm = TRUE), 4),
+      .groups = "drop"
+    )
+  
+  # Base data
+  baseline <- meancube %>%
+    dplyr::filter(Time == "Current")
+  
+  future <- meancube %>%
+    dplyr::filter(Time != "Current")
+  
+  
+  # Duplicate baseline for each scenario
+  baseline_expanded <- baseline %>%
+    dplyr::slice(rep(1, n_distinct(future$Scenario))) %>%
+    dplyr::mutate(Scenario = unique(future$Scenario))
+  
+  # Combine data
+  plotdf <- dplyr::bind_rows(baseline_expanded, future) %>%
+    dplyr::mutate(Time = factor(Time, levels = c("Current", "2041-2070", "2071-2100")),
+                  Scenario = factor(Scenario,levels = c("SSP1-2.6", "SSP3-7.0", "SSP5-8.5")))
+  
+  # Plot
+  cube_plot<- ggplot(plotdf, aes(x = Time,
+                                 y = Favourability,
+                                 color = Scenario,
+                                 group = Scenario)) +
+    geom_line(linewidth = 1) +
+    geom_point(size = 3) +
+    geom_errorbar(aes(ymin = Favourability - sd,
+                      ymax = Favourability + sd),
+                  width = 0.08) +
+    scale_color_manual(values = c("SSP1-2.6" = "#163f6bff",
+                                  "SSP3-7.0" =  "#48a8b3ff",
+                                  "SSP5-8.5" = "#f0a144ff")) +
+    labs(x = "Time period",
+         y = "Mean favourability", 
+         color = "Scenario") +
+    theme_bw(base_size = 14)+
+    theme(panel.background = element_blank(),
+          panel.grid = element_blank()
+    )
+  
+  #Export plot
+  ggplot2::ggsave(filename = plotTitle, plot = cube_plot, 
+                  device = "png", width =10 , height = 6.94, units = "in", dpi= 300, path= path)
+  
+  #Return plot
+  return(cube_plot)
+  
+}

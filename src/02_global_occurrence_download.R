@@ -1,7 +1,7 @@
 #--------------------------------------------
 #-----------------Load packages--------------
 #--------------------------------------------
-packages <- c("rgbif", "dplyr", "purrr", "assertthat", "readr", "here", "retry", "CoordinateCleaner", "remotes", "stringr")
+packages <- c("rgbif", "dplyr", "purrr", "assertthat", "readr", "here", "retry", "CoordinateCleaner", "remotes", "stringr", "qs2")
 
 installed_packages <- installed.packages() |>
   as.data.frame()
@@ -13,28 +13,6 @@ for (package in packages) {
     }
   library(package, character.only = TRUE)
 }
-
-# Install correct version of qs
-req_qs_version <- "0.27.3"
-
-if (!"qs" %in% installed_packages$Package){
-  warning("qs is not installed => installing")
-  remotes::install_version("qs", version = req_qs_version)
-}else{
-  qs_version <- installed_packages |>
-    dplyr::filter(Package == "qs") |>
-    dplyr::pull(Version)
-  
-  if(qs_version != req_qs_version){
-    warning(paste("Version", qs_version, "of qs is installed, while", req_qs_version, 
-                  "is required => installing correct version"))
-    remotes::install_version("qs", version = req_qs_version)
-  }else{
-    print("Correct version of qs installed")
-  }
-}
-
-library(qs)
 
 
 #--------------------------------------------
@@ -388,7 +366,7 @@ taxa_info <- data.frame(acceptedTaxonKey = unique_keys,
 occurrences <-list(cleaned_1km = cleaned_1km,
                    cleaned = cleaned)
 
-qs::qsave(occurrences, paste0("./data/projects/",project,"/",project,"_processed_occurrences.qs"))
+qs2::qs_save(occurrences, paste0("./data/projects/",project,"/",project,"_processed_occurrences.qs"))
 write.csv2(taxa_info, paste0("./data/projects/",project,"/",project,"_taxa_info.csv"), row.names = FALSE)
 
 
