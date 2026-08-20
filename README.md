@@ -1,6 +1,6 @@
 # Alien species risk modelling and mapping
 
-This repository contains the framework and R code for predicting the distribution of alien species in Europe at 1 km<sup>2</sup> (climate model) and 1 km<sup>2</sup> resolution (habitat/land cover model) as part of the TrIAS project. 
+This repository contains the framework and R code for predicting the distribution of alien species in Europe at 1 km<sup>2</sup> (climate model) and 1 km<sup>2</sup> resolution (habitat/land cover model), initially as part of the TrIAS project. The workflows is further developed as part of the projects [GuardIAS](https://guardias.eu/) and [OneSTOP](https://onestop-project.eu/).
 <br>
 
 ## Repo structure
@@ -56,7 +56,7 @@ To execute this workflow, run the **06_run_wiSDM.R** script, stored in the `src`
 4. **Script 04_fit_habitat_model.R**: Generates a European-scale habitat-only species distribution model for the specified species at a resolution of 1 km<sup>2</sup> and integrates these predictions with the 1 km² climate-only predictions from script 03. The two prediction layers are integrated by using the geometric mean to generate a final suitability map at 1 km<sup>2</sup> resolution that reflects both climate suitability and habitat (land cover) suitability. Final predictions are generated for both current conditions and for two future periods, 2041-2070 and 2071-2100, under different climate change scenarios (SSP1-2.6, SSP3-7.0, and SSP5-8.5). The results of the habitat model can be found in the folder `./data/projects/<your project>/species/Habitat`, while the final predictions, combining both the habitat and the climate suitability, can be found in the `./data/projects/<your project>/species/Combined` folder.
 <br>
  
-## What does the TrIAS modelling workflow do?
+## What does this modelling workflow do?
 1.	**Generates habitat suitability maps using machine learning.**
 The workflow requires only a species name and then fits an ensemble of ten machine-learning algorithms to estimate both climate suitability (using global occurrences) and habitat suitability (using European occurrences). For each type (habitat and climate), the favourability maps from all ten algorithms are first stacked and analysed using Principal Component Analysis (PCA). For each algorithm, the spatial variance of its predictions projected onto the first principal component (PC1) is calculated. The five algorithms with the highest variance along PC1, representing those that contribute most strongly to the dominant pattern of variation across the study area, are then used to generate the final suitability map. These two maps (one for the climate model and one for the habitat model) are then combined using the geometric mean in order to produce a final overall suitability prediction. All maps are generated automatically for current conditions. Climate suitability maps, along with the final combined maps, are also produced for three standard Shared Socioeconomic Pathways (SSP1-2.6, SSP3-7.0, and SSP5-8.5) for the periods 2041–2070 and 2071–2100.
 2.	**Implements best practices for pseudoabsence placement:** 
@@ -76,6 +76,12 @@ Highly correlated predictors can have undesirable effects and confuse the interp
 
 [List of contributors](https://github.com/trias-project/risk-modelling-and-mapping/contributors)
 <br>
+
+## Funders
+
+This workflow is being developed in the framework of the projects [GuardIAS](https://guardias.eu/) and [OneSTOP](https://onestop-project.eu/), both receiving funding from the European Union’s Horizon Europe Research and Innovation Programme:
+- ID No 101181413 (GuardIAS)
+- ID No 101180559 (OneSTOP)
 
 ## References
 Davis AJS, Groom Q, Adriaens T, Vanderhoeven S, De Troch R, Oldoni D, Desmet P, Reyserhove L, Lens L and Strubbe D (2024) Reproducible WiSDM: a workflow for reproducible invasive alien species risk maps under climate change scenarios using standardized open data. Front. Ecol. Evol. 12:1148895. doi: [10.3389/fevo.2024.1148895](https://doi.org/10.3389/fevo.2024.1148895)
