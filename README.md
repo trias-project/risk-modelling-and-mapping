@@ -77,11 +77,25 @@ Highly correlated predictors can have undesirable effects and confuse the interp
 [List of contributors](https://github.com/trias-project/risk-modelling-and-mapping/contributors)
 <br>
 
-## Funders
+## Funding
 
-This workflow is being developed in the framework of the projects [GuardIAS](https://guardias.eu/) and [OneSTOP](https://onestop-project.eu/), both receiving funding from the European Union’s Horizon Europe Research and Innovation Programme:
-- ID No 101181413 (GuardIAS)
-- ID No 101180559 (OneSTOP)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="images/eu-funded-en-negative.png">
+  <img src="images/eu-funded-en.png" alt="Funded by the European Union" width="280">
+</picture>
+
+The development of this workflow is supported by the European Union's Horizon Europe research and
+innovation programme under grant agreements No 101181413 ([GuardIAS](https://guardias.eu/)) and No 101180559 ([OneSTOP](https://onestop-project.eu/)),
+and previously by the [TrIAS](https://osf.io/7dpgr/) project.
+
+Funded by the European Union. Views and opinions expressed are however those of the author(s)
+only and do not necessarily reflect those of the European Union or the European Research
+Executive Agency (REA). Neither the European Union nor the granting authority can be held
+responsible for them.
+
+<picture>
+  <img src="images/OneSTOP-GuardIAS_logos.png" alt="Developed within the GuardIAS and OneSTOP projects" width="360">
+</picture>
 
 ## References
 Davis AJS, Groom Q, Adriaens T, Vanderhoeven S, De Troch R, Oldoni D, Desmet P, Reyserhove L, Lens L and Strubbe D (2024) Reproducible WiSDM: a workflow for reproducible invasive alien species risk maps under climate change scenarios using standardized open data. Front. Ecol. Evol. 12:1148895. doi: [10.3389/fevo.2024.1148895](https://doi.org/10.3389/fevo.2024.1148895)
