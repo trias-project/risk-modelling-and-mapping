@@ -88,6 +88,10 @@ The development of this workflow is supported by the European Union's Horizon Eu
 innovation programme under grant agreements No 101181413 ([GuardIAS](https://guardias.eu/)) and No 101180559 ([OneSTOP](https://onestop-project.eu/)),
 and previously by the [TrIAS](https://osf.io/7dpgr/) project.
 
+Funded by the European Union. Views and opinions expressed are however those of the author(s)
+only and do not necessarily reflect those of the European Union or the European Research
+Executive Agency (REA). Neither the European Union nor the granting authority can be held
+responsible for them.
 
 ## References
 Davis AJS, Groom Q, Adriaens T, Vanderhoeven S, De Troch R, Oldoni D, Desmet P, Reyserhove L, Lens L and Strubbe D (2024) Reproducible WiSDM: a workflow for reproducible invasive alien species risk maps under climate change scenarios using standardized open data. Front. Ecol. Evol. 12:1148895. doi: [10.3389/fevo.2024.1148895](https://doi.org/10.3389/fevo.2024.1148895)
