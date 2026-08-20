@@ -93,6 +93,10 @@ only and do not necessarily reflect those of the European Union or the European 
 Executive Agency (REA). Neither the European Union nor the granting authority can be held
 responsible for them.
 
+<picture>
+  <img src="images/OneSTOP-GuardIAS_logos.png" alt="Developed within the GuardIAS and OneSTOP projects" width="360">
+</picture>
+
 ## References
 Davis AJS, Groom Q, Adriaens T, Vanderhoeven S, De Troch R, Oldoni D, Desmet P, Reyserhove L, Lens L and Strubbe D (2024) Reproducible WiSDM: a workflow for reproducible invasive alien species risk maps under climate change scenarios using standardized open data. Front. Ecol. Evol. 12:1148895. doi: [10.3389/fevo.2024.1148895](https://doi.org/10.3389/fevo.2024.1148895)
 
