@@ -79,13 +79,14 @@ Highly correlated predictors can have undesirable effects and confuse the interp
 
 ## Funders
 
-This workflow is being developed in the framework of the projects [GuardIAS](https://guardias.eu/) and [OneSTOP](https://onestop-project.eu/), both receiving funding from the European Union’s Horizon Europe Research and Innovation Programme:
-- ID No 101181413 (GuardIAS)
-- ID No 101180559 (OneSTOP)
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="images/eu-funded-en-negative.png">
   <img src="images/eu-funded-en.png" alt="Funded by the European Union" width="280">
 </picture>
+
+The development of this workflow is supported by the European Union's Horizon Europe research and
+innovation programme under grant agreements No 101181413 ([GuardIAS](https://guardias.eu/)) and No 101180559 ([OneSTOP](https://onestop-project.eu/)),
+and previously by the [TrIAS](https://osf.io/7dpgr/) project.
 
 
 ## References
