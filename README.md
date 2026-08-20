@@ -77,7 +77,7 @@ Highly correlated predictors can have undesirable effects and confuse the interp
 [List of contributors](https://github.com/trias-project/risk-modelling-and-mapping/contributors)
 <br>
 
-## Funders
+## Funding
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="images/eu-funded-en-negative.png">
