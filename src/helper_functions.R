@@ -337,8 +337,18 @@ exportPDF <- function(predictions=NULL, period=NULL, scenario, occ_data=NULL, da
   #If png is not provided, create a PNG based on the input predictions
   if(is.null(providedPNG)){
     
-    #Get extent
+    #Get extent and padding in map units so projected rasters plot correctly
     exten<-as.vector(terra::ext(predictions))
+    x_span <- exten[2] - exten[1]
+    y_span <- exten[4] - exten[3]
+    x_span <- ifelse(is.finite(x_span) && x_span > 0, x_span, max(abs(exten[1:2]), na.rm = TRUE))
+    y_span <- ifelse(is.finite(y_span) && y_span > 0, y_span, max(abs(exten[3:4]), na.rm = TRUE))
+    x_pad_left <- x_span * 0.12
+    x_pad_right <- x_span * 0.05
+    y_pad_top <- y_span * 0.04
+    x_limits <- c(exten[1] - x_pad_left, exten[2] + x_pad_right)
+    y_limits <- c(exten[3], exten[4] + y_pad_top)
+    x_value <- x_limits[1] + 0.02 * diff(x_limits)
     
     #Settings for plot
     if (dataType == "Diff") {
@@ -368,8 +378,8 @@ exportPDF <- function(predictions=NULL, period=NULL, scenario, occ_data=NULL, da
           theme_bw() +
           theme(axis.title = element_blank())+
           theme(plot.margin = unit(c(0.2,0.2,0.2,0.2), "cm"))+
-          coord_sf(xlim = c(exten[1] - (exten[1] * 0.12), exten[2]- (exten[2] * 0.05)), 
-                   ylim = c(exten[3], exten[4] + (exten[4] * 0.04)))
+          coord_sf(xlim = x_limits,
+                   ylim = y_limits)
       )
       
     }else{
@@ -383,8 +393,8 @@ exportPDF <- function(predictions=NULL, period=NULL, scenario, occ_data=NULL, da
           theme_bw() +
           theme(axis.title = element_blank())+
           theme(plot.margin = unit(c(0.2,0.2,0.2,0.2), "cm"))+
-          coord_sf(xlim = c(exten[1] - (exten[1] * 0.12), exten[2]- (exten[2] * 0.05)), 
-                   ylim = c(exten[3], exten[4] + (exten[4] * 0.04)))
+          coord_sf(xlim = x_limits,
+                   ylim = y_limits)
       )
     }
     # Define text label, fill label, and hjust based on dataType
@@ -398,8 +408,6 @@ exportPDF <- function(predictions=NULL, period=NULL, scenario, occ_data=NULL, da
                          "Binary" = "Suitability",
                          "Stdev" = "Standard deviation")
     
-    hjust_value <- ifelse(dataType == "Diff", -0.264 , -0.24) 
-    x_value<-ifelse(exten[1]>180, 800000, -35)
     # Update the plot
     country_plot <- country_plot +
       labs(fill = fill_label) +
@@ -427,8 +435,8 @@ exportPDF <- function(predictions=NULL, period=NULL, scenario, occ_data=NULL, da
         country_plot<-country_plot +
           geom_sf(data = occ_data, color = "black", fill = "red", 
                   size = 1.5, shape = 21)+
-          coord_sf(xlim = c(exten[1] - (exten[1] * 0.12), exten[2]- (exten[2] * 0.05)), 
-                   ylim = c(exten[3], exten[4] + (exten[4] * 0.04)))
+          coord_sf(xlim = x_limits,
+                   ylim = y_limits)
       )
     }
     
@@ -926,6 +934,235 @@ read_or_redownload <- function(file, folder, doi, max_attempts = 3) {
   stop(paste("Failed to obtain valid raster after", max_attempts, "attempts:", file))
 }
 
+
+
+#-----------------------------------------------------------------
+#--Resolve a user-provided path against a base directory-----------
+#-----------------------------------------------------------------
+resolve_input_path <- function(path, base_dir = getwd()) {
+  if (is.na(path)) {
+    return(NA_character_)
+  }
+  
+  path <- trimws(path)
+  
+  if (!nzchar(path)) {
+    return(path)
+  }
+  
+  is_absolute <- grepl("^(?:[A-Za-z]:[\\\\/]|/|\\\\\\\\)", path)
+  resolved <- if (is_absolute) path else file.path(base_dir, path)
+  
+  normalizePath(resolved, winslash = "/", mustWork = FALSE)
+}
+
+
+#-----------------------------------------------------------------
+#--Load a named raster stack from manifest rows--------------------
+#-----------------------------------------------------------------
+load_named_raster_stack <- function(stack_rows) {
+  stack <- terra::rast(stack_rows$file_path)
+  names(stack) <- stack_rows$var_name
+  stack
+}
+
+
+#-----------------------------------------------------------------
+#--Create an approximately 5 km template for pseudoabsences-------
+#-----------------------------------------------------------------
+create_pseudoabsence_template <- function(raster_layer, target_resolution_m = 5000) {
+  stopifnot(inherits(raster_layer, "SpatRaster"))
+  
+  x_res <- abs(terra::xres(raster_layer))
+  y_res <- abs(terra::yres(raster_layer))
+  
+  target_resolution <- if (terra::is.lonlat(raster_layer)) {
+    target_resolution_m / 111320
+  } else {
+    target_resolution_m
+  }
+  
+  if (x_res >= target_resolution && y_res >= target_resolution) {
+    return(raster_layer)
+  }
+  
+  fact_x <- max(1, round(target_resolution / x_res))
+  fact_y <- max(1, round(target_resolution / y_res))
+  
+  terra::aggregate(raster_layer, fact = c(fact_x, fact_y), fun = mean, na.rm = TRUE)
+}
+
+
+#-----------------------------------------------------------------
+#--Validate and normalize a user climate manifest------------------
+#-----------------------------------------------------------------
+load_user_specific_climate_manifest <- function(manifest_path) {
+  manifest_path <- resolve_input_path(manifest_path)
+  
+  if (!file.exists(manifest_path)) {
+    stop("The file provided in 'user_specific_climate_data' does not exist: ", manifest_path, call. = FALSE)
+  }
+  
+  manifest <- utils::read.csv(manifest_path, stringsAsFactors = FALSE, check.names = FALSE)
+  required_cols <- c("period", "scenario", "var_name", "file_path")
+  missing_cols <- setdiff(required_cols, names(manifest))
+  
+  if (length(missing_cols) > 0) {
+    stop("The climate manifest is missing required columns: ", paste(missing_cols, collapse = ", "), call. = FALSE)
+  }
+  
+  manifest <- manifest[, required_cols]
+  manifest[] <- lapply(manifest, trimws)
+  
+  if (nrow(manifest) == 0) {
+    stop("The climate manifest is empty.", call. = FALSE)
+  }
+  
+  manifest$period <- tolower(manifest$period)
+  manifest$scenario <- tolower(manifest$scenario)
+  manifest$combo_id <- paste(manifest$period, manifest$scenario, sep = "__")
+  
+  valid_combos <- c(
+    "current__current",
+    "2041-2070__ssp126",
+    "2041-2070__ssp370",
+    "2041-2070__ssp585",
+    "2071-2100__ssp126",
+    "2071-2100__ssp370",
+    "2071-2100__ssp585"
+  )
+  
+  invalid_combo_ids <- setdiff(unique(manifest$combo_id), valid_combos)
+  if (length(invalid_combo_ids) > 0) {
+    stop(
+      "The climate manifest contains unsupported period/scenario combinations: ",
+      paste(invalid_combo_ids, collapse = ", "),
+      call. = FALSE
+    )
+  }
+  
+  if (any(is.na(manifest$period)) || any(is.na(manifest$scenario))) {
+    stop("The climate manifest contains missing 'period' or 'scenario' values.", call. = FALSE)
+  }
+  
+  if (any(is.na(manifest$var_name)) || any(!nzchar(manifest$var_name))) {
+    stop("The climate manifest contains empty 'var_name' values.", call. = FALSE)
+  }
+  
+  if (any(is.na(manifest$file_path)) || any(!nzchar(manifest$file_path))) {
+    stop("The climate manifest contains empty 'file_path' values.", call. = FALSE)
+  }
+  
+  manifest_dir <- dirname(manifest_path)
+  manifest$file_path <- vapply(
+    manifest$file_path,
+    resolve_input_path,
+    character(1),
+    base_dir = manifest_dir
+  )
+  
+  missing_files <- unique(manifest$file_path[!file.exists(manifest$file_path)])
+  if (length(missing_files) > 0) {
+    stop(
+      "The climate manifest references files that do not exist: ",
+      paste(missing_files, collapse = ", "),
+      call. = FALSE
+    )
+  }
+  
+  if (!"current__current" %in% manifest$combo_id) {
+    stop("The climate manifest must contain rows with period='current' and scenario='current'.", call. = FALSE)
+  }
+  
+  required_future_ids <- setdiff(valid_combos, "current__current")
+  missing_future_ids <- setdiff(required_future_ids, unique(manifest$combo_id))
+  if (length(missing_future_ids) > 0) {
+    stop(
+      "The climate manifest is missing required future period/scenario combinations: ",
+      paste(missing_future_ids, collapse = ", "),
+      call. = FALSE
+    )
+  }
+  
+  stack_rows <- split(manifest, manifest$combo_id)
+  master_rows <- stack_rows[["current__current"]]
+  
+  if (anyDuplicated(master_rows$var_name)) {
+    stop("The current/current climate rows contain duplicated 'var_name' values.", call. = FALSE)
+  }
+  
+  master_var_names <- master_rows$var_name
+  master_reference <- NULL
+  normalized_rows <- list()
+  
+  for (combo_id in valid_combos) {
+    rows <- stack_rows[[combo_id]]
+    
+    if (is.null(rows)) {
+      next
+    }
+    
+    if (anyDuplicated(rows$var_name)) {
+      stop("The climate manifest contains duplicated 'var_name' values for ", combo_id, ".", call. = FALSE)
+    }
+    
+    if (!setequal(rows$var_name, master_var_names)) {
+      stop(
+        "The predictor names for ",
+        combo_id,
+        " do not exactly match the current/current predictor names.",
+        call. = FALSE
+      )
+    }
+    
+    rows <- rows[match(master_var_names, rows$var_name), , drop = FALSE]
+    rasters <- lapply(rows$file_path, terra::rast)
+    
+    if (any(vapply(rasters, terra::nlyr, numeric(1)) != 1)) {
+      stop("Each file in 'user_specific_climate_data' must contain exactly one raster layer.", call. = FALSE)
+    }
+    
+    reference_raster <- rasters[[1]]
+    if (!nzchar(terra::crs(reference_raster))) {
+      stop("The climate raster CRS is missing for ", rows$file_path[1], ".", call. = FALSE)
+    }
+    
+    alignment_ok <- vapply(
+      rasters[-1],
+      function(x) terra::compareGeom(x, reference_raster, lyrs = FALSE, stopOnError = FALSE),
+      logical(1)
+    )
+    
+    if (length(alignment_ok) > 0 && !all(alignment_ok)) {
+      stop(
+        "All rasters within ",
+        combo_id,
+        " must share the same grid, extent, resolution, and CRS.",
+        call. = FALSE
+      )
+    }
+    
+    if (is.null(master_reference)) {
+      master_reference <- reference_raster
+    } else if (!isTRUE(terra::same.crs(reference_raster, master_reference))) {
+      stop(
+        "All user-specific climate rasters must share the same CRS in this workflow.",
+        call. = FALSE
+      )
+    }
+    
+    normalized_rows[[combo_id]] <- rows
+  }
+  
+  future_rows <- normalized_rows[required_future_ids]
+  
+  list(
+    manifest_path = manifest_path,
+    current_rows = normalized_rows[["current__current"]],
+    future_rows = future_rows,
+    master_var_names = master_var_names
+  )
+}
 
 
 #----------------------------------------------------------------------
