@@ -1,7 +1,7 @@
 #--------------------------------------------
 #-----------------Load packages--------------
 #--------------------------------------------
-packages <- c("rgbif", "dplyr", "purrr", "assertthat", "readr", "here", "retry", "CoordinateCleaner", "remotes", "stringr")
+packages <- c("dplyr", "purrr", "assertthat", "readr", "here", "retry", "CoordinateCleaner", "remotes", "stringr", "qs2")
 
 installed_packages <- installed.packages() |>
   as.data.frame()
@@ -385,7 +385,7 @@ taxa_info <- data.frame(acceptedTaxonKey = unique_keys,
 occurrences <-list(cleaned_1km = cleaned_1km,
                    cleaned = cleaned)
 
-qs::qsave(occurrences, paste0("./data/projects/",project,"/",project,"_processed_occurrences.qs"))
+qs2::qs_save(occurrences, paste0("./data/projects/",project,"/",project,"_processed_occurrences.qs"))
 write.csv2(taxa_info, paste0("./data/projects/",project,"/",project,"_taxa_info.csv"), row.names = FALSE)
 
 

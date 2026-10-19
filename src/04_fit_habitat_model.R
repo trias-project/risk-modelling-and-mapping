@@ -4,7 +4,7 @@
 options("rgdal_show_exportToProj4_warnings"="none")
 terra::setGDALconfig("GDAL_PAM_ENABLED", "FALSE")#Prevent terra from writing aux.xml files
 
-packages <- c( "viridis","dplyr", "here", "qs", "tidyterra","sf", "ggplot2","RColorBrewer","magick","patchwork","grid", "randomForest", "progressr", "raster", "dismo", "caret", "caretEnsemble", "kableExtra","gbm", "PresenceAbsence", "RStoolbox", "sdm", "purrr", "terra")
+packages <- c( "viridis","dplyr", "here", "qs2", "tidyterra","sf", "ggplot2","RColorBrewer","magick","patchwork","grid", "randomForest", "progressr", "raster", "dismo", "caret", "caretEnsemble", "kableExtra","gbm", "PresenceAbsence", "RStoolbox", "sdm", "purrr", "terra")
 
 for(package in packages) {
   print(package)
@@ -128,7 +128,7 @@ with_progress({
     if(file.exists(global_model_file)){
       
       #This was stored as part of  script 02_fit_global_model
-      globalmodels <- qs::qread(global_model_file)
+      globalmodels <- qs2::qs_read(global_model_file)
       
       #Extract different data objects stored in globalmodels
       global.occ.sf <- globalmodels$occurrences1km %>% # FULL occurrence with coordinateUncertainty <= 1km
@@ -1199,7 +1199,7 @@ with_progress({
     )
     
     #Save eumodel as .qs file
-    qs::qsave(habitatmodel, 
+    qs2::qs_save(habitatmodel, 
               file.path(base_dir,"Habitat", paste0("Habitat_model_",speciesName,"_",taxonkey,".qs"))) 
     
     
