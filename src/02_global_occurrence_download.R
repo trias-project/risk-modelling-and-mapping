@@ -101,7 +101,7 @@ accepted_taxonkeys <- mapped_taxa %>%
   dplyr::filter(status == "ACCEPTED") %>%
   dplyr::pull(usageKey)
 
-if (nrow(not_accepted > 0)) {
+if (nrow(not_accepted) > 0) {
   synonym_taxonkeys <- mapped_taxa %>%
     dplyr::filter(status != "ACCEPTED") %>%
     dplyr::pull(acceptedUsageKey)
@@ -294,10 +294,8 @@ global.occ<-global %>%
 #Remove coordinates that for both lon and lat values, have less than 4 decimal places
 global.occ$lon_dplaces<-sapply(global.occ$decimalLongitude, function(x) decimalplaces(x))
 global.occ$lat_dplaces<-sapply(global.occ$decimalLatitude, function(x) decimalplaces(x))
-rows_to_na <- which(global.occ$lon_dplaces < 4 & global.occ$lat_dplaces < 4)
-global.occ[rows_to_na, ] <- NA
-global.occ<-global.occ[ which(!is.na(global.occ$lon_dplaces)),]
-global.occ<-within(global.occ,rm("lon_dplaces","lat_dplaces")) 
+global.occ <- global.occ %>%
+  dplyr::filter(!(lon_dplaces < 4 & lat_dplaces < 4))
 
 
 #--------------------------------------------
