@@ -14,28 +14,25 @@ for (package in packages) {
   library(package, character.only = TRUE)
 }
 
-# Install correct version of qs
-req_qs_version <- "0.27.3"
+# Install latest version of rgbif
+rgbif_version <- "3.9.0"
 
-if (!"qs" %in% installed_packages$Package){
-  warning("qs is not installed => installing")
-  remotes::install_version("qs", version = req_qs_version)
+if (!"rgbif" %in% installed_packages$Package){
+  warning("rgbif is not installed => installing")
+  remotes::install_version("rgbif", version = rgbif_version)
 }else{
-  qs_version <- installed_packages |>
-    dplyr::filter(Package == "qs") |>
+  rgbif_version_installed <- installed_packages |>
+    dplyr::filter(Package == "rgbif") |>
     dplyr::pull(Version)
   
-  if(qs_version != req_qs_version){
-    warning(paste("Version", qs_version, "of qs is installed, while", req_qs_version, 
+  if(rgbif_version_installed != rgbif_version){
+    warning(paste("Version", rgbif_version_installed, "of rgbif is installed, while", rgbif_version, 
                   "is required => installing correct version"))
-    remotes::install_version("qs", version = req_qs_version)
-  }else{
-    print("Correct version of qs installed")
+    remotes::install_version("rgbif", version = rgbif_version)
   }
 }
 
-library(qs)
-
+library(rgbif)
 
 #--------------------------------------------
 #- Load helper functions and configurations -
