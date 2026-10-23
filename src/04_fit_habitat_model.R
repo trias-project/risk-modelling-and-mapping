@@ -490,7 +490,7 @@ with_progress({
     
     #Define SDM data and methods
     sdm_data <- sdm::sdmData(species~.,train=vect(eu_presabs), predictors= fullstack ) 
-    methods <- c("glm", "gam", "bioclim", "brt", "rf", "glmpoly", "mars", "maxent", "fda","cart")
+    methods <- c("glm", "gam", "brt", "rf", "glmpoly", "mars", "fda")
     
     #run model
     set.seed(2025)

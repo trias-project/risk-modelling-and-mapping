@@ -584,7 +584,7 @@ with_progress({
     
     #define methods and data
     sdm_data <- sdm::sdmData(species~.,train=vect(global_presabs),predictors=globalclimpreds_terra_selection) 
-    methods <- c("glm", "gam", "bioclim", "brt", "rf", "glmpoly", "mars", "maxent", "fda", "cart") 
+    methods <- c("glm", "gam", "brt", "rf", "glmpoly", "mars", "fda") 
     
     #run model
     model <- sdm(
