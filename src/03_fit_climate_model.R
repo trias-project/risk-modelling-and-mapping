@@ -577,10 +577,6 @@ with_progress({
     #--------------------------------------------
     #--- Run multiple machine learning models ---
     #--------------------------------------------
-    #Define prevalence ratio
-    n1 <- nrow(global.occ.sf)  # presences
-    n0 <- sum(global_presabs$species == 0) # pseudoabsences 
-    prev_ratio <- n1 / n0
     
     #define methods and data
     sdm_data <- sdm::sdmData(species~.,train=vect(global_presabs),predictors=globalclimpreds_terra_selection) 
@@ -592,6 +588,13 @@ with_progress({
       methods = methods  # 10 models
     )
     print(model)
+    
+    #Define prevalence ratio
+    train_df   <- as.data.frame(sdm_data)
+    n1         <- sum(train_df$species == 1) #Presences
+    n0         <- sum(train_df$species == 0) #Pseudoabsences
+    prev_ratio <- n1 / n0
+    rm(train_df)
     
     
     #-------------------------------------------------------------------

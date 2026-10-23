@@ -505,9 +505,13 @@ with_progress({
     #---  Make predictions using each model  ---
     #-------------------------------------------- 
     #Define prevalence ratio
-    n1 <- nrow(eu_occ)  # presences
-    n0 <- nrow(global_points_sf) # pseudoabsences 
+    #Define prevalence ratio
+    train_df   <- as.data.frame(sdm_data)
+    n1         <- sum(train_df$species == 1) #Presences
+    n0         <- sum(train_df$species == 0) #Pseudoabsences
     prev_ratio <- n1 / n0
+    rm(train_df)
+    
     
     # Get model info
     info <- sdm::getModelInfo(model)
