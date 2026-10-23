@@ -1,7 +1,7 @@
 #--------------------------------------------
 #-----------------Load packages--------------
 #--------------------------------------------
-packages <- c("rgbif", "dplyr", "purrr", "assertthat", "readr", "here", "retry", "CoordinateCleaner", "remotes", "stringr")
+packages <- c("dplyr", "purrr", "assertthat", "readr", "here", "retry", "CoordinateCleaner", "remotes", "stringr", "qs2")
 
 installed_packages <- installed.packages() |>
   as.data.frame()
@@ -14,28 +14,25 @@ for (package in packages) {
   library(package, character.only = TRUE)
 }
 
-# Install correct version of qs
-req_qs_version <- "0.27.3"
+# Install latest version of rgbif
+rgbif_version <- "3.9.0"
 
-if (!"qs" %in% installed_packages$Package){
-  warning("qs is not installed => installing")
-  remotes::install_version("qs", version = req_qs_version)
+if (!"rgbif" %in% installed_packages$Package){
+  warning("rgbif is not installed => installing")
+  remotes::install_version("rgbif", version = rgbif_version)
 }else{
-  qs_version <- installed_packages |>
-    dplyr::filter(Package == "qs") |>
+  rgbif_version_installed <- installed_packages |>
+    dplyr::filter(Package == "rgbif") |>
     dplyr::pull(Version)
   
-  if(qs_version != req_qs_version){
-    warning(paste("Version", qs_version, "of qs is installed, while", req_qs_version, 
+  if(rgbif_version_installed != rgbif_version){
+    warning(paste("Version", rgbif_version_installed, "of rgbif is installed, while", rgbif_version, 
                   "is required => installing correct version"))
-    remotes::install_version("qs", version = req_qs_version)
-  }else{
-    print("Correct version of qs installed")
+    remotes::install_version("rgbif", version = rgbif_version)
   }
 }
 
-library(qs)
-
+library(rgbif)
 
 #--------------------------------------------
 #- Load helper functions and configurations -
@@ -104,7 +101,7 @@ accepted_taxonkeys <- mapped_taxa %>%
   dplyr::filter(status == "ACCEPTED") %>%
   dplyr::pull(usageKey)
 
-if (nrow(not_accepted > 0)) {
+if (nrow(not_accepted) > 0) {
   synonym_taxonkeys <- mapped_taxa %>%
     dplyr::filter(status != "ACCEPTED") %>%
     dplyr::pull(acceptedUsageKey)
@@ -297,10 +294,8 @@ global.occ<-global %>%
 #Remove coordinates that for both lon and lat values, have less than 4 decimal places
 global.occ$lon_dplaces<-sapply(global.occ$decimalLongitude, function(x) decimalplaces(x))
 global.occ$lat_dplaces<-sapply(global.occ$decimalLatitude, function(x) decimalplaces(x))
-rows_to_na <- which(global.occ$lon_dplaces < 4 & global.occ$lat_dplaces < 4)
-global.occ[rows_to_na, ] <- NA
-global.occ<-global.occ[ which(!is.na(global.occ$lon_dplaces)),]
-global.occ<-within(global.occ,rm("lon_dplaces","lat_dplaces")) 
+global.occ <- global.occ %>%
+  dplyr::filter(!(lon_dplaces < 4 & lat_dplaces < 4))
 
 
 #--------------------------------------------
@@ -388,7 +383,7 @@ taxa_info <- data.frame(acceptedTaxonKey = unique_keys,
 occurrences <-list(cleaned_1km = cleaned_1km,
                    cleaned = cleaned)
 
-qs::qsave(occurrences, paste0("./data/projects/",project,"/",project,"_processed_occurrences.qs"))
+qs2::qs_save(occurrences, paste0("./data/projects/",project,"/",project,"_processed_occurrences.qs"))
 write.csv2(taxa_info, paste0("./data/projects/",project,"/",project,"_taxa_info.csv"), row.names = FALSE)
 
 

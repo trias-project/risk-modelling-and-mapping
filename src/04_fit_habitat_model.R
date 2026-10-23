@@ -4,7 +4,7 @@
 options("rgdal_show_exportToProj4_warnings"="none")
 terra::setGDALconfig("GDAL_PAM_ENABLED", "FALSE")#Prevent terra from writing aux.xml files
 
-packages <- c( "viridis","dplyr", "here", "qs", "tidyterra","sf", "ggplot2","RColorBrewer","magick","patchwork","grid", "randomForest", "progressr", "raster", "dismo", "caret", "caretEnsemble", "kableExtra","gbm", "PresenceAbsence", "RStoolbox", "sdm", "purrr", "terra")
+packages <- c( "viridis","dplyr", "here", "qs2", "tidyterra","sf", "ggplot2","RColorBrewer","magick","patchwork","grid", "randomForest", "progressr", "raster", "dismo", "caret", "caretEnsemble", "kableExtra","gbm", "PresenceAbsence", "RStoolbox", "sdm", "purrr", "terra")
 
 for(package in packages) {
   print(package)
@@ -128,7 +128,7 @@ with_progress({
     if(file.exists(global_model_file)){
       
       #This was stored as part of  script 02_fit_global_model
-      globalmodels <- qs::qread(global_model_file)
+      globalmodels <- qs2::qs_read(global_model_file)
       
       #Extract different data objects stored in globalmodels
       global.occ.sf <- globalmodels$occurrences1km %>% # FULL occurrence with coordinateUncertainty <= 1km
@@ -490,7 +490,7 @@ with_progress({
     
     #Define SDM data and methods
     sdm_data <- sdm::sdmData(species~.,train=vect(eu_presabs), predictors= fullstack ) 
-    methods <- c("glm", "gam", "bioclim", "brt", "rf", "glmpoly", "mars", "maxent", "fda","cart")
+    methods <- c("glm", "gam", "brt", "rf", "glmpoly", "mars", "fda")
     
     #run model
     set.seed(2025)
@@ -505,18 +505,20 @@ with_progress({
     #---  Make predictions using each model  ---
     #-------------------------------------------- 
     #Define prevalence ratio
-    n1 <- nrow(eu_occ)  # presences
-    n0 <- nrow(global_points_sf) # pseudoabsences 
+    #Define prevalence ratio
+    train_df   <- as.data.frame(sdm_data)
+    n1         <- sum(train_df$species == 1) #Presences
+    n0         <- sum(train_df$species == 0) #Pseudoabsences
     prev_ratio <- n1 / n0
+    rm(train_df)
+    
     
     # Get model info
     info <- sdm::getModelInfo(model)
     
     #Define extents to cut fullstack into 4 latitudinal blocks to make predictions more efficient
     nblocks <- 4
-    e <- terra::ext(fullstack)
-    ybreaks <- seq(e$ymin, e$ymax, length.out = nblocks + 1)
-    exts <- lapply(1:nblocks, function(i) ext(e$xmin, e$xmax, ybreaks[i], ybreaks[i+1]))
+    exts <- make_row_extents(fullstack[[1]], nblocks = nblocks)
     pred_blocks <- vector("list", nblocks)
     
     #Create empty list to store models in
@@ -619,30 +621,30 @@ with_progress({
     }
     
     # Step 4: Select top 5 models with highest variance on PC1
-    top5_models <- names(sort(model_variances, decreasing = TRUE))[1:5]
-    cat("Top 5 models by variance along PC1:\n", paste(top5_models, collapse = ", "), "\n")
+    top4_models <- names(sort(model_variances, decreasing = TRUE))[1:ceiling(length(methods) / 2)]
+    cat("Top 4 models by variance along PC1:\n", paste(top4_models, collapse = ", "), "\n")
     
     # Get model IDs
-    top_ids <- info$modelID[info$method %in% top5_models]
+    top_ids <- info$modelID[info$method %in% top4_models]
     
     # Subset using those IDs
-    top5models <- model[[top_ids]]  
+    top4models <- model[[top_ids]]  
     
     #Clean up
     gc()
     
     #--------Create ensemble predictions using those 5 models------
     # Step 5: Subset fav_stack to top 5 layers
-    top5_stack <- subset(fav_stack, top5_models)
+    top4_stack <- subset(fav_stack, top4_models)
     
     # Step 6: Compute pixel-wise median = consensus model
-    consensus_habitat <- app(top5_stack, median)
+    consensus_habitat <- app(top4_stack, median)
     
     # Step 7: Compute pixel-wise mean
-    consensus_habitat_mean <- mean(top5_stack, na.rm=TRUE)
+    consensus_habitat_mean <- mean(top4_stack, na.rm=TRUE)
     
     # Step 8: Compute pixel-wise population standard deviation
-    consensus_habitat_sd <- stdev(top5_stack, pop=TRUE)
+    consensus_habitat_sd <- stdev(top4_stack, pop=TRUE)
     
     # Step 9: Crop to extent of country if relevant
     if(tolower(country_of_interest)!="europe"||!is.null(custom_country_boundary_path)){
@@ -732,7 +734,7 @@ with_progress({
     
     # Predict for top 5 models
     pred_vals <- list()
-    for (method in top5_models) {
+    for (method in top4_models) {
       pred_vals[[method]] <- predict(model, newdata = predictors_only, method = tolower(method))
     }
     
@@ -798,7 +800,7 @@ with_progress({
     response_list<-list()
     varimp_list<-list()
     
-    for(topmethod in top5_models){
+    for(topmethod in top4_models){
       # Get model id
       id <- info$modelID[info$method == topmethod]
       
@@ -1194,12 +1196,12 @@ with_progress({
                          response_df = response_df,
                          varimp_df = varimp_df,
                          selected_predictors = names(fullstack),
-                         top5models = top5models, #model object holding selected models
-                         top5_models = top5_models
+                         top4models = top4models, #model object holding selected models
+                         top4_models = top4_models
     )
     
     #Save eumodel as .qs file
-    qs::qsave(habitatmodel, 
+    qs2::qs_save(habitatmodel, 
               file.path(base_dir,"Habitat", paste0("Habitat_model_",speciesName,"_",taxonkey,".qs"))) 
     
     

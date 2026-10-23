@@ -1,7 +1,7 @@
 #--------------------------------------------
 #-------------- Load packages ---------------
 #--------------------------------------------
-packages <- c( "dplyr", "stringr", "here", "qs","CoordinateCleaner", "raster", "rnaturalearth", "rnaturalearthdata", "ggplot2","tidyterra", "dismo", "sdm", "caret", "viridisLite", "kableExtra","future", "future.apply","randomForest","earth", "progressr", "sf", "gbm", "PresenceAbsence","geosphere","arm", "RStoolbox", "ecospat", "viridis", "patchwork", "grid", "purrr", "magick", "terra")
+packages <- c( "dplyr", "stringr", "here", "qs2","CoordinateCleaner", "raster", "rnaturalearth", "rnaturalearthdata", "ggplot2","tidyterra", "dismo", "sdm", "caret", "viridisLite", "kableExtra","future", "future.apply","randomForest","earth", "progressr", "sf", "gbm", "PresenceAbsence","geosphere","arm", "RStoolbox", "ecospat", "viridis", "patchwork", "grid", "purrr", "magick", "terra")
 
 for(package in packages) {
   print(package)
@@ -30,7 +30,7 @@ source(file.path("src", "00_configurations.R"))
 #--------------------------------------------
 #--- Load global occurrences and taxa info---
 #--------------------------------------------
-global<-qs::qread(file.path("data", "projects",project,paste0(project,"_processed_occurrences.qs")))
+global<-qs2::qs_read(file.path("data", "projects",project,paste0(project,"_processed_occurrences.qs")))
 cleaned<-global$cleaned
 cleaned_1km<-global$cleaned_1km
 taxa_info<-read.csv2(paste0("./data/projects/",project,"/",project,"_taxa_info.csv"))
@@ -336,7 +336,7 @@ with_progress({
     # geom_point(data=global.occ.sf, aes(x=decimalLongitude, y= decimalLatitude),  fill="green", shape = 22, colour = "black", size=3)+
     # labs(x="Longitude", y="Latitude")+
     # theme_bw()
-    
+
     
     #--------------------------------------------
     #- Select ecoregions containing occurrences -
@@ -577,14 +577,10 @@ with_progress({
     #--------------------------------------------
     #--- Run multiple machine learning models ---
     #--------------------------------------------
-    #Define prevalence ratio
-    n1 <- nrow(global.occ.sf)  # presences
-    n0 <- sum(global_presabs$species == 0) # pseudoabsences 
-    prev_ratio <- n1 / n0
     
     #define methods and data
     sdm_data <- sdm::sdmData(species~.,train=vect(global_presabs),predictors=globalclimpreds_terra_selection) 
-    methods <- c("glm", "gam", "bioclim", "brt", "rf", "glmpoly", "mars", "maxent", "fda", "cart") 
+    methods <- c("glm", "gam", "brt", "rf", "glmpoly", "mars", "fda") 
     
     #run model
     model <- sdm(
@@ -592,6 +588,13 @@ with_progress({
       methods = methods  # 10 models
     )
     print(model)
+    
+    #Define prevalence ratio
+    train_df   <- as.data.frame(sdm_data)
+    n1         <- sum(train_df$species == 1) #Presences
+    n0         <- sum(train_df$species == 0) #Pseudoabsences
+    prev_ratio <- n1 / n0
+    rm(train_df)
     
     
     #-------------------------------------------------------------------
@@ -602,9 +605,7 @@ with_progress({
     
     # Define extent to cut eu_climpreds.10_selection in 4 latitudinal blocks to make predictions more efficient
     nblocks <- 4
-    e <- terra::ext(eu_climpreds.10_selection)
-    ybreaks <- seq(e$ymin, e$ymax, length.out = nblocks + 1)
-    exts <- lapply(1:nblocks, function(i) ext(e$xmin, e$xmax, ybreaks[i], ybreaks[i+1]))
+    exts <- make_row_extents(eu_climpreds.10_selection[[1]], nblocks = nblocks)
     pred_blocks <- vector("list", nblocks)
     
     #Create empty list to store models in
@@ -689,31 +690,31 @@ with_progress({
       model_variances[lyr] <- var(projection, na.rm = TRUE)
     }
     
-    # Step 4: Select top 5 models with highest variance on PC1
-    top5_models <- names(sort(model_variances, decreasing = TRUE))[1:5]
-    cat("Top 5 models by variance along PC1:\n", top5_models)
+    # Step 4: Select top 4 models with highest variance on PC1
+    top4_models <- names(sort(model_variances, decreasing = TRUE))[1:ceiling(length(methods) / 2)]
+    cat("Top 4 models by variance along PC1:\n", top4_models)
     
     # Get model IDs
-    top_ids <- info$modelID[info$method %in% top5_models]
+    top_ids <- info$modelID[info$method %in% top4_models]
     
     # Subset using those IDs
-    top5models <- model[[top_ids]]  
+    top4models <- model[[top_ids]]  
     
     #Clean up
     rm(fav_matrix)
     gc()
     
     # Step 5: Subset fav_stack to top 5 layers
-    top5_stack <- subset(fav_stack, top5_models)
+    top4_stack <- subset(fav_stack, top4_models)
     
     # Step 6: Compute pixel-wise median = consensus model
-    consensus_median <- app(top5_stack, median)
+    consensus_median <- app(top4_stack, median)
     
     # Step 7: Compute pixel-wise mean for SD calculation
-    consensus_mean <- mean(top5_stack, na.rm=TRUE)
+    consensus_mean <- mean(top4_stack, na.rm=TRUE)
     
     # Step 8: Compute pixel-wise population SD
-    consensus_sd <- stdev(top5_stack, pop=TRUE)
+    consensus_sd <- stdev(top4_stack, pop=TRUE)
     
     #Step 9: Create country_level layers if relevant
     if(tolower(country_of_interest)!="europe"||!is.null(custom_country_boundary_path)){
@@ -792,7 +793,7 @@ with_progress({
     
     # Predict for top 5 models
     pred_vals <- list()
-    for (method in top5_models) {
+    for (method in top4_models) {
       pred_vals[[method]] <- predict(model, newdata = predictors_only, method = tolower(method))
     }
     
@@ -876,15 +877,13 @@ with_progress({
         
         #Define extents to cut future climate rasters into 4 latitudinal blocks
         nblocks <- 4
-        e <- terra::ext(future_selection)
-        ybreaks <- seq(e$ymin, e$ymax, length.out = nblocks + 1)
-        exts <- lapply(1:nblocks, function(i) ext(e$xmin, e$xmax, ybreaks[i], ybreaks[i+1]))
+        exts <- make_row_extents(future_selection[[1]], nblocks = nblocks)
         pred_blocks <- vector("list", nblocks)
         
         # Project each of the top 5 models
         future_modeloutput <- list()
         
-        for(modelmethod in top5_models){
+        for(modelmethod in top4_models){
           
           pred_raster_future  <- try({
             
@@ -1025,7 +1024,7 @@ with_progress({
     response_list<-list()
     varimp_list<-list()
     
-    for(topmethod in top5_models){
+    for(topmethod in top4_models){
       # Get model id
       id <- info$modelID[info$method == topmethod]
       
@@ -1101,14 +1100,14 @@ with_progress({
                         climate_thresholds = climate_thresholds,
                         sdm_model = model,
                         pca_result = pca_result,
-                        top5_models = top5_models,
+                        top4_models = top4_models,
                         response_df = response_df,
                         varimp_df = varimp_df,
-                        top5models = top5models,
+                        top4models = top4models,
                         selected_predictors = names(globalclimpreds_terra_selection),
                         future_consensus_median = future_consensus_median)
     
-    qs::qsave(climatemodel, file.path(base_dir, "Climate", paste0("Climate_model_",speciesName,"_",taxonkey,".qs")))
+    qs2::qs_save(climatemodel, file.path(base_dir, "Climate", paste0("Climate_model_",speciesName,"_",taxonkey,".qs")))
     
     
     #--------------------------------------------

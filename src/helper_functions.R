@@ -90,9 +90,7 @@ add.occ<-function(x,y){
 favourability_from_prob <- function(prob_raster, prev_ratio) {
   odds <- prob_raster / (1 - prob_raster)
   fav <- odds / (prev_ratio + odds)
-  fav[is.infinite(fav)] <- NA
-  fav[fav < 0] <- 0
-  fav[fav > 1] <- 1
+  fav[prob_raster == 1] <- 1
   return(fav)
 }
 
@@ -301,6 +299,48 @@ create_folder <- function(path, name) {
     dir.create(path, recursive = TRUE)
     message(paste0("Folder '", name, "' created at path: '", path, "' 🎉"))
   }
+}
+
+
+#-----------------------------------------------------------------------------------
+#-------------------------Cut rasters in blocks of rows-----------------------------
+#-----------------------------------------------------------------------------------
+# custom function for row cutting of rasters
+# with possibility to add a little overlapping row if wanted/needed
+#Includes an update to distribute rows as evenly as possible to ensure you end up with the number of blocks you want
+make_row_extents <- function(r, nblocks, overlap_rows = 0) {
+  stopifnot(inherits(r, "SpatRaster"))
+  nr <- terra::nrow(r)
+  resy <- terra::res(r)[2]
+  xmn <- terra::xmin(r)
+  xmx <- terra::xmax(r)
+  ymn <- terra::ymin(r)
+  ymx <- terra::ymax(r)
+  
+  # Distribute rows as evenly as possible across blocks
+  breaks <- floor(seq(0, nr, length.out = nblocks + 1))
+  
+  exts <- vector("list", nblocks)
+  
+  for (block in seq_len(nblocks)) {
+    r1 <- breaks[block] + 1
+    r2 <- breaks[block + 1]
+    
+    # Add overlap and clamp to valid row range
+    r1 <- max(1, r1 - overlap_rows)
+    r2 <- min(nr, r2 + overlap_rows)
+    
+    # Centers of first/last rows
+    y_center_top <- terra::yFromRow(r, r1)
+    y_center_bottom <- terra::yFromRow(r, r2)
+    
+    # Convert centers to cell edges
+    y_top <- min(ymx, y_center_top + resy / 2)
+    y_bottom <- max(ymn, y_center_bottom - resy / 2)
+    
+    exts[[block]] <- terra::ext(xmn, xmx, y_bottom, y_top)
+  }
+  exts
 }
 
 
