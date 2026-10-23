@@ -605,9 +605,7 @@ with_progress({
     
     # Define extent to cut eu_climpreds.10_selection in 4 latitudinal blocks to make predictions more efficient
     nblocks <- 4
-    e <- terra::ext(eu_climpreds.10_selection)
-    ybreaks <- seq(e$ymin, e$ymax, length.out = nblocks + 1)
-    exts <- lapply(1:nblocks, function(i) ext(e$xmin, e$xmax, ybreaks[i], ybreaks[i+1]))
+    exts <- make_row_extents(eu_climpreds.10_selection[[1]], nblocks = nblocks)
     pred_blocks <- vector("list", nblocks)
     
     #Create empty list to store models in
@@ -879,9 +877,7 @@ with_progress({
         
         #Define extents to cut future climate rasters into 4 latitudinal blocks
         nblocks <- 4
-        e <- terra::ext(future_selection)
-        ybreaks <- seq(e$ymin, e$ymax, length.out = nblocks + 1)
-        exts <- lapply(1:nblocks, function(i) ext(e$xmin, e$xmax, ybreaks[i], ybreaks[i+1]))
+        exts <- make_row_extents(future_selection[[1]], nblocks = nblocks)
         pred_blocks <- vector("list", nblocks)
         
         # Project each of the top 5 models

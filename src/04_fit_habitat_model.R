@@ -518,9 +518,7 @@ with_progress({
     
     #Define extents to cut fullstack into 4 latitudinal blocks to make predictions more efficient
     nblocks <- 4
-    e <- terra::ext(fullstack)
-    ybreaks <- seq(e$ymin, e$ymax, length.out = nblocks + 1)
-    exts <- lapply(1:nblocks, function(i) ext(e$xmin, e$xmax, ybreaks[i], ybreaks[i+1]))
+    exts <- make_row_extents(fullstack[[1]], nblocks = nblocks)
     pred_blocks <- vector("list", nblocks)
     
     #Create empty list to store models in
