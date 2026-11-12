@@ -490,7 +490,7 @@ with_progress({
     
     #Define SDM data and methods
     sdm_data <- sdm::sdmData(species~.,train=vect(eu_presabs), predictors= fullstack ) 
-    methods <- c("glm", "gam", "brt", "rf", "glmpoly", "mars", "fda")
+    methods <- c("glm", "gam", "brt", "rf", "mda", "mars") 
     
     #run model
     set.seed(2025)
@@ -602,7 +602,7 @@ with_progress({
     pca_result <- rasterPCA(fav_stack, nSamples = 100000, spca = FALSE, maskCheck = TRUE)
     
     
-    #-----------------GET TOP 5 variance models----------------
+    #-----------------GET top 3 variance models----------------
     # Step 1: Extract PC1 loadings from princomp object
     loadings <- pca_result$model$loadings[, 1]  # Comp.1 = PC1
     names(loadings) <- rownames(pca_result$model$loadings)
@@ -620,31 +620,31 @@ with_progress({
       model_variances[lyr] <- var(projection, na.rm = TRUE)
     }
     
-    # Step 4: Select top 5 models with highest variance on PC1
-    top4_models <- names(sort(model_variances, decreasing = TRUE))[1:ceiling(length(methods) / 2)]
-    cat("Top 4 models by variance along PC1:\n", paste(top4_models, collapse = ", "), "\n")
+    # Step 4: Select top 3 models with highest variance on PC1
+    top3_models <- names(sort(model_variances, decreasing = TRUE))[1:ceiling(length(methods) / 2)]
+    cat("top 3 models by variance along PC1:\n", paste(top3_models, collapse = ", "), "\n")
     
     # Get model IDs
-    top_ids <- info$modelID[info$method %in% top4_models]
+    top_ids <- info$modelID[info$method %in% top3_models]
     
     # Subset using those IDs
-    top4models <- model[[top_ids]]  
+    top3models <- model[[top_ids]]  
     
     #Clean up
     gc()
     
     #--------Create ensemble predictions using those 5 models------
-    # Step 5: Subset fav_stack to top 5 layers
-    top4_stack <- subset(fav_stack, top4_models)
+    # Step 5: Subset fav_stack to top 3 layers
+    top3_stack <- subset(fav_stack, top3_models)
     
     # Step 6: Compute pixel-wise median = consensus model
-    consensus_habitat <- app(top4_stack, median)
+    consensus_habitat <- app(top3_stack, median)
     
     # Step 7: Compute pixel-wise mean
-    consensus_habitat_mean <- mean(top4_stack, na.rm=TRUE)
+    consensus_habitat_mean <- mean(top3_stack, na.rm=TRUE)
     
     # Step 8: Compute pixel-wise population standard deviation
-    consensus_habitat_sd <- stdev(top4_stack, pop=TRUE)
+    consensus_habitat_sd <- stdev(top3_stack, pop=TRUE)
     
     # Step 9: Crop to extent of country if relevant
     if(tolower(country_of_interest)!="europe"||!is.null(custom_country_boundary_path)){
@@ -732,9 +732,9 @@ with_progress({
       dplyr::filter(occ=="present")%>%
       dplyr::select(-occ)
     
-    # Predict for top 5 models
+    # Predict for top 3 models
     pred_vals <- list()
-    for (method in top4_models) {
+    for (method in top3_models) {
       pred_vals[[method]] <- predict(model, newdata = predictors_only, method = tolower(method))
     }
     
@@ -800,7 +800,7 @@ with_progress({
     response_list<-list()
     varimp_list<-list()
     
-    for(topmethod in top4_models){
+    for(topmethod in top3_models){
       # Get model id
       id <- info$modelID[info$method == topmethod]
       
@@ -1196,8 +1196,8 @@ with_progress({
                          response_df = response_df,
                          varimp_df = varimp_df,
                          selected_predictors = names(fullstack),
-                         top4models = top4models, #model object holding selected models
-                         top4_models = top4_models
+                         top3models = top3models, #model object holding selected models
+                         top3_models = top3_models
     )
     
     #Save eumodel as .qs file

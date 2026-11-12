@@ -580,9 +580,10 @@ with_progress({
     
     #define methods and data
     sdm_data <- sdm::sdmData(species~.,train=vect(global_presabs),predictors=globalclimpreds_terra_selection) 
-    methods <- c("glm", "gam", "brt", "rf", "glmpoly", "mars", "fda") 
+    methods <- c("glm", "gam", "brt", "rf", "mda", "mars") 
     
     #run model
+    set.seed(2025)
     model <- sdm(
       species ~ ., data = sdm_data,
       methods = methods  # 10 models
@@ -690,31 +691,31 @@ with_progress({
       model_variances[lyr] <- var(projection, na.rm = TRUE)
     }
     
-    # Step 4: Select top 4 models with highest variance on PC1
-    top4_models <- names(sort(model_variances, decreasing = TRUE))[1:ceiling(length(methods) / 2)]
-    cat("Top 4 models by variance along PC1:\n", top4_models)
+    # Step 4: Select top 3 models with highest variance on PC1
+    top3_models <- names(sort(model_variances, decreasing = TRUE))[1:ceiling(length(methods) / 2)]
+    cat("top 3 models by variance along PC1:\n", top3_models)
     
     # Get model IDs
-    top_ids <- info$modelID[info$method %in% top4_models]
+    top_ids <- info$modelID[info$method %in% top3_models]
     
     # Subset using those IDs
-    top4models <- model[[top_ids]]  
+    top3models <- model[[top_ids]]  
     
     #Clean up
     rm(fav_matrix)
     gc()
     
-    # Step 5: Subset fav_stack to top 5 layers
-    top4_stack <- subset(fav_stack, top4_models)
+    # Step 5: Subset fav_stack to top 3 layers
+    top3_stack <- subset(fav_stack, top3_models)
     
     # Step 6: Compute pixel-wise median = consensus model
-    consensus_median <- app(top4_stack, median)
+    consensus_median <- app(top3_stack, median)
     
     # Step 7: Compute pixel-wise mean for SD calculation
-    consensus_mean <- mean(top4_stack, na.rm=TRUE)
+    consensus_mean <- mean(top3_stack, na.rm=TRUE)
     
     # Step 8: Compute pixel-wise population SD
-    consensus_sd <- stdev(top4_stack, pop=TRUE)
+    consensus_sd <- stdev(top3_stack, pop=TRUE)
     
     #Step 9: Create country_level layers if relevant
     if(tolower(country_of_interest)!="europe"||!is.null(custom_country_boundary_path)){
@@ -791,9 +792,9 @@ with_progress({
       dplyr::filter(species=="present")%>%
       dplyr::select(-species)
     
-    # Predict for top 5 models
+    # Predict for top 3 models
     pred_vals <- list()
-    for (method in top4_models) {
+    for (method in top3_models) {
       pred_vals[[method]] <- predict(model, newdata = predictors_only, method = tolower(method))
     }
     
@@ -880,10 +881,10 @@ with_progress({
         exts <- make_row_extents(future_selection[[1]], nblocks = nblocks)
         pred_blocks <- vector("list", nblocks)
         
-        # Project each of the top 5 models
+        # Project each of the top 3 models
         future_modeloutput <- list()
         
-        for(modelmethod in top4_models){
+        for(modelmethod in top3_models){
           
           pred_raster_future  <- try({
             
@@ -1024,7 +1025,7 @@ with_progress({
     response_list<-list()
     varimp_list<-list()
     
-    for(topmethod in top4_models){
+    for(topmethod in top3_models){
       # Get model id
       id <- info$modelID[info$method == topmethod]
       
@@ -1100,10 +1101,10 @@ with_progress({
                         climate_thresholds = climate_thresholds,
                         sdm_model = model,
                         pca_result = pca_result,
-                        top4_models = top4_models,
+                        top3_models = top3_models,
                         response_df = response_df,
                         varimp_df = varimp_df,
-                        top4models = top4models,
+                        top3models = top3models,
                         selected_predictors = names(globalclimpreds_terra_selection),
                         future_consensus_median = future_consensus_median)
     
