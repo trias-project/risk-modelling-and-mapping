@@ -1,7 +1,7 @@
 #--------------------------------------------
 #-----------  Load packages  ----------------
 #--------------------------------------------
-packages <- c("curl", "zen4R", "here", "sf", "terra", "rnaturalearth", "devtools")
+packages <- c("curl", "zen4R", "here", "sf", "terra", "rnaturalearth", "devtools", "dplyr")
 
 for(package in packages) {
   print(package)
