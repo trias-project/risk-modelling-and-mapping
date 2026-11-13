@@ -473,7 +473,13 @@ habitat_files <- list.files(file.path("./data/external/habitat"), pattern = 'tif
 habitat_rasters <- lapply(habitat_files, terra::rast)
 
 # compute common intersection extent across all rasters
-common_ext <- Reduce(intersect, lapply(habitat_rasters, ext))
+ext_list <- lapply(habitat_rasters, terra::ext)
+ext_matrix <- do.call(rbind, lapply(ext_list, as.vector))
+common_ext <- terra::ext(
+  max(ext_matrix[, 1]),  # xmin: largest xmin
+  min(ext_matrix[, 2]),  # xmax: smallest xmax
+  max(ext_matrix[, 3]),  # ymin: largest ymin
+  min(ext_matrix[, 4]))   # ymax: smallest ymax
 
 # Crop all rasters to the common (smallest) extent
 habitat_rasters <- lapply(habitat_rasters, terra::crop, common_ext)
